@@ -1,0 +1,209 @@
+import "server-only"
+
+import { publishRequest } from "@/lib/webhook-events"
+import { saveCapturedRequest } from "@/lib/webhook-store"
+import type { CapturedRequest } from "@/lib/webhook-types"
+
+const MAX_BODY_BYTES = 1024 * 1024
+
+class BodyTooLargeError extends Error {
+  constructor() {
+    super("Request body is too large.")
+    this.name = "BodyTooLargeError"
+  }
+}
+
+type CapturedBody = {
+  text: string
+  base64: string
+  size: number
+}
+
+type CapturedRequestInput = Omit<CapturedRequest, "id" | "receivedAt">
+
+type InboundCaptureDeps = {
+  publishRequest: (request: CapturedRequest) => void
+  saveCapturedRequest: (input: CapturedRequestInput) => CapturedRequest
+}
+
+export type InboundCaptureOutcome =
+  | {
+      kind: "captured"
+      id: string
+      token: string
+    }
+  | {
+      kind: "body-too-large"
+      maxBodyBytes: number
+    }
+
+export function createInboundCapture({
+  publishRequest,
+  saveCapturedRequest,
+}: InboundCaptureDeps) {
+  return async function captureInboundRequest({
+    request,
+    token,
+  }: {
+    request: Request
+    token: string
+  }): Promise<InboundCaptureOutcome> {
+    const requestUrl = new URL(request.url)
+    const requestPath = readCapturedPath(requestUrl, token)
+    const requestTarget = `${requestPath}${requestUrl.search}`
+    let body: CapturedBody
+
+    try {
+      body = await readBody(request)
+    } catch (error) {
+      if (error instanceof BodyTooLargeError) {
+        return {
+          kind: "body-too-large",
+          maxBodyBytes: MAX_BODY_BYTES,
+        }
+      }
+
+      throw error
+    }
+
+    const capturedRequest = saveCapturedRequest({
+      token,
+      method: request.method,
+      url: requestTarget,
+      path: requestPath,
+      query: readQuery(requestUrl),
+      headers: Object.fromEntries(request.headers.entries()),
+      bodyText: body.text,
+      bodyBase64: body.base64,
+      bodySize: body.size,
+      contentType: request.headers.get("content-type"),
+      ip: readIp(request),
+    })
+
+    publishRequest(capturedRequest)
+
+    return {
+      kind: "captured",
+      id: capturedRequest.id,
+      token,
+    }
+  }
+}
+
+export const captureInboundRequest = createInboundCapture({
+  publishRequest,
+  saveCapturedRequest,
+})
+
+async function readBody(request: Request): Promise<CapturedBody> {
+  if (request.method === "GET" || request.method === "HEAD") {
+    return {
+      text: "",
+      base64: "",
+      size: 0,
+    }
+  }
+
+  const contentLength = request.headers.get("content-length")
+  const contentLengthBytes = contentLength ? Number(contentLength) : 0
+
+  if (
+    Number.isFinite(contentLengthBytes) &&
+    contentLengthBytes > MAX_BODY_BYTES
+  ) {
+    throw new BodyTooLargeError()
+  }
+
+  if (!request.body) {
+    return {
+      text: "",
+      base64: "",
+      size: 0,
+    }
+  }
+
+  const reader = request.body.getReader()
+  const chunks: Uint8Array[] = []
+  let size = 0
+
+  while (true) {
+    const { done, value } = await reader.read()
+
+    if (done) {
+      break
+    }
+
+    size += value.byteLength
+
+    if (size > MAX_BODY_BYTES) {
+      await reader.cancel()
+      throw new BodyTooLargeError()
+    }
+
+    chunks.push(value)
+  }
+
+  const buffer = Buffer.concat(
+    chunks.map((chunk) => Buffer.from(chunk)),
+    size
+  )
+  const contentType = request.headers.get("content-type")
+
+  return {
+    text: isTextBody(contentType) ? buffer.toString("utf8") : "",
+    base64: buffer.toString("base64"),
+    size: buffer.length,
+  }
+}
+
+function isTextBody(contentType: string | null) {
+  if (!contentType) {
+    return true
+  }
+
+  const normalized = contentType.toLowerCase()
+
+  return (
+    normalized.startsWith("text/") ||
+    normalized.includes("json") ||
+    normalized.includes("xml") ||
+    normalized.includes("html") ||
+    normalized.includes("javascript") ||
+    normalized.includes("x-www-form-urlencoded") ||
+    normalized.includes("yaml")
+  )
+}
+
+function readQuery(url: URL) {
+  const query: Record<string, string[]> = {}
+
+  url.searchParams.forEach((value, key) => {
+    query[key] = [...(query[key] ?? []), value]
+  })
+
+  return query
+}
+
+function readCapturedPath(url: URL, token: string) {
+  const inboxPath = `/api/hook/${token}`
+
+  if (url.pathname === inboxPath) {
+    return "/"
+  }
+
+  if (url.pathname.startsWith(`${inboxPath}/`)) {
+    return url.pathname.slice(inboxPath.length)
+  }
+
+  return "/"
+}
+
+function readIp(request: Request) {
+  const forwardedFor = request.headers.get("x-forwarded-for")
+
+  if (forwardedFor) {
+    return forwardedFor.split(",")[0]?.trim() ?? null
+  }
+
+  return request.headers.get("x-real-ip")
+}
