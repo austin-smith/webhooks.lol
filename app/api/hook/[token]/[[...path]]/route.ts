@@ -36,11 +36,25 @@ async function capture(
   )
 }
 
-export function OPTIONS() {
+export function OPTIONS(
+  request: Request,
+  context: RouteContext<"/api/hook/[token]/[[...path]]">
+) {
+  if (!isCorsPreflightRequest(request)) {
+    return capture(request, context)
+  }
+
   return new Response(null, {
     headers: CORS_NO_STORE_HEADERS,
     status: 204,
   })
+}
+
+function isCorsPreflightRequest(request: Request) {
+  return (
+    request.headers.has("origin") &&
+    request.headers.has("access-control-request-method")
+  )
 }
 
 export {

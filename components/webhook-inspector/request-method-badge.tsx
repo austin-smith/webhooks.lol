@@ -2,8 +2,6 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 
 const methodClassNames: Partial<Record<string, string>> = {
-  CONNECT:
-    "border-slate-500/20 bg-slate-500/10 text-slate-700 dark:border-slate-400/25 dark:bg-slate-400/10 dark:text-slate-300",
   DELETE:
     "border-rose-500/20 bg-rose-500/10 text-rose-700 dark:border-rose-400/25 dark:bg-rose-400/10 dark:text-rose-300",
   GET: "border-sky-500/20 bg-sky-500/10 text-sky-700 dark:border-sky-400/25 dark:bg-sky-400/10 dark:text-sky-300",
@@ -15,8 +13,6 @@ const methodClassNames: Partial<Record<string, string>> = {
   POST:
     "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-300",
   PUT: "border-amber-500/20 bg-amber-500/10 text-amber-800 dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-300",
-  TRACE:
-    "border-fuchsia-500/20 bg-fuchsia-500/10 text-fuchsia-700 dark:border-fuchsia-400/25 dark:bg-fuchsia-400/10 dark:text-fuchsia-300",
 }
 
 export function RequestMethodBadge({
