@@ -1,7 +1,6 @@
 import * as React from "react"
 import { BracesIcon, CheckIcon, CopyIcon, WrapTextIcon } from "lucide-react"
 
-import { Badge } from "@/components/ui/badge"
 import {
   Empty,
   EmptyDescription,
@@ -16,13 +15,13 @@ import { cn } from "@/lib/utils"
 
 import { InspectorIconButton } from "./inspector-icon-button"
 import { CodePanel, KeyValueTable } from "./request-data-panels"
+import { RequestMethodBadge } from "./request-method-badge"
 import {
   formatBytes,
   formatRawRequest,
   formatRequestBodyDisplay,
   formatRequestDateTime,
   formatRequestListPath,
-  getMethodBadgeVariant,
 } from "./request-formatters"
 
 const BODY_WRAP_STORAGE_KEY = "webhooks.lol:body-wrap"
@@ -87,12 +86,7 @@ function RequestSummaryHeader({ request }: { request: CapturedRequest }) {
     <header className="grid h-16 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b bg-muted/20 px-4">
       <div className="min-w-0">
         <div className="flex min-w-0 items-center gap-2 text-sm font-medium">
-          <Badge
-            variant={getMethodBadgeVariant(request.method)}
-            className="rounded-sm px-1.5 font-semibold"
-          >
-            {request.method}
-          </Badge>
+          <RequestMethodBadge method={request.method} />
           <span className="min-w-0 truncate text-xs text-foreground">
             {path}
           </span>

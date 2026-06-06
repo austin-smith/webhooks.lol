@@ -1,7 +1,6 @@
 import * as React from "react"
 import { InboxIcon, RefreshCwIcon, Trash2Icon } from "lucide-react"
 
-import { Badge } from "@/components/ui/badge"
 import {
   Empty,
   EmptyDescription,
@@ -19,11 +18,8 @@ import { cn } from "@/lib/utils"
 const LOADING_INDICATOR_DELAY_MS = 150
 
 import { InspectorIconButton } from "./inspector-icon-button"
-import {
-  formatRequestListPath,
-  formatRequestTime,
-  getMethodBadgeVariant,
-} from "./request-formatters"
+import { RequestMethodBadge } from "./request-method-badge"
+import { formatRequestListPath, formatRequestTime } from "./request-formatters"
 
 type InboxPanelProps = {
   canRefresh: boolean
@@ -141,12 +137,7 @@ function RequestListItem({
         selected && "border-foreground/35 bg-muted/35"
       )}
     >
-      <Badge
-        variant={getMethodBadgeVariant(request.method)}
-        className="rounded-sm px-1.5 font-semibold"
-      >
-        {request.method}
-      </Badge>
+      <RequestMethodBadge method={request.method} />
       <span className="min-w-0">
         <span className="block truncate text-xs font-medium text-foreground">
           {path}

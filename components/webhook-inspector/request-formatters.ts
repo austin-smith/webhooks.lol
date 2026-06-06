@@ -2,7 +2,6 @@ import type { CapturedRequest } from "@/lib/webhooks/types"
 
 import type { ConnectionState } from "./types"
 
-export type MethodBadgeVariant = "default" | "secondary" | "outline"
 export type RequestBodyLanguage =
   | "css"
   | "html"
@@ -112,18 +111,6 @@ function getRequestTarget(request: CapturedRequest) {
   }
 
   return url
-}
-
-export function getMethodBadgeVariant(method: string): MethodBadgeVariant {
-  if (method === "POST" || method === "PUT" || method === "PATCH") {
-    return "default"
-  }
-
-  if (method === "GET") {
-    return "secondary"
-  }
-
-  return "outline"
 }
 
 export function formatConnectionState(state: ConnectionState) {

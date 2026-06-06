@@ -1,8 +1,8 @@
 import type React from "react"
 
 import { AuthStatus } from "@/components/auth/auth-status"
-import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { RequestMethodBadge } from "@/components/webhook-inspector/request-method-badge"
 import { getAdminDashboardData } from "@/lib/admin/dashboard"
 import {
   AuthenticationRequiredError,
@@ -99,9 +99,7 @@ function AdminDashboard({ dashboard, session }: AdminDashboardProps) {
                       {formatDateTime(request.receivedAt)}
                     </td>
                     <td className="py-2 pr-3">
-                      <Badge variant="outline" className="rounded-sm font-mono">
-                        {request.method}
-                      </Badge>
+                      <RequestMethodBadge method={request.method} />
                     </td>
                     <td className="max-w-36 truncate py-2 pr-3">
                       {request.token}
