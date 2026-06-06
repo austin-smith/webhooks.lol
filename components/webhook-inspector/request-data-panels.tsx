@@ -1,3 +1,7 @@
+"use client"
+
+import * as React from "react"
+
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   Table,
@@ -7,14 +11,67 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { cn } from "@/lib/utils"
 
-export function CodePanel({ value }: { value: string }) {
+import { highlightRequestBody } from "./request-body-highlighting"
+import type { RequestBodyLanguage } from "./request-formatters"
+
+export function CodePanel({
+  language = "text",
+  value,
+  wrap = false,
+}: {
+  language?: RequestBodyLanguage
+  value: string
+  wrap?: boolean
+}) {
+  const highlightKey = `${language}\u0000${value}`
+  const [highlightResult, setHighlightResult] = React.useState({
+    html: "",
+    key: "",
+  })
+
+  React.useEffect(() => {
+    let ignore = false
+
+    void highlightRequestBody({ language, value })
+      .then((html) => {
+        if (!ignore) {
+          setHighlightResult({ html, key: highlightKey })
+        }
+      })
+      .catch(() => {
+        if (!ignore) {
+          setHighlightResult({ html: "", key: highlightKey })
+        }
+      })
+
+    return () => {
+      ignore = true
+    }
+  }, [highlightKey, language, value])
+
+  const highlightedHtml =
+    highlightResult.key === highlightKey ? highlightResult.html : ""
+
   return (
-    <ScrollArea className="h-[420px] rounded-md border bg-background sm:h-full">
-      <pre className="min-w-0 overflow-x-auto p-4 text-xs leading-relaxed whitespace-pre-wrap">
-        {value}
-      </pre>
-    </ScrollArea>
+    <div className="h-[420px] overflow-auto rounded-md border bg-background sm:h-full">
+      {highlightedHtml ? (
+        <div
+          className={cn("request-code-panel", wrap && "wrap")}
+          dangerouslySetInnerHTML={{ __html: highlightedHtml }}
+        />
+      ) : (
+        <pre
+          className={cn(
+            "min-w-0 overflow-x-auto p-4 text-xs leading-relaxed",
+            wrap ? "whitespace-pre-wrap break-words" : "whitespace-pre"
+          )}
+        >
+          {value}
+        </pre>
+      )}
+    </div>
   )
 }
 

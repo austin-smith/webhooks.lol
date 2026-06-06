@@ -1,4 +1,5 @@
-import { BracesIcon } from "lucide-react"
+import * as React from "react"
+import { BracesIcon, WrapTextIcon } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import {
@@ -13,14 +14,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { CapturedRequest } from "@/lib/webhooks/types"
 import { cn } from "@/lib/utils"
 
+import { InspectorIconButton } from "./inspector-icon-button"
 import { CodePanel, KeyValueTable } from "./request-data-panels"
 import {
   formatRawRequest,
-  formatRequestBody,
+  formatRequestBodyDisplay,
   formatRequestDateTime,
   formatRequestDetailPath,
   getMethodBadgeVariant,
 } from "./request-formatters"
+
+const BODY_WRAP_STORAGE_KEY = "webhooks.lol:body-wrap"
 
 export function RequestDetail({
   request,
@@ -139,30 +143,69 @@ function RequestMetric({
 }
 
 function RequestPayloadTabs({ request }: { request: CapturedRequest }) {
-  const formattedBody = formatRequestBody(request)
+  const body = formatRequestBodyDisplay(request)
   const rawRequest = formatRawRequest(request)
+  const [activeTab, setActiveTab] = React.useState("body")
+  const [wrapBody, setWrapBody] = React.useState(readStoredBodyWrap)
+
+  const toggleWrapBody = React.useCallback(() => {
+    setWrapBody((current) => {
+      const next = !current
+
+      try {
+        window.localStorage.setItem(BODY_WRAP_STORAGE_KEY, String(next))
+      } catch {
+        // The setting still applies for the current session.
+      }
+
+      return next
+    })
+  }, [])
 
   return (
-    <Tabs defaultValue="body" className="flex min-h-0 flex-1 flex-col">
-      <TabsList
-        variant="line"
-        className="justify-start rounded-none [&_[data-slot=tabs-trigger]]:text-xs"
-      >
-        <TabsTrigger value="body" className="flex-none px-3">
-          Body
-        </TabsTrigger>
-        <TabsTrigger value="headers" className="flex-none px-3">
-          Headers
-        </TabsTrigger>
-        <TabsTrigger value="query" className="flex-none px-3">
-          Query
-        </TabsTrigger>
-        <TabsTrigger value="raw" className="flex-none px-3">
-          Raw
-        </TabsTrigger>
-      </TabsList>
+    <Tabs
+      value={activeTab}
+      onValueChange={setActiveTab}
+      className="flex min-h-0 flex-1 flex-col"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <TabsList
+          variant="line"
+          className="justify-start rounded-none [&_[data-slot=tabs-trigger]]:text-xs"
+        >
+          <TabsTrigger value="body" className="flex-none px-3">
+            Body
+          </TabsTrigger>
+          <TabsTrigger value="headers" className="flex-none px-3">
+            Headers
+          </TabsTrigger>
+          <TabsTrigger value="query" className="flex-none px-3">
+            Query
+          </TabsTrigger>
+          <TabsTrigger value="raw" className="flex-none px-3">
+            Raw
+          </TabsTrigger>
+        </TabsList>
+        <InspectorIconButton
+          aria-pressed={wrapBody}
+          className={cn(
+            "size-7 rounded-sm",
+            wrapBody && "border-foreground/30 bg-muted text-foreground"
+          )}
+          disabled={activeTab !== "body"}
+          icon={WrapTextIcon}
+          label={wrapBody ? "Disable wrap" : "Enable wrap"}
+          onClick={toggleWrapBody}
+          size="icon-sm"
+          variant="ghost"
+        />
+      </div>
       <TabsContent value="body" className="min-h-0 flex-1">
-        <CodePanel value={formattedBody || "No body"} />
+        <CodePanel
+          language={body.language}
+          value={body.value || "No body"}
+          wrap={wrapBody}
+        />
       </TabsContent>
       <TabsContent value="headers" className="min-h-0 flex-1">
         <KeyValueTable values={request.headers} />
@@ -175,4 +218,16 @@ function RequestPayloadTabs({ request }: { request: CapturedRequest }) {
       </TabsContent>
     </Tabs>
   )
+}
+
+function readStoredBodyWrap() {
+  if (typeof window === "undefined") {
+    return false
+  }
+
+  try {
+    return window.localStorage.getItem(BODY_WRAP_STORAGE_KEY) === "true"
+  } catch {
+    return false
+  }
 }

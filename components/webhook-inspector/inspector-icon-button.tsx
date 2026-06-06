@@ -12,6 +12,7 @@ import {
 import { cn } from "@/lib/utils"
 
 export function InspectorIconButton({
+  "aria-pressed": ariaPressed,
   className,
   disabled,
   icon: Icon,
@@ -20,6 +21,7 @@ export function InspectorIconButton({
   size = "icon",
   variant = "outline",
 }: {
+  "aria-pressed"?: boolean
   className?: string
   disabled?: boolean
   icon: LucideIcon
@@ -37,6 +39,7 @@ export function InspectorIconButton({
           size={size}
           className={cn("rounded-md", className)}
           disabled={disabled}
+          aria-pressed={ariaPressed}
           onClick={onClick}
         >
           <Icon data-icon="inline-start" />

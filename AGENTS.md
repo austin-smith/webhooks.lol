@@ -89,6 +89,12 @@ event publishing behavior as appropriate. Client session changes should cover
 state helpers, storage normalization, event-stream handling, and transport
 behavior.
 
+Do not add tests just to tick a coverage box. Tests should protect meaningful
+behavior, invariants, and ownership boundaries that would matter in a regression.
+Prefer concise table-driven coverage for input/output rules over narrow examples
+that only mirror the current implementation or assert third-party library
+internals.
+
 ## Code Style
 
 - TypeScript is strict. Keep it strict.

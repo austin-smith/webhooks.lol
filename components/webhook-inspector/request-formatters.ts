@@ -3,6 +3,19 @@ import type { CapturedRequest } from "@/lib/webhooks/types"
 import type { ConnectionState } from "./types"
 
 export type MethodBadgeVariant = "default" | "secondary" | "outline"
+export type RequestBodyLanguage =
+  | "css"
+  | "html"
+  | "javascript"
+  | "json"
+  | "text"
+  | "xml"
+  | "yaml"
+
+export type FormattedRequestBody = {
+  language: RequestBodyLanguage
+  value: string
+}
 
 export function formatRequestDetailPath(request: CapturedRequest) {
   return request.path === "/" ? null : request.path
@@ -26,6 +39,17 @@ export function formatRequestBody(request: CapturedRequest) {
   }
 
   return request.bodyText
+}
+
+export function formatRequestBodyDisplay(
+  request: CapturedRequest
+): FormattedRequestBody {
+  const value = formatRequestBody(request)
+
+  return {
+    language: value ? getRequestBodyLanguage(request.contentType) : "text",
+    value,
+  }
 }
 
 export function formatRawRequestBody(request: CapturedRequest) {
@@ -117,10 +141,78 @@ export function formatShortToken(token: string | null) {
   return token.slice(0, 8)
 }
 
+export function getRequestBodyLanguage(
+  contentType: string | null
+): RequestBodyLanguage {
+  const mimeType = normalizeContentType(contentType)
+
+  if (isJsonMimeType(mimeType)) {
+    return "json"
+  }
+
+  if (mimeType === "text/html" || mimeType.endsWith("+html")) {
+    return "html"
+  }
+
+  if (isXmlMimeType(mimeType)) {
+    return "xml"
+  }
+
+  if (isJavaScriptMimeType(mimeType)) {
+    return "javascript"
+  }
+
+  if (mimeType === "text/css") {
+    return "css"
+  }
+
+  if (isYamlMimeType(mimeType)) {
+    return "yaml"
+  }
+
+  return "text"
+}
+
 function formatBinaryBody(request: CapturedRequest) {
   return `Binary body\n\nBase64:\n${request.bodyBase64}`
 }
 
 function isJsonContentType(contentType: string | null) {
-  return contentType?.toLowerCase().includes("json") ?? false
+  return isJsonMimeType(normalizeContentType(contentType))
+}
+
+function normalizeContentType(contentType: string | null) {
+  return contentType?.split(";")[0]?.trim().toLowerCase() ?? ""
+}
+
+function isJsonMimeType(mimeType: string) {
+  return mimeType === "application/json" || mimeType.endsWith("+json")
+}
+
+function isXmlMimeType(mimeType: string) {
+  return (
+    mimeType === "application/xml" ||
+    mimeType === "text/xml" ||
+    mimeType.endsWith("+xml")
+  )
+}
+
+function isJavaScriptMimeType(mimeType: string) {
+  return (
+    mimeType === "application/javascript" ||
+    mimeType === "application/ecmascript" ||
+    mimeType === "application/x-javascript" ||
+    mimeType === "text/javascript" ||
+    mimeType === "text/ecmascript"
+  )
+}
+
+function isYamlMimeType(mimeType: string) {
+  return (
+    mimeType === "application/yaml" ||
+    mimeType === "application/x-yaml" ||
+    mimeType === "text/yaml" ||
+    mimeType === "text/x-yaml" ||
+    mimeType.endsWith("+yaml")
+  )
 }
