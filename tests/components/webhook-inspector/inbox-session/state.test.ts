@@ -4,6 +4,7 @@ import {
   mergeCapturedRequest,
   normalizeInboxNames,
   normalizeInboxTokens,
+  reconcileLoadedRequests,
   rememberInboxToken,
   renameInbox,
   selectRequest,
@@ -55,6 +56,31 @@ describe("inbox session state", () => {
       replacement,
       second,
     ])
+  })
+
+  it("preserves live requests received while a server load is in flight", () => {
+    const loadedRequest = createRequest("1")
+    const liveRequest = createRequest("3")
+
+    expect(
+      reconcileLoadedRequests({
+        currentRequests: [liveRequest],
+        loadedRequests: [loadedRequest],
+        requestIdsAtLoadStart: new Set(),
+      })
+    ).toEqual([liveRequest, loadedRequest])
+  })
+
+  it("drops requests that were already present when a server load started", () => {
+    const staleRequest = createRequest("1")
+
+    expect(
+      reconcileLoadedRequests({
+        currentRequests: [staleRequest],
+        loadedRequests: [],
+        requestIdsAtLoadStart: new Set([staleRequest.id]),
+      })
+    ).toEqual([])
   })
 
   it("normalizes recent inbox tokens", () => {

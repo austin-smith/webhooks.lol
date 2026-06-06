@@ -32,6 +32,33 @@ export function mergeCapturedRequest(
   return [request, ...requests.filter((item) => item.id !== request.id)]
 }
 
+export function reconcileLoadedRequests({
+  currentRequests,
+  loadedRequests,
+  requestIdsAtLoadStart,
+}: {
+  currentRequests: CapturedRequest[]
+  loadedRequests: CapturedRequest[]
+  requestIdsAtLoadStart: Set<string>
+}) {
+  const loadedById = new Map(
+    loadedRequests.map((request) => [request.id, request])
+  )
+  const nextRequests = [...loadedById.values()]
+
+  for (const request of currentRequests) {
+    if (requestIdsAtLoadStart.has(request.id) || loadedById.has(request.id)) {
+      continue
+    }
+
+    nextRequests.push(request)
+  }
+
+  return nextRequests.sort((left, right) =>
+    right.receivedAt.localeCompare(left.receivedAt)
+  )
+}
+
 export function rememberInboxToken(token: string, recentTokens: string[]) {
   return normalizeInboxTokens([token, ...recentTokens])
 }

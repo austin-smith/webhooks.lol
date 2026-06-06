@@ -14,6 +14,7 @@ import { createBrowserInboxEventStream } from "./event-stream"
 import {
   mergeCapturedRequest,
   rememberInboxToken,
+  reconcileLoadedRequests,
   renameInbox,
   selectRequest,
   selectRequestId,
@@ -26,23 +27,61 @@ export function useBrowserInboxSession(): WebhookInbox {
   const transport = React.useMemo(() => createFetchInboxTransport(), [])
   const eventStream = React.useMemo(() => createBrowserInboxEventStream(), [])
   const hasLoadedStorage = React.useRef(false)
+  const activeTokenRef = React.useRef<string | null>(null)
+  const clearVersion = React.useRef(0)
   const [token, setToken] = React.useState<string | null>(null)
   const [inboxNames, setInboxNames] = React.useState<InboxNames>({})
   const [recentTokens, setRecentTokens] = React.useState<string[]>([])
-  const [requests, setRequests] = React.useState<CapturedRequest[]>([])
-  const [selectedId, setSelectedId] = React.useState<string | null>(null)
+  const [requestState, setRequestState] = React.useState<{
+    requests: CapturedRequest[]
+    selectedId: string | null
+  }>({
+    requests: [],
+    selectedId: null,
+  })
   const [isLoading, setIsLoading] = React.useState(true)
   const [isClearing, setIsClearing] = React.useState(false)
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
   const [connectionState, setConnectionState] =
     React.useState<ConnectionState>("connecting")
+  const { requests, selectedId } = requestState
 
   const selectedRequest = selectRequest(requests, selectedId)
 
-  const applyRequests = React.useCallback((nextRequests: typeof requests) => {
-    setRequests(nextRequests)
-    setSelectedId((current) => selectRequestId(nextRequests, current))
+  const updateToken = React.useCallback((nextToken: string) => {
+    activeTokenRef.current = nextToken
+    setToken(nextToken)
   }, [])
+
+  const applyLoadedRequests = React.useCallback(
+    ({
+      clearVersionAtLoadStart,
+      loadedRequests,
+      requestIdsAtLoadStart,
+    }: {
+      clearVersionAtLoadStart: number
+      loadedRequests: CapturedRequest[]
+      requestIdsAtLoadStart: Set<string>
+    }) => {
+      setRequestState((current) => {
+        if (clearVersion.current !== clearVersionAtLoadStart) {
+          return current
+        }
+
+        const nextRequests = reconcileLoadedRequests({
+          currentRequests: current.requests,
+          loadedRequests,
+          requestIdsAtLoadStart,
+        })
+
+        return {
+          requests: nextRequests,
+          selectedId: selectRequestId(nextRequests, current.selectedId),
+        }
+      })
+    },
+    []
+  )
 
   const rememberToken = React.useCallback((nextToken: string) => {
     setRecentTokens((current) => rememberInboxToken(nextToken, current))
@@ -52,14 +91,13 @@ export function useBrowserInboxSession(): WebhookInbox {
     (nextToken: string) => {
       hasLoadedStorage.current = true
       rememberToken(nextToken)
-      setToken(nextToken)
-      setRequests([])
-      setSelectedId(null)
+      updateToken(nextToken)
+      setRequestState({ requests: [], selectedId: null })
       setErrorMessage(null)
       setConnectionState("connecting")
       setIsLoading(false)
     },
-    [rememberToken]
+    [rememberToken, updateToken]
   )
 
   const createInbox = React.useCallback(async () => {
@@ -84,23 +122,33 @@ export function useBrowserInboxSession(): WebhookInbox {
       setRecentTokens(storedSession.recentTokens)
 
       if (activeToken) {
+        // Reveal the restored inbox identity (URL, switcher label, live
+        // connection) immediately so a refresh does not flash placeholders.
+        // Only the captured-request list waits on the network.
+        updateToken(activeToken)
+        const requestIdsAtLoadStart = new Set<string>()
+        const clearVersionAtLoadStart = clearVersion.current
+
         void (async () => {
           try {
             const nextRequests = await transport.loadRequests(activeToken)
 
-            if (!isActive) {
+            if (!isActive || activeTokenRef.current !== activeToken) {
               return
             }
 
-            applyRequests(nextRequests)
+            applyLoadedRequests({
+              clearVersionAtLoadStart,
+              loadedRequests: nextRequests,
+              requestIdsAtLoadStart,
+            })
             setErrorMessage(null)
           } catch (error) {
-            if (isActive) {
+            if (isActive && activeTokenRef.current === activeToken) {
               setErrorMessage(readErrorMessage(error))
             }
           } finally {
-            if (isActive) {
-              setToken(activeToken)
+            if (isActive && activeTokenRef.current === activeToken) {
               setIsLoading(false)
             }
           }
@@ -128,7 +176,7 @@ export function useBrowserInboxSession(): WebhookInbox {
     return () => {
       isActive = false
     }
-  }, [applyNewInbox, applyRequests, storage, transport])
+  }, [applyLoadedRequests, applyNewInbox, storage, transport, updateToken])
 
   React.useEffect(() => {
     if (!hasLoadedStorage.current || !token) {
@@ -161,8 +209,8 @@ export function useBrowserInboxSession(): WebhookInbox {
 
     return eventStream.subscribe(token, {
       onClear() {
-        setRequests([])
-        setSelectedId(null)
+        clearVersion.current += 1
+        setRequestState({ requests: [], selectedId: null })
         setConnectionState("live")
       },
       onError() {
@@ -172,8 +220,10 @@ export function useBrowserInboxSession(): WebhookInbox {
         setConnectionState("live")
       },
       onRequest(request) {
-        setRequests((current) => mergeCapturedRequest(current, request))
-        setSelectedId(request.id)
+        setRequestState((current) => ({
+          requests: mergeCapturedRequest(current.requests, request),
+          selectedId: request.id,
+        }))
         setConnectionState("live")
       },
     })
@@ -184,15 +234,29 @@ export function useBrowserInboxSession(): WebhookInbox {
       return
     }
 
-    try {
-      const nextRequests = await transport.loadRequests(token)
+    const requestIdsAtLoadStart = new Set(requests.map((request) => request.id))
+    const clearVersionAtLoadStart = clearVersion.current
+    const loadingToken = token
 
-      applyRequests(nextRequests)
+    try {
+      const nextRequests = await transport.loadRequests(loadingToken)
+
+      if (activeTokenRef.current !== loadingToken) {
+        return
+      }
+
+      applyLoadedRequests({
+        clearVersionAtLoadStart,
+        loadedRequests: nextRequests,
+        requestIdsAtLoadStart,
+      })
       setErrorMessage(null)
     } catch (error) {
-      setErrorMessage(readErrorMessage(error))
+      if (activeTokenRef.current === loadingToken) {
+        setErrorMessage(readErrorMessage(error))
+      }
     }
-  }, [applyRequests, token, transport])
+  }, [applyLoadedRequests, requests, token, transport])
 
   const clearInbox = React.useCallback(async () => {
     if (!token || isClearing) {
@@ -203,8 +267,8 @@ export function useBrowserInboxSession(): WebhookInbox {
 
     try {
       await transport.clearInbox(token)
-      setRequests([])
-      setSelectedId(null)
+      clearVersion.current += 1
+      setRequestState({ requests: [], selectedId: null })
       setErrorMessage(null)
     } catch (error) {
       setErrorMessage(readErrorMessage(error))
@@ -253,33 +317,53 @@ export function useBrowserInboxSession(): WebhookInbox {
       }
 
       setIsLoading(true)
-      setToken(nextToken)
-      setRequests([])
-      setSelectedId(null)
+      updateToken(nextToken)
+      setRequestState({ requests: [], selectedId: null })
       setConnectionState("connecting")
+      const requestIdsAtLoadStart = new Set<string>()
+      const clearVersionAtLoadStart = clearVersion.current
 
       void (async () => {
         try {
           const nextRequests = await transport.loadRequests(nextToken)
 
-          applyRequests(nextRequests)
+          if (activeTokenRef.current !== nextToken) {
+            return
+          }
+
+          applyLoadedRequests({
+            clearVersionAtLoadStart,
+            loadedRequests: nextRequests,
+            requestIdsAtLoadStart,
+          })
           setErrorMessage(null)
         } catch (error) {
-          setErrorMessage(readErrorMessage(error))
+          if (activeTokenRef.current === nextToken) {
+            setErrorMessage(readErrorMessage(error))
+          }
         } finally {
-          setIsLoading(false)
+          if (activeTokenRef.current === nextToken) {
+            setIsLoading(false)
+          }
         }
       })()
     },
-    [applyRequests, isLoading, token, transport]
+    [applyLoadedRequests, isLoading, token, transport, updateToken]
   )
+
+  const selectCapturedRequest = React.useCallback((id: string) => {
+    setRequestState((current) => ({
+      ...current,
+      selectedId: id,
+    }))
+  }, [])
 
   const actions = React.useMemo<InboxActions>(
     () => ({
       clearInbox,
       renameInbox: renameCurrentInbox,
       refreshInbox,
-      selectRequest: setSelectedId,
+      selectRequest: selectCapturedRequest,
       startNewInbox,
       switchInbox,
     }),
@@ -287,6 +371,7 @@ export function useBrowserInboxSession(): WebhookInbox {
       clearInbox,
       refreshInbox,
       renameCurrentInbox,
+      selectCapturedRequest,
       startNewInbox,
       switchInbox,
     ]

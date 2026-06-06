@@ -1,3 +1,4 @@
+import * as React from "react"
 import { InboxIcon, RefreshCwIcon, Trash2Icon } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -9,9 +10,13 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Skeleton } from "@/components/ui/skeleton"
 import type { CapturedRequest } from "@/lib/webhooks/types"
 import { cn } from "@/lib/utils"
+
+// Requests usually load faster than the eye registers, so a loading affordance
+// that flashes for an instant reads as jank. Only surface it once a fetch has
+// clearly outrun this threshold.
+const LOADING_INDICATOR_DELAY_MS = 150
 
 import { InspectorIconButton } from "./inspector-icon-button"
 import {
@@ -41,13 +46,22 @@ export function InboxPanel({
   onRefreshInbox,
   onSelectRequest,
 }: InboxPanelProps) {
+  const showLoadingIndicator = useDelayedFlag(
+    isLoading,
+    LOADING_INDICATOR_DELAY_MS
+  )
+
   return (
     <section className="flex min-h-[220px] min-w-0 flex-col border-b bg-card sm:min-h-0 sm:border-r sm:border-b-0">
       <header className="grid h-16 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b bg-muted/20 px-4">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold">REQUESTS</h2>
-          <div className="text-[0.68rem] text-muted-foreground">
-            {requests.length} captured
+          <div className="min-h-4 text-[0.68rem] text-muted-foreground">
+            {isLoading ? null : (
+              <span className="duration-200 animate-in fade-in-0 motion-reduce:animate-none">
+                {requests.length} captured
+              </span>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-1">
@@ -69,12 +83,17 @@ export function InboxPanel({
       </header>
       <div className="flex min-h-0 flex-1 flex-col p-3 sm:p-4">
         {isLoading ? (
-          <RequestListSkeleton />
+          showLoadingIndicator ? (
+            <RequestListLoading />
+          ) : null
         ) : requests.length > 0 ? (
           <ScrollArea className="h-full">
             <ul aria-label="Captured requests" className="flex flex-col gap-2">
               {requests.map((request) => (
-                <li key={request.id}>
+                <li
+                  key={request.id}
+                  className="duration-200 ease-out animate-in fade-in-0 slide-in-from-top-1 motion-reduce:animate-none"
+                >
                   <RequestListItem
                     request={request}
                     selected={request.id === selectedId}
@@ -85,7 +104,7 @@ export function InboxPanel({
             </ul>
           </ScrollArea>
         ) : (
-          <Empty className="h-full rounded-sm border border-dashed bg-background/60 p-4">
+          <Empty className="h-full rounded-sm border border-dashed bg-background/60 p-4 duration-200 animate-in fade-in-0 motion-reduce:animate-none">
             <EmptyHeader>
               <EmptyMedia variant="icon" className="rounded-sm">
                 <InboxIcon />
@@ -140,17 +159,40 @@ function RequestListItem({
   )
 }
 
-function RequestListSkeleton() {
+function RequestListLoading() {
   return (
-    <div className="flex flex-col gap-2">
-      {Array.from({ length: 5 }).map((_, index) => (
-        <div
-          key={index}
-          className="flex h-11 items-center rounded-md border bg-background px-3"
-        >
-          <Skeleton className="h-4 w-3/4" />
-        </div>
-      ))}
+    <div
+      role="status"
+      className="flex items-center gap-2 px-1 text-[0.68rem] text-muted-foreground duration-200 animate-in fade-in-0 motion-reduce:animate-none"
+    >
+      <span
+        className="size-1.5 animate-pulse rounded-full bg-muted-foreground"
+        aria-hidden="true"
+      />
+      Loading requests…
     </div>
   )
+}
+
+// Returns true only after `active` has stayed true for `delayMs`, and resets as
+// soon as it goes false so each new load re-arms the delay from scratch.
+function useDelayedFlag(active: boolean, delayMs: number) {
+  const [elapsed, setElapsed] = React.useState(false)
+
+  React.useEffect(() => {
+    if (!active) {
+      return
+    }
+
+    const timer = window.setTimeout(() => {
+      setElapsed(true)
+    }, delayMs)
+
+    return () => {
+      window.clearTimeout(timer)
+      setElapsed(false)
+    }
+  }, [active, delayMs])
+
+  return active && elapsed
 }

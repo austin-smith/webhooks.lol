@@ -18,6 +18,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   Tooltip,
   TooltipContent,
@@ -100,9 +101,13 @@ export function InboxSwitcher({
           aria-label="Switch inbox"
           className="group flex h-10 min-w-0 items-center justify-between gap-2 rounded-l-md px-3 text-left transition-colors hover:bg-muted/55 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 aria-expanded:bg-muted"
         >
-          <span className="min-w-0 truncate font-mono text-xs font-medium">
-            {token ? selectedLabel : "Creating..."}
-          </span>
+          {token ? (
+            <span className="min-w-0 truncate font-mono text-xs font-medium duration-200 animate-in fade-in-0 motion-reduce:animate-none">
+              {selectedLabel}
+            </span>
+          ) : (
+            <Skeleton className="h-3 w-20 rounded-sm" aria-hidden="true" />
+          )}
           <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
         </button>
       </PopoverTrigger>

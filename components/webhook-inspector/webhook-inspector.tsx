@@ -55,7 +55,7 @@ export function WebhookInspector() {
 
   return (
     <main className="flex min-h-svh bg-background p-4 font-mono text-xs text-foreground lg:p-5">
-      <div className="flex min-h-[calc(100svh-2rem)] w-full flex-1 flex-col gap-4 lg:min-h-[calc(100svh-2.5rem)]">
+      <div className="flex min-h-[calc(100svh-2rem)] w-full flex-1 flex-col gap-4 duration-300 ease-out animate-in fade-in-0 lg:min-h-[calc(100svh-2.5rem)] motion-reduce:animate-none">
         <InspectorHeader
           connectionState={inbox.connectionState}
           copied={copied}
@@ -72,7 +72,7 @@ export function WebhookInspector() {
         />
 
         {inbox.errorMessage ? (
-          <Alert className="rounded-md">
+          <Alert className="rounded-md duration-200 ease-out animate-in fade-in-0 slide-in-from-top-1 motion-reduce:animate-none">
             <AlertCircleIcon />
             <AlertTitle>REQUEST FAILED</AlertTitle>
             <AlertDescription>{inbox.errorMessage}</AlertDescription>

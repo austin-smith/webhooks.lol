@@ -53,9 +53,9 @@ describe("request formatters", () => {
       expected: "/stripe/events",
     },
     {
-      name: "marks root requests with query parameters",
+      name: "keeps the query string on root paths",
       request: createRequest({ query: { signature: ["abc"] } }),
-      expected: "/?query",
+      expected: "/?signature=abc",
     },
   ])("$name", ({ expected, request }) => {
     expect(formatRequestListPath(request)).toBe(expected)

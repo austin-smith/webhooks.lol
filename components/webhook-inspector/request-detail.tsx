@@ -34,7 +34,7 @@ export function RequestDetail({
 }) {
   if (!request) {
     return (
-      <section className="flex min-h-[420px] min-w-0 flex-col bg-card sm:min-h-0">
+      <section className="flex min-h-[420px] min-w-0 flex-col bg-card duration-200 animate-in fade-in-0 sm:min-h-0 motion-reduce:animate-none">
         <RequestDetailHeader title="REQUEST" description="No selection" />
         <div className="flex min-h-0 flex-1 p-3 sm:p-4">
           <Empty className="h-full rounded-sm border border-dashed bg-background/60 p-4">
@@ -52,7 +52,7 @@ export function RequestDetail({
   }
 
   return (
-    <section className="flex min-h-[520px] min-w-0 flex-col bg-card sm:min-h-0">
+    <section className="flex min-h-[520px] min-w-0 flex-col bg-card duration-200 animate-in fade-in-0 sm:min-h-0 motion-reduce:animate-none">
       <RequestSummaryHeader request={request} />
       <div className="flex min-h-0 flex-1 flex-col p-3 sm:p-4">
         <RequestMetrics request={request} />

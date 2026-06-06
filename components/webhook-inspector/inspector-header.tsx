@@ -5,6 +5,7 @@ import { CheckIcon, CopyIcon, ExternalLinkIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   Tooltip,
   TooltipContent,
@@ -83,15 +84,26 @@ export function InspectorHeader({
         />
 
         <div className="flex min-w-0 items-center border-l px-2">
-          <Input
-            readOnly
-            density="compact"
-            variant="embedded"
-            value={webhookUrl}
-            aria-label="Receive URL"
-            className="h-10 px-0 font-mono text-xs text-foreground"
-            placeholder="Creating inbox..."
-          />
+          {webhookUrl ? (
+            <Input
+              readOnly
+              density="compact"
+              variant="embedded"
+              value={webhookUrl}
+              aria-label="Receive URL"
+              className="h-10 px-0 font-mono text-xs text-foreground duration-200 animate-in fade-in-0 motion-reduce:animate-none"
+            />
+          ) : (
+            <div className="flex h-10 w-full items-center">
+              <Skeleton
+                className="h-3 w-44 max-w-full rounded-sm"
+                aria-hidden="true"
+              />
+              <span className="sr-only" role="status">
+                Preparing webhook URL
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center border-l p-1">
@@ -149,7 +161,7 @@ function ConnectionStatus({ state }: { state: ConnectionState }) {
     >
       <span
         className={cn(
-          "size-1.5 rounded-full",
+          "size-1.5 rounded-full transition-colors duration-500 ease-out",
           state === "live" && "bg-foreground",
           state === "connecting" && "bg-muted-foreground",
           state === "offline" && "bg-destructive"
