@@ -10,6 +10,10 @@ export type CreateEndpointResponse = {
 
 export type RequestsResponse = {
   endpointId: string
+  page: {
+    hasMore: boolean
+    nextCursor: string | null
+  }
   requests: CapturedRequest[]
 }
 

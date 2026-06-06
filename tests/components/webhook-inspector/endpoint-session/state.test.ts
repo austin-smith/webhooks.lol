@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  mergeCapturedRequestPage,
   mergeCapturedRequest,
   normalizeEndpointNames,
   normalizeEndpointIds,
@@ -58,6 +59,16 @@ describe("endpoint session state", () => {
     ])
   })
 
+  it("merges older request pages without duplicating or breaking order", () => {
+    const newest = createRequest("3")
+    const duplicate = createRequest("2")
+    const oldest = createRequest("1")
+
+    expect(
+      mergeCapturedRequestPage([newest, duplicate], [duplicate, oldest])
+    ).toEqual([newest, duplicate, oldest])
+  })
+
   it("preserves live requests received while a server load is in flight", () => {
     const loadedRequest = createRequest("1")
     const liveRequest = createRequest("3")
@@ -101,10 +112,7 @@ describe("endpoint session state", () => {
       ])
     ).toEqual(["a", "b", "c", "d", "e", "f", "g", "h"])
 
-    expect(rememberEndpointId("new", ["old", "new"])).toEqual([
-      "new",
-      "old",
-    ])
+    expect(rememberEndpointId("new", ["old", "new"])).toEqual(["new", "old"])
   })
 
   it("keeps endpoint names only for known webhook endpoint IDs", () => {

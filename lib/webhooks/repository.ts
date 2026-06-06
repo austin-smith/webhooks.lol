@@ -1,6 +1,6 @@
 import "server-only"
 
-import { and, desc, eq, notInArray, sql } from "drizzle-orm"
+import { and, desc, eq, lt, notInArray, or, sql } from "drizzle-orm"
 
 import { getDatabase } from "@/lib/database/client"
 import {
@@ -19,6 +19,18 @@ import type {
 } from "@/lib/webhooks/types"
 
 const MAX_REQUESTS_PER_ENDPOINT = 500
+export const DEFAULT_REQUEST_PAGE_SIZE = 50
+export const MAX_REQUEST_PAGE_SIZE = 100
+
+export type RequestPageCursor = {
+  id: string
+  receivedAt: Date
+}
+
+export type RequestPageOptions = {
+  cursor?: RequestPageCursor
+  limit?: number
+}
 
 export async function createEndpoint() {
   const endpointId = crypto.randomUUID()
@@ -79,7 +91,7 @@ export async function saveCapturedRequest(input: CapturedRequestInput) {
       .select({ id: capturedRequests.id })
       .from(capturedRequests)
       .where(eq(capturedRequests.endpointId, request.endpointId))
-      .orderBy(desc(capturedRequests.receivedAt))
+      .orderBy(desc(capturedRequests.receivedAt), desc(capturedRequests.id))
       .limit(MAX_REQUESTS_PER_ENDPOINT)
 
     await transaction
@@ -95,17 +107,49 @@ export async function saveCapturedRequest(input: CapturedRequestInput) {
   return request
 }
 
-export async function listRequests(endpointId: string) {
+export async function listRequests(
+  endpointId: string,
+  options: RequestPageOptions = {}
+) {
   await ensureEndpoint(endpointId)
+
+  const limit = normalizeRequestPageLimit(options.limit)
+  const rowsLimit = limit + 1
+  const cursorFilter = options.cursor
+    ? or(
+        lt(capturedRequests.receivedAt, options.cursor.receivedAt),
+        and(
+          eq(capturedRequests.receivedAt, options.cursor.receivedAt),
+          lt(capturedRequests.id, options.cursor.id)
+        )
+      )
+    : undefined
 
   const rows = await getDatabase()
     .select()
     .from(capturedRequests)
-    .where(eq(capturedRequests.endpointId, endpointId))
-    .orderBy(desc(capturedRequests.receivedAt))
-    .limit(MAX_REQUESTS_PER_ENDPOINT)
+    .where(
+      cursorFilter
+        ? and(eq(capturedRequests.endpointId, endpointId), cursorFilter)
+        : eq(capturedRequests.endpointId, endpointId)
+    )
+    .orderBy(desc(capturedRequests.receivedAt), desc(capturedRequests.id))
+    .limit(rowsLimit)
 
-  return rows.map(mapCapturedRequestRow)
+  const pageRows = rows.slice(0, limit)
+  const lastRow = pageRows.at(-1) ?? null
+
+  return {
+    hasMore: rows.length > limit,
+    nextCursor:
+      rows.length > limit && lastRow
+        ? {
+            id: lastRow.id,
+            receivedAt: lastRow.receivedAt,
+          }
+        : null,
+    requests: pageRows.map(mapCapturedRequestRow),
+  }
 }
 
 export async function clearRequests(endpointId: string) {
@@ -169,9 +213,7 @@ export async function setEndpointResponseOverride({
   } satisfies EndpointResponseConfig
 }
 
-export async function clearEndpointResponseOverride(
-  endpointId: string
-) {
+export async function clearEndpointResponseOverride(endpointId: string) {
   await ensureEndpoint(endpointId)
 
   await getDatabase()
@@ -199,13 +241,19 @@ function mapCapturedRequestRow(row: typeof capturedRequests.$inferSelect) {
   } satisfies CapturedRequest
 }
 
-function mapEndpointResponseRow(
-  row: typeof endpointResponses.$inferSelect
-) {
+function mapEndpointResponseRow(row: typeof endpointResponses.$inferSelect) {
   return {
     mode: "custom",
     status: row.status,
     contentType: row.contentType,
     body: row.body,
   } satisfies EndpointResponseConfig
+}
+
+function normalizeRequestPageLimit(limit = DEFAULT_REQUEST_PAGE_SIZE) {
+  if (!Number.isInteger(limit)) {
+    return DEFAULT_REQUEST_PAGE_SIZE
+  }
+
+  return Math.min(Math.max(limit, 1), MAX_REQUEST_PAGE_SIZE)
 }

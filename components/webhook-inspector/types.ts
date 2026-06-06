@@ -9,6 +9,7 @@ export type ConnectionState = "live" | "connecting" | "offline"
 export type EndpointActions = {
   clearEndpoint: () => void
   clearResponseOverride: () => Promise<void>
+  loadOlderRequests: () => void
   renameEndpoint: (name: string) => void
   refreshEndpoint: () => void
   saveResponseOverride: (
@@ -28,7 +29,9 @@ export type EndpointState = {
   endpointNames: EndpointNames
   isClearing: boolean
   isLoading: boolean
+  isLoadingOlderRequests: boolean
   isSavingResponse: boolean
+  hasMoreRequests: boolean
   recentEndpointIds: string[]
   responseConfig: EndpointResponseConfig
   requests: CapturedRequest[]

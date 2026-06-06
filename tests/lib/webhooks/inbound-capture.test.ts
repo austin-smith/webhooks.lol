@@ -77,9 +77,7 @@ describe("createInboundCapture", () => {
         endpointId: "endpoint-id",
       })
     )
-    expect(getEndpointResponseConfig).toHaveBeenCalledWith(
-      "endpoint-id"
-    )
+    expect(getEndpointResponseConfig).toHaveBeenCalledWith("endpoint-id")
     expect(calls).toEqual(["save", "publish", "response"])
   })
 
@@ -99,17 +97,14 @@ describe("createInboundCapture", () => {
 
     const outcome = await captureInboundRequest({
       endpointId: "endpoint-id",
-      request: new Request(
-        "https://hooks.example.com/api/hook/endpoint-id",
-        {
-          method: "POST",
-          headers: {
-            "content-length": "1048577",
-            "content-type": "text/plain",
-          },
-          body: "too large by header",
-        }
-      ),
+      request: new Request("https://hooks.example.com/api/hook/endpoint-id", {
+        method: "POST",
+        headers: {
+          "content-length": "1048577",
+          "content-type": "text/plain",
+        },
+        body: "too large by header",
+      }),
     })
 
     expect(outcome).toEqual({
@@ -135,16 +130,13 @@ describe("createInboundCapture", () => {
 
     await captureInboundRequest({
       endpointId: "endpoint-id",
-      request: new Request(
-        "https://hooks.example.com/api/hook/endpoint-id",
-        {
-          method: "POST",
-          headers: {
-            "content-type": "application/octet-stream",
-          },
-          body: new Uint8Array([1, 2, 3]),
-        }
-      ),
+      request: new Request("https://hooks.example.com/api/hook/endpoint-id", {
+        method: "POST",
+        headers: {
+          "content-type": "application/octet-stream",
+        },
+        body: new Uint8Array([1, 2, 3]),
+      }),
     })
 
     expect(saveCapturedRequest).toHaveBeenCalledWith(

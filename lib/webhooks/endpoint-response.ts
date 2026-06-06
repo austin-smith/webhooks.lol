@@ -16,10 +16,9 @@ export type EndpointResponseConfig =
       mode: "custom"
     } & EndpointResponseOverrideInput)
 
-export const DEFAULT_ENDPOINT_RESPONSE_CONFIG: EndpointResponseConfig =
-  {
-    mode: "default",
-  }
+export const DEFAULT_ENDPOINT_RESPONSE_CONFIG: EndpointResponseConfig = {
+  mode: "default",
+}
 
 export type EndpointResponseTemplateVariables = {
   endpointId: string
@@ -103,9 +102,7 @@ export function parseEndpointResponseOverrideInput(
     parsedContentType === null ||
     parsedBody === null
   ) {
-    throw new EndpointResponseValidationError([
-      "Response override is invalid.",
-    ])
+    throw new EndpointResponseValidationError(["Response override is invalid."])
   }
 
   return {

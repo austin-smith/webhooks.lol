@@ -1,10 +1,7 @@
 import type { CapturedRequest } from "@/lib/webhooks/types"
 
 export type EndpointEventStream = {
-  subscribe: (
-    endpointId: string,
-    handlers: EndpointEventHandlers
-  ) => () => void
+  subscribe: (endpointId: string, handlers: EndpointEventHandlers) => () => void
 }
 
 export type EndpointEventHandlers = {
@@ -89,9 +86,7 @@ export function readEndpointIdEvent(event: Event) {
   try {
     const data = JSON.parse(event.data) as { endpointId?: unknown }
 
-    return typeof data.endpointId === "string"
-      ? data.endpointId
-      : null
+    return typeof data.endpointId === "string" ? data.endpointId : null
   } catch {
     return null
   }

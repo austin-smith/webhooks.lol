@@ -57,9 +57,7 @@ describe("endpoint response route", () => {
       endpointId: "endpoint-id",
       response: DEFAULT_ENDPOINT_RESPONSE_CONFIG,
     })
-    expect(getEndpointResponseConfig).toHaveBeenCalledWith(
-      "endpoint-id"
-    )
+    expect(getEndpointResponseConfig).toHaveBeenCalledWith("endpoint-id")
   })
 
   it("validates and stores a custom response override", async () => {
@@ -184,8 +182,6 @@ describe("endpoint response route", () => {
       endpointId: "endpoint-id",
       response: DEFAULT_ENDPOINT_RESPONSE_CONFIG,
     })
-    expect(clearEndpointResponseOverride).toHaveBeenCalledWith(
-      "endpoint-id"
-    )
+    expect(clearEndpointResponseOverride).toHaveBeenCalledWith("endpoint-id")
   })
 })

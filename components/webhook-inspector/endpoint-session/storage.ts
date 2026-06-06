@@ -1,13 +1,8 @@
-import {
-  normalizeEndpointNames,
-  normalizeEndpointIds,
-} from "./state"
+import { normalizeEndpointNames, normalizeEndpointIds } from "./state"
 import type { EndpointNames } from "../types"
 
-const ACTIVE_ENDPOINT_ID_STORAGE_KEY =
-  "webhooks.lol:endpoint-id"
-const RECENT_ENDPOINT_IDS_STORAGE_KEY =
-  "webhooks.lol:recent-endpoint-ids"
+const ACTIVE_ENDPOINT_ID_STORAGE_KEY = "webhooks.lol:endpoint-id"
+const RECENT_ENDPOINT_IDS_STORAGE_KEY = "webhooks.lol:recent-endpoint-ids"
 const ENDPOINT_NAMES_STORAGE_KEY = "webhooks.lol:endpoint-names"
 
 export type StoredEndpointSession = {
@@ -36,35 +31,22 @@ export function createEndpointSessionStorageAdapter(
   return {
     read() {
       const storage = getStorage()
-      const storedEndpointId = storage.getItem(
-        ACTIVE_ENDPOINT_ID_STORAGE_KEY
-      )
+      const storedEndpointId = storage.getItem(ACTIVE_ENDPOINT_ID_STORAGE_KEY)
       const storedEndpointIds = readRecentEndpointIds(storage)
-      const activeEndpointId =
-        storedEndpointId ?? storedEndpointIds[0] ?? null
+      const activeEndpointId = storedEndpointId ?? storedEndpointIds[0] ?? null
       const recentEndpointIds =
-        activeEndpointId &&
-        !storedEndpointIds.includes(activeEndpointId)
-          ? normalizeEndpointIds([
-              activeEndpointId,
-              ...storedEndpointIds,
-            ])
+        activeEndpointId && !storedEndpointIds.includes(activeEndpointId)
+          ? normalizeEndpointIds([activeEndpointId, ...storedEndpointIds])
           : storedEndpointIds
 
       return {
         activeEndpointId,
-        endpointNames: readEndpointNames(
-          storage,
-          recentEndpointIds
-        ),
+        endpointNames: readEndpointNames(storage, recentEndpointIds),
         recentEndpointIds,
       }
     },
     writeActiveEndpointId(endpointId) {
-      getStorage().setItem(
-        ACTIVE_ENDPOINT_ID_STORAGE_KEY,
-        endpointId
-      )
+      getStorage().setItem(ACTIVE_ENDPOINT_ID_STORAGE_KEY, endpointId)
     },
     writeEndpointNames(names, recentEndpointIds) {
       const nextNames = normalizeEndpointNames(
@@ -98,9 +80,7 @@ function readRecentEndpointIds(storage: Pick<Storage, "getItem">) {
   try {
     const endpointIds = JSON.parse(value) as unknown
 
-    return Array.isArray(endpointIds)
-      ? normalizeEndpointIds(endpointIds)
-      : []
+    return Array.isArray(endpointIds) ? normalizeEndpointIds(endpointIds) : []
   } catch {
     return []
   }

@@ -76,5 +76,4 @@ export const endpointResponses = pgTable(
 )
 
 export type CapturedRequestRow = typeof capturedRequests.$inferSelect
-export type EndpointResponseRow =
-  typeof endpointResponses.$inferSelect
+export type EndpointResponseRow = typeof endpointResponses.$inferSelect

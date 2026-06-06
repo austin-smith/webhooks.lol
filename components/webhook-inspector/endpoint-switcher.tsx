@@ -79,8 +79,7 @@ export function EndpointSwitcher({
     }
   }
 
-  const selectedLabel =
-    name.trim() || formatShortEndpointId(endpointId)
+  const selectedLabel = name.trim() || formatShortEndpointId(endpointId)
 
   function switchEndpoint(nextEndpointId: string) {
     onSwitchEndpoint(nextEndpointId)
@@ -138,9 +137,7 @@ export function EndpointSwitcher({
                 <EndpointSwitcherRow
                   key={recentEndpointId}
                   endpointNames={endpointNames}
-                  isRenaming={
-                    isRenaming && recentEndpointId === endpointId
-                  }
+                  isRenaming={isRenaming && recentEndpointId === endpointId}
                   nameDraft={draftName}
                   selected={recentEndpointId === endpointId}
                   endpointId={recentEndpointId}

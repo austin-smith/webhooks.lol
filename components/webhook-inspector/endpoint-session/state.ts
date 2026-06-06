@@ -32,6 +32,17 @@ export function mergeCapturedRequest(
   return [request, ...requests.filter((item) => item.id !== request.id)]
 }
 
+export function mergeCapturedRequestPage(
+  requests: CapturedRequest[],
+  loadedRequests: CapturedRequest[]
+) {
+  const requestsById = new Map(
+    [...requests, ...loadedRequests].map((request) => [request.id, request])
+  )
+
+  return sortCapturedRequests([...requestsById.values()])
+}
+
 export function reconcileLoadedRequests({
   currentRequests,
   loadedRequests,
@@ -54,19 +65,14 @@ export function reconcileLoadedRequests({
     nextRequests.push(request)
   }
 
-  return nextRequests.sort((left, right) =>
-    right.receivedAt.localeCompare(left.receivedAt)
-  )
+  return sortCapturedRequests(nextRequests)
 }
 
 export function rememberEndpointId(
   endpointId: string,
   recentEndpointIds: string[]
 ) {
-  return normalizeEndpointIds([
-    endpointId,
-    ...recentEndpointIds,
-  ])
+  return normalizeEndpointIds([endpointId, ...recentEndpointIds])
 }
 
 export function renameEndpoint({
@@ -93,10 +99,7 @@ export function renameEndpoint({
     delete nextNames[endpointId]
   }
 
-  return normalizeEndpointNames(
-    nextNames,
-    new Set(knownEndpointIds)
-  )
+  return normalizeEndpointNames(nextNames, new Set(knownEndpointIds))
 }
 
 export function normalizeEndpointNames(
@@ -129,8 +132,17 @@ export function normalizeEndpointIds(endpointIds: unknown[]) {
     }
   }
 
-  return Array.from(uniqueEndpointIds).slice(
-    0,
-    MAX_RECENT_ENDPOINTS
-  )
+  return Array.from(uniqueEndpointIds).slice(0, MAX_RECENT_ENDPOINTS)
+}
+
+function sortCapturedRequests(requests: CapturedRequest[]) {
+  return requests.sort((left, right) => {
+    const receivedAtOrder = right.receivedAt.localeCompare(left.receivedAt)
+
+    if (receivedAtOrder !== 0) {
+      return receivedAtOrder
+    }
+
+    return right.id.localeCompare(left.id)
+  })
 }

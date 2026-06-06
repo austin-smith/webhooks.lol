@@ -17,6 +17,7 @@ import type {
 } from "../types"
 import { createBrowserEndpointEventStream } from "./event-stream"
 import {
+  mergeCapturedRequestPage,
   mergeCapturedRequest,
   rememberEndpointId,
   reconcileLoadedRequests,
@@ -25,17 +26,14 @@ import {
   selectRequestId,
 } from "./state"
 import { createBrowserEndpointSessionStorage } from "./storage"
-import { createFetchEndpointTransport } from "./transport"
+import {
+  type CapturedRequestPage,
+  createFetchEndpointTransport,
+} from "./transport"
 
 export function useBrowserEndpointSession(): Endpoint {
-  const storage = React.useMemo(
-    () => createBrowserEndpointSessionStorage(),
-    []
-  )
-  const transport = React.useMemo(
-    () => createFetchEndpointTransport(),
-    []
-  )
+  const storage = React.useMemo(() => createBrowserEndpointSessionStorage(), [])
+  const transport = React.useMemo(() => createFetchEndpointTransport(), [])
   const eventStream = React.useMemo(
     () => createBrowserEndpointEventStream(),
     []
@@ -43,50 +41,47 @@ export function useBrowserEndpointSession(): Endpoint {
   const hasLoadedStorage = React.useRef(false)
   const activeEndpointIdRef = React.useRef<string | null>(null)
   const clearVersion = React.useRef(0)
-  const [endpointId, setEndpointId] = React.useState<
-    string | null
-  >(null)
-  const [endpointNames, setEndpointNames] =
-    React.useState<EndpointNames>({})
-  const [recentEndpointIds, setRecentEndpointIds] =
-    React.useState<string[]>([])
+  const [endpointId, setEndpointId] = React.useState<string | null>(null)
+  const [endpointNames, setEndpointNames] = React.useState<EndpointNames>({})
+  const [recentEndpointIds, setRecentEndpointIds] = React.useState<string[]>([])
   const [requestState, setRequestState] = React.useState<{
+    hasMoreRequests: boolean
+    nextCursor: string | null
     requests: CapturedRequest[]
     selectedId: string | null
   }>({
+    hasMoreRequests: false,
+    nextCursor: null,
     requests: [],
     selectedId: null,
   })
   const [responseConfig, setResponseConfig] =
-    React.useState<EndpointResponseConfig>(
-      DEFAULT_ENDPOINT_RESPONSE_CONFIG
-    )
+    React.useState<EndpointResponseConfig>(DEFAULT_ENDPOINT_RESPONSE_CONFIG)
   const [isLoading, setIsLoading] = React.useState(true)
   const [isClearing, setIsClearing] = React.useState(false)
+  const [isLoadingOlderRequests, setIsLoadingOlderRequests] =
+    React.useState(false)
   const [isSavingResponse, setIsSavingResponse] = React.useState(false)
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
   const [connectionState, setConnectionState] =
     React.useState<ConnectionState>("connecting")
-  const { requests, selectedId } = requestState
+  const { hasMoreRequests, nextCursor, requests, selectedId } = requestState
 
   const selectedRequest = selectRequest(requests, selectedId)
 
-  const updateEndpointId = React.useCallback(
-    (nextEndpointId: string) => {
-      activeEndpointIdRef.current = nextEndpointId
-      setEndpointId(nextEndpointId)
-    },
-    []
-  )
+  const updateEndpointId = React.useCallback((nextEndpointId: string) => {
+    activeEndpointIdRef.current = nextEndpointId
+    setEndpointId(nextEndpointId)
+  }, [])
 
   const applyLoadedRequests = React.useCallback(
     ({
       clearVersionAtLoadStart,
-      loadedRequests,
+      page,
       requestIdsAtLoadStart,
     }: {
       clearVersionAtLoadStart: number
-      loadedRequests: CapturedRequest[]
+      page: CapturedRequestPage
       requestIdsAtLoadStart: Set<string>
     }) => {
       setRequestState((current) => {
@@ -96,11 +91,13 @@ export function useBrowserEndpointSession(): Endpoint {
 
         const nextRequests = reconcileLoadedRequests({
           currentRequests: current.requests,
-          loadedRequests,
+          loadedRequests: page.requests,
           requestIdsAtLoadStart,
         })
 
         return {
+          hasMoreRequests: page.hasMore,
+          nextCursor: page.nextCursor,
           requests: nextRequests,
           selectedId: selectRequestId(nextRequests, current.selectedId),
         }
@@ -123,10 +120,16 @@ export function useBrowserEndpointSession(): Endpoint {
       hasLoadedStorage.current = true
       rememberActiveEndpointId(nextEndpointId)
       updateEndpointId(nextEndpointId)
-      setRequestState({ requests: [], selectedId: null })
+      setRequestState({
+        hasMoreRequests: false,
+        nextCursor: null,
+        requests: [],
+        selectedId: null,
+      })
       setResponseConfig(DEFAULT_ENDPOINT_RESPONSE_CONFIG)
       setErrorMessage(null)
       setConnectionState("connecting")
+      setIsLoadingOlderRequests(false)
       setIsLoading(false)
     },
     [rememberActiveEndpointId, updateEndpointId]
@@ -163,39 +166,28 @@ export function useBrowserEndpointSession(): Endpoint {
 
         void (async () => {
           try {
-            const [nextRequests, nextResponseConfig] = await Promise.all([
+            const [nextRequestPage, nextResponseConfig] = await Promise.all([
               transport.loadRequests(activeEndpointId),
-              transport.loadEndpointResponseConfig(
-                activeEndpointId
-              ),
+              transport.loadEndpointResponseConfig(activeEndpointId),
             ])
 
-            if (
-              !isActive ||
-              activeEndpointIdRef.current !== activeEndpointId
-            ) {
+            if (!isActive || activeEndpointIdRef.current !== activeEndpointId) {
               return
             }
 
             applyLoadedRequests({
               clearVersionAtLoadStart,
-              loadedRequests: nextRequests,
+              page: nextRequestPage,
               requestIdsAtLoadStart,
             })
             setResponseConfig(nextResponseConfig)
             setErrorMessage(null)
           } catch (error) {
-            if (
-              isActive &&
-              activeEndpointIdRef.current === activeEndpointId
-            ) {
+            if (isActive && activeEndpointIdRef.current === activeEndpointId) {
               setErrorMessage(readErrorMessage(error))
             }
           } finally {
-            if (
-              isActive &&
-              activeEndpointIdRef.current === activeEndpointId
-            ) {
+            if (isActive && activeEndpointIdRef.current === activeEndpointId) {
               setIsLoading(false)
             }
           }
@@ -252,10 +244,7 @@ export function useBrowserEndpointSession(): Endpoint {
       return
     }
 
-    storage.writeEndpointNames(
-      endpointNames,
-      recentEndpointIds
-    )
+    storage.writeEndpointNames(endpointNames, recentEndpointIds)
   }, [endpointNames, recentEndpointIds, storage])
 
   React.useEffect(() => {
@@ -266,7 +255,13 @@ export function useBrowserEndpointSession(): Endpoint {
     return eventStream.subscribe(endpointId, {
       onClear() {
         clearVersion.current += 1
-        setRequestState({ requests: [], selectedId: null })
+        setRequestState({
+          hasMoreRequests: false,
+          nextCursor: null,
+          requests: [],
+          selectedId: null,
+        })
+        setIsLoadingOlderRequests(false)
         setConnectionState("live")
       },
       onError() {
@@ -277,6 +272,8 @@ export function useBrowserEndpointSession(): Endpoint {
       },
       onRequest(request) {
         setRequestState((current) => ({
+          hasMoreRequests: current.hasMoreRequests,
+          nextCursor: current.nextCursor,
           requests: mergeCapturedRequest(current.requests, request),
           selectedId: request.id,
         }))
@@ -295,9 +292,7 @@ export function useBrowserEndpointSession(): Endpoint {
     const loadingEndpointId = endpointId
 
     try {
-      const nextRequests = await transport.loadRequests(
-        loadingEndpointId
-      )
+      const nextRequestPage = await transport.loadRequests(loadingEndpointId)
 
       if (activeEndpointIdRef.current !== loadingEndpointId) {
         return
@@ -305,7 +300,7 @@ export function useBrowserEndpointSession(): Endpoint {
 
       applyLoadedRequests({
         clearVersionAtLoadStart,
-        loadedRequests: nextRequests,
+        page: nextRequestPage,
         requestIdsAtLoadStart,
       })
       setErrorMessage(null)
@@ -315,6 +310,53 @@ export function useBrowserEndpointSession(): Endpoint {
       }
     }
   }, [applyLoadedRequests, requests, endpointId, transport])
+
+  const loadOlderRequests = React.useCallback(async () => {
+    if (!endpointId || !nextCursor || isLoading || isLoadingOlderRequests) {
+      return
+    }
+
+    const loadingEndpointId = endpointId
+    const cursorAtLoadStart = nextCursor
+    const clearVersionAtLoadStart = clearVersion.current
+
+    setIsLoadingOlderRequests(true)
+
+    try {
+      const nextRequestPage = await transport.loadRequests(loadingEndpointId, {
+        cursor: cursorAtLoadStart,
+      })
+
+      if (activeEndpointIdRef.current !== loadingEndpointId) {
+        return
+      }
+
+      setRequestState((current) => {
+        if (clearVersion.current !== clearVersionAtLoadStart) {
+          return current
+        }
+
+        const nextRequests = mergeCapturedRequestPage(
+          current.requests,
+          nextRequestPage.requests
+        )
+
+        return {
+          hasMoreRequests: nextRequestPage.hasMore,
+          nextCursor: nextRequestPage.nextCursor,
+          requests: nextRequests,
+          selectedId: selectRequestId(nextRequests, current.selectedId),
+        }
+      })
+      setErrorMessage(null)
+    } catch (error) {
+      if (activeEndpointIdRef.current === loadingEndpointId) {
+        setErrorMessage(readErrorMessage(error))
+      }
+    } finally {
+      setIsLoadingOlderRequests(false)
+    }
+  }, [endpointId, isLoading, isLoadingOlderRequests, nextCursor, transport])
 
   const clearEndpoint = React.useCallback(async () => {
     if (!endpointId || isClearing) {
@@ -326,7 +368,13 @@ export function useBrowserEndpointSession(): Endpoint {
     try {
       await transport.clearEndpoint(endpointId)
       clearVersion.current += 1
-      setRequestState({ requests: [], selectedId: null })
+      setRequestState({
+        hasMoreRequests: false,
+        nextCursor: null,
+        requests: [],
+        selectedId: null,
+      })
+      setIsLoadingOlderRequests(false)
       setErrorMessage(null)
     } catch (error) {
       setErrorMessage(readErrorMessage(error))
@@ -370,17 +418,19 @@ export function useBrowserEndpointSession(): Endpoint {
 
   const switchEndpoint = React.useCallback(
     (nextEndpointId: string) => {
-      if (
-        !nextEndpointId ||
-        nextEndpointId === endpointId ||
-        isLoading
-      ) {
+      if (!nextEndpointId || nextEndpointId === endpointId || isLoading) {
         return
       }
 
       setIsLoading(true)
       updateEndpointId(nextEndpointId)
-      setRequestState({ requests: [], selectedId: null })
+      setRequestState({
+        hasMoreRequests: false,
+        nextCursor: null,
+        requests: [],
+        selectedId: null,
+      })
+      setIsLoadingOlderRequests(false)
       setResponseConfig(DEFAULT_ENDPOINT_RESPONSE_CONFIG)
       setConnectionState("connecting")
       const requestIdsAtLoadStart = new Set<string>()
@@ -388,7 +438,7 @@ export function useBrowserEndpointSession(): Endpoint {
 
       void (async () => {
         try {
-          const [nextRequests, nextResponseConfig] = await Promise.all([
+          const [nextRequestPage, nextResponseConfig] = await Promise.all([
             transport.loadRequests(nextEndpointId),
             transport.loadEndpointResponseConfig(nextEndpointId),
           ])
@@ -399,7 +449,7 @@ export function useBrowserEndpointSession(): Endpoint {
 
           applyLoadedRequests({
             clearVersionAtLoadStart,
-            loadedRequests: nextRequests,
+            page: nextRequestPage,
             requestIdsAtLoadStart,
           })
           setResponseConfig(nextResponseConfig)
@@ -415,13 +465,7 @@ export function useBrowserEndpointSession(): Endpoint {
         }
       })()
     },
-    [
-      applyLoadedRequests,
-      isLoading,
-      endpointId,
-      transport,
-      updateEndpointId,
-    ]
+    [applyLoadedRequests, isLoading, endpointId, transport, updateEndpointId]
   )
 
   const saveResponseOverride = React.useCallback(
@@ -435,11 +479,10 @@ export function useBrowserEndpointSession(): Endpoint {
       setIsSavingResponse(true)
 
       try {
-        const nextResponseConfig =
-          await transport.saveEndpointResponseOverride(
-            savingEndpointId,
-            override
-          )
+        const nextResponseConfig = await transport.saveEndpointResponseOverride(
+          savingEndpointId,
+          override
+        )
 
         if (activeEndpointIdRef.current === savingEndpointId) {
           setResponseConfig(nextResponseConfig)
@@ -469,9 +512,7 @@ export function useBrowserEndpointSession(): Endpoint {
 
     try {
       const nextResponseConfig =
-        await transport.clearEndpointResponseOverride(
-          savingEndpointId
-        )
+        await transport.clearEndpointResponseOverride(savingEndpointId)
 
       if (activeEndpointIdRef.current === savingEndpointId) {
         setResponseConfig(nextResponseConfig)
@@ -499,6 +540,7 @@ export function useBrowserEndpointSession(): Endpoint {
     () => ({
       clearEndpoint,
       clearResponseOverride,
+      loadOlderRequests,
       renameEndpoint: renameCurrentEndpoint,
       refreshEndpoint,
       saveResponseOverride,
@@ -509,6 +551,7 @@ export function useBrowserEndpointSession(): Endpoint {
     [
       clearEndpoint,
       clearResponseOverride,
+      loadOlderRequests,
       refreshEndpoint,
       renameCurrentEndpoint,
       saveResponseOverride,
@@ -524,8 +567,10 @@ export function useBrowserEndpointSession(): Endpoint {
     connectionState,
     errorMessage,
     endpointNames,
+    hasMoreRequests,
     isClearing,
     isLoading,
+    isLoadingOlderRequests,
     isSavingResponse,
     recentEndpointIds,
     responseConfig,

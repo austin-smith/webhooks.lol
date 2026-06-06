@@ -17,9 +17,7 @@ class MemoryStorage {
 describe("endpoint session storage", () => {
   it("reads active webhook endpoint ID, recent webhook endpoint IDs, and names as one session", () => {
     const memoryStorage = new MemoryStorage()
-    const storage = createEndpointSessionStorageAdapter(
-      () => memoryStorage
-    )
+    const storage = createEndpointSessionStorageAdapter(() => memoryStorage)
 
     memoryStorage.setItem("webhooks.lol:endpoint-id", "active")
     memoryStorage.setItem(
@@ -47,9 +45,7 @@ describe("endpoint session storage", () => {
 
   it("falls back to the first recent webhook endpoint ID when no active webhook endpoint ID exists", () => {
     const memoryStorage = new MemoryStorage()
-    const storage = createEndpointSessionStorageAdapter(
-      () => memoryStorage
-    )
+    const storage = createEndpointSessionStorageAdapter(() => memoryStorage)
 
     memoryStorage.setItem(
       "webhooks.lol:recent-endpoint-ids",
@@ -65,9 +61,7 @@ describe("endpoint session storage", () => {
 
   it("writes normalized session values", () => {
     const memoryStorage = new MemoryStorage()
-    const storage = createEndpointSessionStorageAdapter(
-      () => memoryStorage
-    )
+    const storage = createEndpointSessionStorageAdapter(() => memoryStorage)
 
     storage.writeActiveEndpointId("active")
     storage.writeRecentEndpointIds(["active", "active", "other"])
@@ -79,12 +73,10 @@ describe("endpoint session storage", () => {
       ["active"]
     )
 
-    expect(memoryStorage.getItem("webhooks.lol:endpoint-id")).toBe(
-      "active"
+    expect(memoryStorage.getItem("webhooks.lol:endpoint-id")).toBe("active")
+    expect(memoryStorage.getItem("webhooks.lol:recent-endpoint-ids")).toBe(
+      JSON.stringify(["active", "other"])
     )
-    expect(
-      memoryStorage.getItem("webhooks.lol:recent-endpoint-ids")
-    ).toBe(JSON.stringify(["active", "other"]))
     expect(memoryStorage.getItem("webhooks.lol:endpoint-names")).toBe(
       JSON.stringify({ active: "Active endpoint" })
     )

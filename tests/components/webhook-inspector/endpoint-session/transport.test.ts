@@ -29,6 +29,22 @@ function createRequest(): CapturedRequest {
   }
 }
 
+function createRequestsResponse(
+  requests: CapturedRequest[],
+  page: {
+    hasMore: boolean
+    nextCursor: string | null
+  } = {
+    hasMore: false,
+    nextCursor: null,
+  }
+) {
+  return {
+    page,
+    requests,
+  }
+}
+
 describe("endpoint transport", () => {
   it("creates, loads, and clears through the fetch adapter", async () => {
     const customResponse = {
@@ -39,11 +55,16 @@ describe("endpoint transport", () => {
     }
     const fetcher = vi
       .fn()
+      .mockResolvedValueOnce(createResponse({ endpointId: "new-endpoint" }))
       .mockResolvedValueOnce(
-        createResponse({ endpointId: "new-endpoint" })
+        createResponse(
+          createRequestsResponse([createRequest()], {
+            hasMore: true,
+            nextCursor: "cursor-1",
+          })
+        )
       )
-      .mockResolvedValueOnce(createResponse({ requests: [createRequest()] }))
-      .mockResolvedValueOnce(createResponse({ requests: [] }))
+      .mockResolvedValueOnce(createResponse(createRequestsResponse([])))
       .mockResolvedValueOnce(
         createResponse({
           endpointId: "endpoint",
@@ -69,12 +90,12 @@ describe("endpoint transport", () => {
       body: '{"ok":true}',
     }
 
-    await expect(transport.createEndpoint()).resolves.toBe(
-      "new-endpoint"
-    )
-    await expect(transport.loadRequests("endpoint")).resolves.toEqual([
-      createRequest(),
-    ])
+    await expect(transport.createEndpoint()).resolves.toBe("new-endpoint")
+    await expect(transport.loadRequests("endpoint")).resolves.toEqual({
+      hasMore: true,
+      nextCursor: "cursor-1",
+      requests: [createRequest()],
+    })
     await expect(transport.clearEndpoint("endpoint")).resolves.toBeUndefined()
     await expect(
       transport.loadEndpointResponseConfig("endpoint")
@@ -126,6 +147,24 @@ describe("endpoint transport", () => {
       "/api/endpoints/endpoint/response",
       {
         method: "DELETE",
+      }
+    )
+  })
+
+  it("loads older request pages with an encoded cursor", async () => {
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(createResponse(createRequestsResponse([])))
+    const transport = createFetchEndpointTransport(fetcher)
+
+    await transport.loadRequests("endpoint", {
+      cursor: "2026-06-05T00:00:00.000Z|captured-1",
+    })
+
+    expect(fetcher).toHaveBeenCalledWith(
+      "/api/endpoints/endpoint/requests?cursor=2026-06-05T00%3A00%3A00.000Z%7Ccaptured-1",
+      {
+        cache: "no-store",
       }
     )
   })

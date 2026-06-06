@@ -1,6 +1,13 @@
 import * as React from "react"
-import { RefreshCwIcon, Trash2Icon, WebhookIcon } from "lucide-react"
+import {
+  ChevronDownIcon,
+  LoaderCircleIcon,
+  RefreshCwIcon,
+  Trash2Icon,
+  WebhookIcon,
+} from "lucide-react"
 
+import { Button } from "@/components/ui/button"
 import {
   Empty,
   EmptyDescription,
@@ -23,22 +30,28 @@ import { formatRequestListPath, formatRequestTime } from "./request-formatters"
 
 type EndpointPanelProps = {
   canRefresh: boolean
+  hasMoreRequests: boolean
   isClearing: boolean
   isLoading: boolean
+  isLoadingOlderRequests: boolean
   requests: CapturedRequest[]
   selectedId: string | null
   onClearEndpoint: () => void
+  onLoadOlderRequests: () => void
   onRefreshEndpoint: () => void
   onSelectRequest: (id: string) => void
 }
 
 export function EndpointPanel({
   canRefresh,
+  hasMoreRequests,
   isClearing,
   isLoading,
+  isLoadingOlderRequests,
   requests,
   selectedId,
   onClearEndpoint,
+  onLoadOlderRequests,
   onRefreshEndpoint,
   onSelectRequest,
 }: EndpointPanelProps) {
@@ -48,14 +61,15 @@ export function EndpointPanel({
   )
 
   return (
-    <section className="flex min-h-[220px] min-w-0 flex-col border-b bg-card sm:min-h-0 sm:border-r sm:border-b-0">
+    <section className="flex h-[min(42svh,28rem)] min-h-[220px] min-w-0 flex-col overflow-hidden border-b bg-card sm:h-auto sm:min-h-0 sm:border-r sm:border-b-0">
       <header className="grid h-16 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b bg-muted/20 px-4">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold">REQUESTS</h2>
           <div className="min-h-4 text-[0.68rem] text-muted-foreground">
             {isLoading ? null : (
               <span className="animate-in duration-200 fade-in-0 motion-reduce:animate-none">
-                {requests.length} captured
+                {requests.length} shown
+                {hasMoreRequests ? " · older available" : ""}
               </span>
             )}
           </div>
@@ -83,8 +97,14 @@ export function EndpointPanel({
             <RequestListLoading />
           ) : null
         ) : requests.length > 0 ? (
-          <ScrollArea className="h-full">
-            <ul aria-label="Captured requests" className="flex flex-col gap-2">
+          <ScrollArea
+            className="min-h-0 flex-1"
+            aria-busy={isLoadingOlderRequests}
+          >
+            <ul
+              aria-label="Captured requests"
+              className="flex flex-col gap-2 pr-3"
+            >
               {requests.map((request) => (
                 <li
                   key={request.id}
@@ -98,6 +118,28 @@ export function EndpointPanel({
                 </li>
               ))}
             </ul>
+            {hasMoreRequests || isLoadingOlderRequests ? (
+              <div className="sticky bottom-0 mt-3 bg-gradient-to-t from-card via-card pt-3 pr-3 pb-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 w-full rounded-sm text-[0.68rem]"
+                  disabled={!hasMoreRequests || isLoadingOlderRequests}
+                  onClick={onLoadOlderRequests}
+                >
+                  {isLoadingOlderRequests ? (
+                    <LoaderCircleIcon
+                      data-icon="inline-start"
+                      className="animate-spin"
+                    />
+                  ) : (
+                    <ChevronDownIcon data-icon="inline-start" />
+                  )}
+                  {isLoadingOlderRequests ? "Loading older" : "Load older"}
+                </Button>
+              </div>
+            ) : null}
           </ScrollArea>
         ) : (
           <Empty className="h-full animate-in rounded-sm border border-dashed bg-background/60 p-4 duration-200 fade-in-0 motion-reduce:animate-none">

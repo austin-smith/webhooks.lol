@@ -18,7 +18,9 @@ export default function GlobalError({
           <title>webhooks.lol Error</title>
           <section className="w-full max-w-xl rounded-md border bg-card p-4">
             <div className="border-b pb-3">
-              <p className="text-[0.68rem] text-muted-foreground">WEBHOOKS.LOL</p>
+              <p className="text-[0.68rem] text-muted-foreground">
+                WEBHOOKS.LOL
+              </p>
               <h1 className="text-sm font-medium">ERROR</h1>
             </div>
             <div className="flex flex-col gap-4 pt-4">

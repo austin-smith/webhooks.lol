@@ -56,9 +56,7 @@ export function InspectorHeader({
   onRenameEndpoint,
   onSwitchEndpoint,
 }: InspectorHeaderProps) {
-  const endpointName = endpointId
-    ? (endpointNames[endpointId] ?? "")
-    : ""
+  const endpointName = endpointId ? (endpointNames[endpointId] ?? "") : ""
 
   return (
     <header className="flex min-w-0 flex-col gap-3 border-b pb-4">

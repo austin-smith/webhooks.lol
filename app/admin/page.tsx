@@ -70,10 +70,7 @@ function AdminDashboard({ dashboard, session }: AdminDashboardProps) {
     <AdminShell>
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <MetricCard label="Requests" value={dashboard.counts.requests} />
-        <MetricCard
-          label="Endpoints"
-          value={dashboard.counts.endpoints}
-        />
+        <MetricCard label="Endpoints" value={dashboard.counts.endpoints} />
         <MetricCard label="Users" value={dashboard.counts.users} />
         <MetricCard label="Admin" value={dashboard.counts.admins} />
       </section>
