@@ -10,6 +10,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { cn } from "@/lib/utils"
 
 import { InboxSwitcher } from "./inbox-switcher"
 import { InspectorIconButton } from "./inspector-icon-button"
@@ -62,19 +63,14 @@ export function InspectorHeader({
               priority
             />
           </div>
-          <h1 className="font-heading text-sm text-muted-foreground">
+          <h1 className="font-heading text-sm font-medium text-muted-foreground">
             WEBHOOKS.LOL
           </h1>
         </div>
-        <div
-          className="text-[0.68rem] text-muted-foreground"
-          title="Connection state"
-        >
-          {formatConnectionState(connectionState)}
-        </div>
+        <ConnectionStatus state={connectionState} />
       </div>
 
-      <div className="grid min-w-0 grid-cols-[minmax(6.75rem,8.5rem)_minmax(0,1fr)_auto] rounded-md border bg-card shadow-sm sm:grid-cols-[minmax(7.5rem,12rem)_minmax(0,1fr)_auto]">
+      <div className="grid min-w-0 grid-cols-[minmax(6.75rem,8.5rem)_minmax(0,1fr)_auto] overflow-hidden rounded-md border bg-card sm:grid-cols-[minmax(7.5rem,12rem)_minmax(0,1fr)_auto]">
         <InboxSwitcher
           disabled={isLoading || !token}
           inboxNames={inboxNames}
@@ -89,9 +85,11 @@ export function InspectorHeader({
         <div className="flex min-w-0 items-center border-l px-2">
           <Input
             readOnly
+            density="compact"
+            variant="embedded"
             value={webhookUrl}
             aria-label="Receive URL"
-            className="h-10 border-0 bg-transparent px-0 font-mono text-xs shadow-none focus-visible:ring-0"
+            className="h-10 px-0 font-mono text-xs text-foreground"
             placeholder="Creating inbox..."
           />
         </div>
@@ -140,5 +138,25 @@ export function InspectorHeader({
         </div>
       </div>
     </header>
+  )
+}
+
+function ConnectionStatus({ state }: { state: ConnectionState }) {
+  return (
+    <div
+      className="inline-flex h-6 shrink-0 items-center gap-1.5 text-[0.68rem] font-medium text-muted-foreground"
+      title="Connection state"
+    >
+      <span
+        className={cn(
+          "size-1.5 rounded-full",
+          state === "live" && "bg-foreground",
+          state === "connecting" && "bg-muted-foreground",
+          state === "offline" && "bg-destructive"
+        )}
+        aria-hidden="true"
+      />
+      {formatConnectionState(state)}
+    </div>
   )
 }

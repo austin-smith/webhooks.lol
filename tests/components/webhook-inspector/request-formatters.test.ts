@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  formatBytes,
   formatRequestBodyDisplay,
+  formatRequestListPath,
   getRequestBodyLanguage,
 } from "@/components/webhook-inspector/request-formatters"
 import type { CapturedRequest } from "@/lib/webhooks/types"
@@ -28,6 +30,37 @@ function createRequest(
 }
 
 describe("request formatters", () => {
+  it.each([
+    [0, "0 B"],
+    [512, "512 B"],
+    [1536, "1.5 KB"],
+    [12_288, "12 KB"],
+    [1_572_864, "1.5 MB"],
+    [1_610_612_736, "1.5 GB"],
+  ])("formats %i bytes as %s", (bytes, expected) => {
+    expect(formatBytes(bytes)).toBe(expected)
+  })
+
+  it.each([
+    {
+      name: "keeps root paths visible",
+      request: createRequest(),
+      expected: "/",
+    },
+    {
+      name: "uses the captured path",
+      request: createRequest({ path: "/stripe/events" }),
+      expected: "/stripe/events",
+    },
+    {
+      name: "marks root requests with query parameters",
+      request: createRequest({ query: { signature: ["abc"] } }),
+      expected: "/?query",
+    },
+  ])("$name", ({ expected, request }) => {
+    expect(formatRequestListPath(request)).toBe(expected)
+  })
+
   it.each([
     ["application/json", "json"],
     ["application/vnd.webhook+json; charset=utf-8", "json"],

@@ -17,8 +17,28 @@ export type FormattedRequestBody = {
   value: string
 }
 
+const BYTE_UNITS = ["B", "KB", "MB", "GB"] as const
+
 export function formatRequestDetailPath(request: CapturedRequest) {
-  return request.path === "/" ? null : request.path
+  const path = `${request.path}${formatRequestQueryString(request.query)}`
+
+  return path === "/" ? null : path
+}
+
+export function formatRequestListPath(request: CapturedRequest) {
+  return formatRequestDetailPath(request) ?? "/"
+}
+
+export function formatBytes(bytes: number) {
+  let value = bytes
+  let unitIndex = 0
+
+  while (value >= 1024 && unitIndex < BYTE_UNITS.length - 1) {
+    value /= 1024
+    unitIndex += 1
+  }
+
+  return `${formatByteValue(value, unitIndex)} ${BYTE_UNITS[unitIndex]}`
 }
 
 export function formatRequestBody(request: CapturedRequest) {
@@ -139,6 +159,31 @@ export function formatShortToken(token: string | null) {
   }
 
   return token.slice(0, 8)
+}
+
+function formatByteValue(value: number, unitIndex: number) {
+  return new Intl.NumberFormat(undefined, {
+    maximumFractionDigits: unitIndex === 0 ? 0 : 1,
+  }).format(value)
+}
+
+function formatRequestQueryString(query: CapturedRequest["query"]) {
+  const params = new URLSearchParams()
+
+  Object.entries(query).forEach(([key, values]) => {
+    if (values.length === 0) {
+      params.append(key, "")
+      return
+    }
+
+    values.forEach((value) => {
+      params.append(key, value)
+    })
+  })
+
+  const queryString = params.toString()
+
+  return queryString ? `?${queryString}` : ""
 }
 
 export function getRequestBodyLanguage(

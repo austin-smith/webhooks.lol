@@ -54,43 +54,45 @@ export function WebhookInspector() {
   }, [webhookUrl])
 
   return (
-    <main className="flex min-h-svh flex-col gap-4 bg-background p-4 font-mono text-xs lg:p-5">
-      <InspectorHeader
-        connectionState={inbox.connectionState}
-        copied={copied}
-        copyMessage={copyMessage}
-        inboxNames={inbox.inboxNames}
-        isLoading={inbox.isLoading}
-        recentTokens={inbox.recentTokens}
-        token={inbox.token}
-        webhookUrl={webhookUrl}
-        onCopyWebhookUrl={copyWebhookUrl}
-        onNewInbox={inbox.actions.startNewInbox}
-        onRenameInbox={inbox.actions.renameInbox}
-        onSwitchInbox={inbox.actions.switchInbox}
-      />
-
-      {inbox.errorMessage ? (
-        <Alert className="rounded-md">
-          <AlertCircleIcon />
-          <AlertTitle>REQUEST FAILED</AlertTitle>
-          <AlertDescription>{inbox.errorMessage}</AlertDescription>
-        </Alert>
-      ) : null}
-
-      <section className="grid min-h-[calc(100svh-8.5rem)] flex-1 overflow-hidden rounded-md border bg-card sm:h-[calc(100svh-8.5rem)] sm:min-h-0 sm:grid-cols-[280px_minmax(0,1fr)]">
-        <InboxPanel
-          canRefresh={inbox.canRefresh}
-          isClearing={inbox.isClearing}
+    <main className="flex min-h-svh bg-background p-4 font-mono text-xs text-foreground lg:p-5">
+      <div className="flex min-h-[calc(100svh-2rem)] w-full flex-1 flex-col gap-4 lg:min-h-[calc(100svh-2.5rem)]">
+        <InspectorHeader
+          connectionState={inbox.connectionState}
+          copied={copied}
+          copyMessage={copyMessage}
+          inboxNames={inbox.inboxNames}
           isLoading={inbox.isLoading}
-          requests={inbox.requests}
-          selectedId={inbox.selectedRequest?.id ?? null}
-          onClearInbox={inbox.actions.clearInbox}
-          onRefreshInbox={inbox.actions.refreshInbox}
-          onSelectRequest={inbox.actions.selectRequest}
+          recentTokens={inbox.recentTokens}
+          token={inbox.token}
+          webhookUrl={webhookUrl}
+          onCopyWebhookUrl={copyWebhookUrl}
+          onNewInbox={inbox.actions.startNewInbox}
+          onRenameInbox={inbox.actions.renameInbox}
+          onSwitchInbox={inbox.actions.switchInbox}
         />
-        <RequestDetail request={inbox.selectedRequest} />
-      </section>
+
+        {inbox.errorMessage ? (
+          <Alert className="rounded-md">
+            <AlertCircleIcon />
+            <AlertTitle>REQUEST FAILED</AlertTitle>
+            <AlertDescription>{inbox.errorMessage}</AlertDescription>
+          </Alert>
+        ) : null}
+
+        <section className="grid flex-1 overflow-hidden rounded-md border bg-card sm:min-h-0 sm:grid-cols-[minmax(17.5rem,20rem)_minmax(0,1fr)]">
+          <InboxPanel
+            canRefresh={inbox.canRefresh}
+            isClearing={inbox.isClearing}
+            isLoading={inbox.isLoading}
+            requests={inbox.requests}
+            selectedId={inbox.selectedRequest?.id ?? null}
+            onClearInbox={inbox.actions.clearInbox}
+            onRefreshInbox={inbox.actions.refreshInbox}
+            onSelectRequest={inbox.actions.selectRequest}
+          />
+          <RequestDetail request={inbox.selectedRequest} />
+        </section>
+      </div>
     </main>
   )
 }

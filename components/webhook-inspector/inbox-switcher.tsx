@@ -102,7 +102,7 @@ export function InboxSwitcher({
           type="button"
           disabled={disabled}
           aria-label="Switch inbox"
-          className="group flex h-10 min-w-0 items-center justify-between gap-2 rounded-l-md px-3 text-left transition-colors hover:bg-muted/55 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+          className="group flex h-10 min-w-0 items-center justify-between gap-2 rounded-l-md px-3 text-left transition-colors hover:bg-muted/55 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 aria-expanded:bg-muted"
         >
           <span className="min-w-0 truncate font-mono text-xs font-medium">
             {token ? selectedLabel : "Creating..."}
@@ -111,7 +111,7 @@ export function InboxSwitcher({
         </button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-[min(16rem,calc(100vw-2rem))] p-0"
+        className="w-[min(18rem,calc(100vw-2rem))] overflow-hidden p-0"
         align="start"
       >
         <div className="border-b p-2">
@@ -119,16 +119,18 @@ export function InboxSwitcher({
             <SearchIcon className="size-3.5 shrink-0 text-muted-foreground" />
             <span className="sr-only">Search inboxes</span>
             <Input
+              density="compact"
+              variant="embedded"
               value={query}
               onChange={(event) => setQuery(event.currentTarget.value)}
-              className="h-7 border-0 bg-transparent px-0 font-mono text-xs shadow-none focus-visible:ring-0 md:text-xs"
+              className="px-0 font-mono"
               placeholder="Search inboxes"
             />
           </label>
         </div>
 
         <ScrollArea className="max-h-64">
-          <div className="flex flex-col gap-1 p-1">
+          <div className="flex flex-col gap-1 p-1.5">
             {filteredTokens.length > 0 ? (
               filteredTokens.map((recentToken) => (
                 <InboxSwitcherRow
@@ -167,7 +169,7 @@ export function InboxSwitcher({
               onNewInbox()
               changeOpen(false)
             }}
-            className="flex h-9 w-full items-center gap-2 rounded-sm px-2 text-left text-xs transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex h-9 w-full items-center gap-2 rounded-sm border border-transparent px-2 text-left text-xs transition-colors hover:border-border hover:bg-background focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
           >
             <PlusIcon className="size-3.5 text-muted-foreground" />
             <span>New inbox</span>
@@ -207,12 +209,13 @@ function InboxSwitcherRow({
   if (isRenaming) {
     return (
       <form
-        className="flex min-h-10 items-center gap-1.5 rounded-sm bg-muted p-1.5"
+        className="flex h-11 items-center gap-1.5 rounded-sm bg-muted p-1.5"
         onSubmit={onSaveName}
       >
         <Input
           autoFocus
           aria-label="Inbox label"
+          density="compact"
           value={nameDraft}
           onChange={(event) => onChangeNameDraft(event.currentTarget.value)}
           onKeyDown={(event) => {
@@ -221,11 +224,17 @@ function InboxSwitcherRow({
               onCancelRename()
             }
           }}
-          className="h-7 rounded-sm font-mono text-xs"
+          className="rounded-sm font-mono"
           maxLength={32}
         />
-        <Button type="submit" size="sm" className="rounded-sm">
-          Save
+        <Button
+          type="submit"
+          size="icon-sm"
+          className="rounded-sm"
+          aria-label="Save inbox label"
+        >
+          <CheckIcon data-icon="inline-start" />
+          <span className="sr-only">Save inbox label</span>
         </Button>
         <button
           type="button"
@@ -242,7 +251,7 @@ function InboxSwitcherRow({
   return (
     <div
       className={cn(
-        "grid min-h-10 grid-cols-[minmax(0,1fr)_auto] items-center gap-1 rounded-sm transition-colors hover:bg-muted",
+        "grid h-11 grid-cols-[minmax(0,1fr)_auto] items-center gap-1 rounded-sm transition-colors hover:bg-muted",
         selected && "bg-muted"
       )}
     >

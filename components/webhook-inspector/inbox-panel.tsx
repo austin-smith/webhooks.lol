@@ -14,7 +14,11 @@ import type { CapturedRequest } from "@/lib/webhooks/types"
 import { cn } from "@/lib/utils"
 
 import { InspectorIconButton } from "./inspector-icon-button"
-import { formatRequestTime, getMethodBadgeVariant } from "./request-formatters"
+import {
+  formatRequestListPath,
+  formatRequestTime,
+  getMethodBadgeVariant,
+} from "./request-formatters"
 
 type InboxPanelProps = {
   canRefresh: boolean
@@ -39,9 +43,9 @@ export function InboxPanel({
 }: InboxPanelProps) {
   return (
     <section className="flex min-h-[220px] min-w-0 flex-col border-b bg-card sm:min-h-0 sm:border-r sm:border-b-0">
-      <header className="grid h-16 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b px-4">
+      <header className="grid h-16 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b bg-muted/20 px-4">
         <div className="min-w-0">
-          <h2 className="text-sm font-medium">REQUESTS</h2>
+          <h2 className="text-sm font-semibold">REQUESTS</h2>
           <div className="text-[0.68rem] text-muted-foreground">
             {requests.length} captured
           </div>
@@ -63,7 +67,7 @@ export function InboxPanel({
           />
         </div>
       </header>
-      <div className="flex min-h-0 flex-1 flex-col p-4">
+      <div className="flex min-h-0 flex-1 flex-col p-3 sm:p-4">
         {isLoading ? (
           <RequestListSkeleton />
         ) : requests.length > 0 ? (
@@ -81,7 +85,7 @@ export function InboxPanel({
             </ul>
           </ScrollArea>
         ) : (
-          <Empty className="h-full rounded-none p-4">
+          <Empty className="h-full rounded-sm border border-dashed bg-background/60 p-4">
             <EmptyHeader>
               <EmptyMedia variant="icon" className="rounded-sm">
                 <InboxIcon />
@@ -105,23 +109,30 @@ function RequestListItem({
   selected: boolean
   onSelect: () => void
 }) {
+  const path = formatRequestListPath(request)
+
   return (
     <button
       type="button"
       onClick={onSelect}
       aria-current={selected ? "true" : undefined}
-      aria-label={`${request.method} received at ${formatRequestTime(request.receivedAt)}`}
+      aria-label={`${request.method} ${path} received at ${formatRequestTime(request.receivedAt)}`}
       className={cn(
-        "flex h-11 w-full min-w-0 items-center justify-between gap-3 overflow-hidden rounded-md border bg-background px-3 text-left transition-colors hover:bg-muted/40 aria-current:border-foreground/40 aria-current:bg-muted/40",
-        selected && "border-foreground/40 bg-muted/40"
+        "grid h-11 w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 overflow-hidden rounded-md border bg-background px-3 text-left transition-colors hover:border-foreground/20 hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-ring/35 focus-visible:outline-none aria-current:border-foreground/35 aria-current:bg-muted/35",
+        selected && "border-foreground/35 bg-muted/35"
       )}
     >
       <Badge
         variant={getMethodBadgeVariant(request.method)}
-        className="rounded-sm px-1.5"
+        className="rounded-sm px-1.5 font-semibold"
       >
         {request.method}
       </Badge>
+      <span className="min-w-0">
+        <span className="block truncate text-xs font-medium text-foreground">
+          {path}
+        </span>
+      </span>
       <span className="shrink-0 text-[0.68rem] text-muted-foreground">
         {formatRequestTime(request.receivedAt)}
       </span>
@@ -135,7 +146,7 @@ function RequestListSkeleton() {
       {Array.from({ length: 5 }).map((_, index) => (
         <div
           key={index}
-          className="flex h-11 flex-col justify-center gap-2 rounded-md border bg-background px-3"
+          className="flex h-11 items-center rounded-md border bg-background px-3"
         >
           <Skeleton className="h-4 w-3/4" />
         </div>

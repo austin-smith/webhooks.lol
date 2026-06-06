@@ -1,5 +1,5 @@
 import * as React from "react"
-import { BracesIcon, WrapTextIcon } from "lucide-react"
+import { BracesIcon, CheckIcon, CopyIcon, WrapTextIcon } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import {
@@ -17,10 +17,11 @@ import { cn } from "@/lib/utils"
 import { InspectorIconButton } from "./inspector-icon-button"
 import { CodePanel, KeyValueTable } from "./request-data-panels"
 import {
+  formatBytes,
   formatRawRequest,
   formatRequestBodyDisplay,
   formatRequestDateTime,
-  formatRequestDetailPath,
+  formatRequestListPath,
   getMethodBadgeVariant,
 } from "./request-formatters"
 
@@ -35,8 +36,8 @@ export function RequestDetail({
     return (
       <section className="flex min-h-[420px] min-w-0 flex-col bg-card sm:min-h-0">
         <RequestDetailHeader title="REQUEST" description="No selection" />
-        <div className="flex min-h-0 flex-1 p-4">
-          <Empty className="h-full rounded-none p-4">
+        <div className="flex min-h-0 flex-1 p-3 sm:p-4">
+          <Empty className="h-full rounded-sm border border-dashed bg-background/60 p-4">
             <EmptyHeader>
               <EmptyMedia variant="icon" className="rounded-sm">
                 <BracesIcon />
@@ -53,7 +54,7 @@ export function RequestDetail({
   return (
     <section className="flex min-h-[520px] min-w-0 flex-col bg-card sm:min-h-0">
       <RequestSummaryHeader request={request} />
-      <div className="flex min-h-0 flex-1 flex-col p-4">
+      <div className="flex min-h-0 flex-1 flex-col p-3 sm:p-4">
         <RequestMetrics request={request} />
 
         <Separator className="my-4" />
@@ -72,44 +73,54 @@ function RequestDetailHeader({
   title: string
 }) {
   return (
-    <header className="flex h-16 flex-col justify-center border-b px-4">
-      <h2 className="text-sm font-medium">{title}</h2>
+    <header className="flex h-16 flex-col justify-center border-b bg-muted/20 px-4">
+      <h2 className="text-sm font-semibold">{title}</h2>
       <p className="text-xs text-muted-foreground">{description}</p>
     </header>
   )
 }
 
 function RequestSummaryHeader({ request }: { request: CapturedRequest }) {
-  const path = formatRequestDetailPath(request)
+  const path = formatRequestListPath(request)
 
   return (
-    <header className="flex h-16 flex-col justify-center border-b px-4">
-      <div className="flex min-w-0 items-center gap-2 text-sm font-medium">
-        <Badge
-          variant={getMethodBadgeVariant(request.method)}
-          className="rounded-sm px-1.5"
-        >
-          {request.method}
-        </Badge>
-        {path ? (
-          <span className="min-w-0 truncate text-xs text-muted-foreground">
+    <header className="grid h-16 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b bg-muted/20 px-4">
+      <div className="min-w-0">
+        <div className="flex min-w-0 items-center gap-2 text-sm font-medium">
+          <Badge
+            variant={getMethodBadgeVariant(request.method)}
+            className="rounded-sm px-1.5 font-semibold"
+          >
+            {request.method}
+          </Badge>
+          <span className="min-w-0 truncate text-xs text-foreground">
             {path}
           </span>
-        ) : null}
+        </div>
+        <p className="truncate text-xs text-muted-foreground">
+          {formatRequestDateTime(request.receivedAt)}
+        </p>
       </div>
-      <p className="text-xs text-muted-foreground">
-        {formatRequestDateTime(request.receivedAt)}
-      </p>
+      {request.ip ? (
+        <span className="hidden max-w-40 truncate text-[0.68rem] text-muted-foreground md:inline-flex">
+          {request.ip}
+        </span>
+      ) : null}
     </header>
   )
 }
 
 function RequestMetrics({ request }: { request: CapturedRequest }) {
   return (
-    <dl className="grid overflow-hidden rounded-md border bg-background md:grid-cols-3">
+    <dl className="grid overflow-hidden rounded-md border bg-background md:grid-cols-4">
       <RequestMetric
         label="CONTENT TYPE"
         value={request.contentType ?? "none"}
+        className="border-b md:border-r md:border-b-0"
+      />
+      <RequestMetric
+        label="BODY"
+        value={formatBytes(request.bodySize)}
         className="border-b md:border-r md:border-b-0"
       />
       <RequestMetric
@@ -145,8 +156,20 @@ function RequestMetric({
 function RequestPayloadTabs({ request }: { request: CapturedRequest }) {
   const body = formatRequestBodyDisplay(request)
   const rawRequest = formatRawRequest(request)
+  const bodyCopyKey = `${request.id}\u0000${body.value}`
   const [activeTab, setActiveTab] = React.useState("body")
+  const [copiedBodyKey, setCopiedBodyKey] = React.useState<string | null>(null)
   const [wrapBody, setWrapBody] = React.useState(readStoredBodyWrap)
+  const copyBodyResetTimeout = React.useRef<number | null>(null)
+  const copiedBody = copiedBodyKey === bodyCopyKey
+
+  React.useEffect(() => {
+    return () => {
+      if (copyBodyResetTimeout.current) {
+        window.clearTimeout(copyBodyResetTimeout.current)
+      }
+    }
+  }, [])
 
   const toggleWrapBody = React.useCallback(() => {
     setWrapBody((current) => {
@@ -162,13 +185,37 @@ function RequestPayloadTabs({ request }: { request: CapturedRequest }) {
     })
   }, [])
 
+  const copyBody = React.useCallback(async () => {
+    if (!body.value) {
+      return
+    }
+
+    if (copyBodyResetTimeout.current) {
+      window.clearTimeout(copyBodyResetTimeout.current)
+    }
+
+    try {
+      await navigator.clipboard.writeText(body.value)
+      setCopiedBodyKey(bodyCopyKey)
+    } catch {
+      setCopiedBodyKey(null)
+    }
+
+    copyBodyResetTimeout.current = window.setTimeout(() => {
+      setCopiedBodyKey((current) =>
+        current === bodyCopyKey ? null : current
+      )
+      copyBodyResetTimeout.current = null
+    }, 1400)
+  }, [body.value, bodyCopyKey])
+
   return (
     <Tabs
       value={activeTab}
       onValueChange={setActiveTab}
       className="flex min-h-0 flex-1 flex-col"
     >
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-3 border-b pb-2">
         <TabsList
           variant="line"
           className="justify-start rounded-none [&_[data-slot=tabs-trigger]]:text-xs"
@@ -186,22 +233,35 @@ function RequestPayloadTabs({ request }: { request: CapturedRequest }) {
             Raw
           </TabsTrigger>
         </TabsList>
-        <InspectorIconButton
-          aria-pressed={wrapBody}
-          className={cn(
-            "size-7 rounded-sm",
-            wrapBody && "border-foreground/30 bg-muted text-foreground"
-          )}
-          disabled={activeTab !== "body"}
-          icon={WrapTextIcon}
-          label={wrapBody ? "Disable wrap" : "Enable wrap"}
-          onClick={toggleWrapBody}
-          size="icon-sm"
-          variant="ghost"
-        />
+        <div className="flex items-center">
+          <InspectorIconButton
+            aria-pressed={wrapBody}
+            className={cn(
+              "size-7 rounded-sm",
+              wrapBody && "border-foreground/30 bg-muted text-foreground"
+            )}
+            disabled={activeTab !== "body"}
+            icon={WrapTextIcon}
+            label={wrapBody ? "Disable word wrap" : "Enable word wrap"}
+            onClick={toggleWrapBody}
+            size="icon-sm"
+            variant="ghost"
+          />
+        </div>
       </div>
       <TabsContent value="body" className="min-h-0 flex-1">
         <CodePanel
+          actions={
+            <InspectorIconButton
+              className="size-7 rounded-sm bg-background/95"
+              disabled={!body.value}
+              icon={copiedBody ? CheckIcon : CopyIcon}
+              label={copiedBody ? "Copied body" : "Copy body"}
+              onClick={copyBody}
+              size="icon-sm"
+              variant="outline"
+            />
+          }
           language={body.language}
           value={body.value || "No body"}
           wrap={wrapBody}

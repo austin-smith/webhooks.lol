@@ -17,10 +17,12 @@ import { highlightRequestBody } from "./request-body-highlighting"
 import type { RequestBodyLanguage } from "./request-formatters"
 
 export function CodePanel({
+  actions,
   language = "text",
   value,
   wrap = false,
 }: {
+  actions?: React.ReactNode
   language?: RequestBodyLanguage
   value: string
   wrap?: boolean
@@ -55,7 +57,10 @@ export function CodePanel({
     highlightResult.key === highlightKey ? highlightResult.html : ""
 
   return (
-    <div className="h-[420px] overflow-auto rounded-md border bg-background sm:h-full">
+    <div className="relative h-[420px] overflow-auto rounded-md border bg-background sm:h-full">
+      {actions ? (
+        <div className="absolute top-2 right-2 z-10">{actions}</div>
+      ) : null}
       {highlightedHtml ? (
         <div
           className={cn("request-code-panel", wrap && "wrap")}
@@ -64,8 +69,8 @@ export function CodePanel({
       ) : (
         <pre
           className={cn(
-            "min-w-0 overflow-x-auto p-4 text-xs leading-relaxed",
-            wrap ? "whitespace-pre-wrap break-words" : "whitespace-pre"
+            "min-w-0 overflow-x-auto p-4 text-xs leading-relaxed text-foreground",
+            wrap ? "break-words whitespace-pre-wrap" : "whitespace-pre"
           )}
         >
           {value}
@@ -89,7 +94,7 @@ export function KeyValueTable({
   return (
     <ScrollArea className="h-[420px] rounded-md border bg-background sm:h-full">
       <Table className="text-xs">
-        <TableHeader>
+        <TableHeader className="bg-muted/35">
           <TableRow>
             <TableHead className="h-8 w-[11rem] text-[0.68rem] text-muted-foreground">
               KEY
@@ -101,11 +106,11 @@ export function KeyValueTable({
         </TableHeader>
         <TableBody>
           {entries.map(([key, value]) => (
-            <TableRow key={key}>
+            <TableRow key={key} className="hover:bg-muted/30">
               <TableCell className="w-[11rem] max-w-[11rem] truncate align-top text-xs text-muted-foreground">
                 {key}
               </TableCell>
-              <TableCell className="whitespace-normal break-all text-xs">
+              <TableCell className="text-xs break-all whitespace-normal">
                 {Array.isArray(value) ? value.join(", ") : value}
               </TableCell>
             </TableRow>
