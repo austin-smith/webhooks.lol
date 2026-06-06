@@ -55,7 +55,9 @@ database access, `Buffer`, streams, or other Node-specific APIs.
 
 ## Database Workflow
 
-- Schema lives in `lib/database/schema.ts`.
+- Database table definitions live in `lib/database/auth-schema.ts` and
+  `lib/database/public-schema.ts`; `lib/database/schema.ts` re-exports both for
+  Drizzle and runtime setup.
 - Drizzle migrations live in `drizzle/`.
 - Generate migrations after schema changes with `pnpm db:generate`.
 - Apply migrations with `pnpm db:migrate`.
@@ -68,6 +70,32 @@ database access, `Buffer`, streams, or other Node-specific APIs.
 Database access belongs behind the webhook repository layer. Do not put Drizzle
 queries directly in route handlers when the behavior belongs in a repository or
 domain module.
+
+### Better Auth Tables
+
+- This repo deliberately uses a custom PostgreSQL schema for Better Auth while
+  staying on the Better Auth Drizzle adapter. Standard Better Auth tables live
+  in `auth` (`auth.user`, `auth.session`, `auth.account`, `auth.verification`);
+  app-owned tables live in `public`.
+- Define Better Auth tables in `lib/database/auth-schema.ts` with
+  `authSchema.table(...)`. Define public app tables in
+  `lib/database/public-schema.ts` with `pgTable(...)`.
+- Keep `schemaFilter: ["public", "auth"]` in `drizzle.config.ts`, and pass the
+  schema object explicitly to `drizzleAdapter`.
+- Do not add custom auth, role, setup-token, ownership, or bootstrap tables
+  unless a Better Auth-supported feature and product design require it.
+- When Better Auth plugins change, generate CLI output as a table-shape
+  reference, then apply the relevant changes to `lib/database/auth-schema.ts`:
+
+  ```bash
+  pnpm dlx auth@latest generate \
+    --config lib/auth/schema-generator.ts \
+    --output .better-auth-schema.generated.ts \
+    --yes
+  ```
+
+- After changing table definitions, run `pnpm db:generate` and confirm the
+  migration keeps Better Auth tables in `auth` and app tables in `public`.
 
 ## Testing Instructions
 
