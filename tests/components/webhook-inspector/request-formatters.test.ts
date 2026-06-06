@@ -13,9 +13,9 @@ function createRequest(
 ): CapturedRequest {
   return {
     id: "request-id",
-    token: "inbox-token",
+    endpointId: "endpoint-id",
     method: "POST",
-    url: "/api/hook/inbox-token",
+    url: "/api/hook/endpoint-id",
     path: "/",
     query: {},
     headers: {},

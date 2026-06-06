@@ -1,9 +1,9 @@
 import type { CapturedRequest } from "@/lib/webhooks/types"
 
-import type { InboxNames } from "../types"
+import type { EndpointNames } from "../types"
 
-const MAX_RECENT_TOKENS = 8
-const MAX_INBOX_NAME_LENGTH = 32
+const MAX_RECENT_ENDPOINTS = 8
+const MAX_ENDPOINT_NAME_LENGTH = 32
 
 export function selectRequest(
   requests: CapturedRequest[],
@@ -59,59 +59,78 @@ export function reconcileLoadedRequests({
   )
 }
 
-export function rememberInboxToken(token: string, recentTokens: string[]) {
-  return normalizeInboxTokens([token, ...recentTokens])
+export function rememberEndpointId(
+  endpointId: string,
+  recentEndpointIds: string[]
+) {
+  return normalizeEndpointIds([
+    endpointId,
+    ...recentEndpointIds,
+  ])
 }
 
-export function renameInbox({
+export function renameEndpoint({
   currentNames,
   name,
-  recentTokens,
-  token,
+  recentEndpointIds,
+  endpointId,
 }: {
-  currentNames: InboxNames
+  currentNames: EndpointNames
   name: string
-  recentTokens: string[]
-  token: string
+  recentEndpointIds: string[]
+  endpointId: string
 }) {
-  const nextName = name.slice(0, MAX_INBOX_NAME_LENGTH)
-  const knownTokens = normalizeInboxTokens([token, ...recentTokens])
+  const nextName = name.slice(0, MAX_ENDPOINT_NAME_LENGTH)
+  const knownEndpointIds = normalizeEndpointIds([
+    endpointId,
+    ...recentEndpointIds,
+  ])
   const nextNames = { ...currentNames }
 
   if (nextName.trim()) {
-    nextNames[token] = nextName
+    nextNames[endpointId] = nextName
   } else {
-    delete nextNames[token]
+    delete nextNames[endpointId]
   }
 
-  return normalizeInboxNames(nextNames, new Set(knownTokens))
+  return normalizeEndpointNames(
+    nextNames,
+    new Set(knownEndpointIds)
+  )
 }
 
-export function normalizeInboxNames(
+export function normalizeEndpointNames(
   names: Record<string, unknown>,
-  tokens: Set<string>
+  endpointIds: Set<string>
 ) {
-  const nextNames: InboxNames = {}
+  const nextNames: EndpointNames = {}
 
-  for (const [token, name] of Object.entries(names)) {
-    if (!tokens.has(token) || typeof name !== "string" || !name.trim()) {
+  for (const [endpointId, name] of Object.entries(names)) {
+    if (
+      !endpointIds.has(endpointId) ||
+      typeof name !== "string" ||
+      !name.trim()
+    ) {
       continue
     }
 
-    nextNames[token] = name.slice(0, MAX_INBOX_NAME_LENGTH)
+    nextNames[endpointId] = name.slice(0, MAX_ENDPOINT_NAME_LENGTH)
   }
 
   return nextNames
 }
 
-export function normalizeInboxTokens(tokens: unknown[]) {
-  const uniqueTokens = new Set<string>()
+export function normalizeEndpointIds(endpointIds: unknown[]) {
+  const uniqueEndpointIds = new Set<string>()
 
-  for (const token of tokens) {
-    if (typeof token === "string" && token) {
-      uniqueTokens.add(token)
+  for (const endpointId of endpointIds) {
+    if (typeof endpointId === "string" && endpointId) {
+      uniqueEndpointIds.add(endpointId)
     }
   }
 
-  return Array.from(uniqueTokens).slice(0, MAX_RECENT_TOKENS)
+  return Array.from(uniqueEndpointIds).slice(
+    0,
+    MAX_RECENT_ENDPOINTS
+  )
 }

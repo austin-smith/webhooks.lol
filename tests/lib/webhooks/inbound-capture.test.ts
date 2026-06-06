@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
 
 import { createInboundCapture } from "@/lib/webhooks/inbound-capture"
-import { DEFAULT_INBOX_RESPONSE_CONFIG } from "@/lib/webhooks/inbox-response"
+import { DEFAULT_ENDPOINT_RESPONSE_CONFIG } from "@/lib/webhooks/endpoint-response"
 import type { CapturedRequest } from "@/lib/webhooks/types"
 
 function createCapturedRequest(
@@ -24,20 +24,20 @@ describe("createInboundCapture", () => {
     const publishRequest = vi.fn(() => {
       calls.push("publish")
     })
-    const getInboxResponseConfig = vi.fn(async () => {
+    const getEndpointResponseConfig = vi.fn(async () => {
       calls.push("response")
-      return DEFAULT_INBOX_RESPONSE_CONFIG
+      return DEFAULT_ENDPOINT_RESPONSE_CONFIG
     })
     const captureInboundRequest = createInboundCapture({
-      getInboxResponseConfig,
+      getEndpointResponseConfig,
       publishRequest,
       saveCapturedRequest,
     })
 
     const outcome = await captureInboundRequest({
-      token: "inbox-token",
+      endpointId: "endpoint-id",
       request: new Request(
-        "https://hooks.example.com/api/hook/inbox-token/payments/created?foo=one&foo=two",
+        "https://hooks.example.com/api/hook/endpoint-id/payments/created?foo=one&foo=two",
         {
           method: "POST",
           headers: {
@@ -52,11 +52,11 @@ describe("createInboundCapture", () => {
     expect(outcome).toEqual({
       kind: "captured",
       id: "captured-1",
-      response: DEFAULT_INBOX_RESPONSE_CONFIG,
-      token: "inbox-token",
+      response: DEFAULT_ENDPOINT_RESPONSE_CONFIG,
+      endpointId: "endpoint-id",
     })
     expect(saveCapturedRequest).toHaveBeenCalledWith({
-      token: "inbox-token",
+      endpointId: "endpoint-id",
       method: "POST",
       url: "/payments/created?foo=one&foo=two",
       path: "/payments/created",
@@ -72,9 +72,14 @@ describe("createInboundCapture", () => {
       ip: "203.0.113.7",
     })
     expect(publishRequest).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "captured-1", token: "inbox-token" })
+      expect.objectContaining({
+        id: "captured-1",
+        endpointId: "endpoint-id",
+      })
     )
-    expect(getInboxResponseConfig).toHaveBeenCalledWith("inbox-token")
+    expect(getEndpointResponseConfig).toHaveBeenCalledWith(
+      "endpoint-id"
+    )
     expect(calls).toEqual(["save", "publish", "response"])
   })
 
@@ -83,25 +88,28 @@ describe("createInboundCapture", () => {
       createCapturedRequest(input)
     )
     const publishRequest = vi.fn()
-    const getInboxResponseConfig = vi.fn(
-      async () => DEFAULT_INBOX_RESPONSE_CONFIG
+    const getEndpointResponseConfig = vi.fn(
+      async () => DEFAULT_ENDPOINT_RESPONSE_CONFIG
     )
     const captureInboundRequest = createInboundCapture({
-      getInboxResponseConfig,
+      getEndpointResponseConfig,
       publishRequest,
       saveCapturedRequest,
     })
 
     const outcome = await captureInboundRequest({
-      token: "inbox-token",
-      request: new Request("https://hooks.example.com/api/hook/inbox-token", {
-        method: "POST",
-        headers: {
-          "content-length": "1048577",
-          "content-type": "text/plain",
-        },
-        body: "too large by header",
-      }),
+      endpointId: "endpoint-id",
+      request: new Request(
+        "https://hooks.example.com/api/hook/endpoint-id",
+        {
+          method: "POST",
+          headers: {
+            "content-length": "1048577",
+            "content-type": "text/plain",
+          },
+          body: "too large by header",
+        }
+      ),
     })
 
     expect(outcome).toEqual({
@@ -110,7 +118,7 @@ describe("createInboundCapture", () => {
     })
     expect(saveCapturedRequest).not.toHaveBeenCalled()
     expect(publishRequest).not.toHaveBeenCalled()
-    expect(getInboxResponseConfig).not.toHaveBeenCalled()
+    expect(getEndpointResponseConfig).not.toHaveBeenCalled()
   })
 
   it("captures binary bodies as base64 without body text", async () => {
@@ -118,20 +126,25 @@ describe("createInboundCapture", () => {
       createCapturedRequest(input)
     )
     const captureInboundRequest = createInboundCapture({
-      getInboxResponseConfig: vi.fn(async () => DEFAULT_INBOX_RESPONSE_CONFIG),
+      getEndpointResponseConfig: vi.fn(
+        async () => DEFAULT_ENDPOINT_RESPONSE_CONFIG
+      ),
       publishRequest: vi.fn(),
       saveCapturedRequest,
     })
 
     await captureInboundRequest({
-      token: "inbox-token",
-      request: new Request("https://hooks.example.com/api/hook/inbox-token", {
-        method: "POST",
-        headers: {
-          "content-type": "application/octet-stream",
-        },
-        body: new Uint8Array([1, 2, 3]),
-      }),
+      endpointId: "endpoint-id",
+      request: new Request(
+        "https://hooks.example.com/api/hook/endpoint-id",
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/octet-stream",
+          },
+          body: new Uint8Array([1, 2, 3]),
+        }
+      ),
     })
 
     expect(saveCapturedRequest).toHaveBeenCalledWith(

@@ -2,41 +2,44 @@ export const MAX_RESPONSE_BODY_BYTES = 64 * 1024
 export const MAX_RESPONSE_OVERRIDE_REQUEST_BYTES = 256 * 1024
 export const MAX_RESPONSE_CONTENT_TYPE_LENGTH = 120
 
-export type InboxResponseOverrideInput = {
+export type EndpointResponseOverrideInput = {
   status: number
   contentType: string
   body: string
 }
 
-export type InboxResponseConfig =
+export type EndpointResponseConfig =
   | {
       mode: "default"
     }
   | ({
       mode: "custom"
-    } & InboxResponseOverrideInput)
+    } & EndpointResponseOverrideInput)
 
-export const DEFAULT_INBOX_RESPONSE_CONFIG: InboxResponseConfig = {
-  mode: "default",
-}
+export const DEFAULT_ENDPOINT_RESPONSE_CONFIG: EndpointResponseConfig =
+  {
+    mode: "default",
+  }
 
-export type InboxResponseTemplateVariables = {
-  inboxToken: string
+export type EndpointResponseTemplateVariables = {
+  endpointId: string
   requestId: string
 }
 
-export class InboxResponseValidationError extends Error {
+export class EndpointResponseValidationError extends Error {
   constructor(readonly issues: string[]) {
     super(issues.join(" "))
-    this.name = "InboxResponseValidationError"
+    this.name = "EndpointResponseValidationError"
   }
 }
 
-export function parseInboxResponseOverrideInput(
+export function parseEndpointResponseOverrideInput(
   value: unknown
-): InboxResponseOverrideInput {
+): EndpointResponseOverrideInput {
   if (!isRecord(value)) {
-    throw new InboxResponseValidationError(["Response override is required."])
+    throw new EndpointResponseValidationError([
+      "Response override is required.",
+    ])
   }
 
   const status = value.status
@@ -92,7 +95,7 @@ export function parseInboxResponseOverrideInput(
   }
 
   if (issues.length > 0) {
-    throw new InboxResponseValidationError(issues)
+    throw new EndpointResponseValidationError(issues)
   }
 
   if (
@@ -100,7 +103,9 @@ export function parseInboxResponseOverrideInput(
     parsedContentType === null ||
     parsedBody === null
   ) {
-    throw new InboxResponseValidationError(["Response override is invalid."])
+    throw new EndpointResponseValidationError([
+      "Response override is invalid.",
+    ])
   }
 
   return {
@@ -110,15 +115,15 @@ export function parseInboxResponseOverrideInput(
   }
 }
 
-export function renderInboxResponseBodyTemplate(
+export function renderEndpointResponseBodyTemplate(
   body: string,
-  variables: InboxResponseTemplateVariables
+  variables: EndpointResponseTemplateVariables
 ) {
   return body
     .split("{{request.id}}")
     .join(variables.requestId)
-    .split("{{inbox.token}}")
-    .join(variables.inboxToken)
+    .split("{{endpoint.id}}")
+    .join(variables.endpointId)
 }
 
 function validateHeaderValue({

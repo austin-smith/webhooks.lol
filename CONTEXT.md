@@ -4,16 +4,16 @@
 
 ### Inbound capture
 
-The server-side flow that receives a webhook request for an inbox, applies capture rules, persists the captured request, and publishes the live inbox event after persistence succeeds.
+The server-side flow that receives a webhook request for an endpoint, applies capture rules, persists the captured request, and publishes the live endpoint event after persistence succeeds.
 
 ### Webhook repository
 
-The server-side persistence boundary for inboxes and captured requests. It owns Drizzle queries and maps PostgreSQL rows into webhook domain types before route handlers or capture logic see them.
+The server-side persistence boundary for webhook endpoints and captured requests. It owns Drizzle queries and maps PostgreSQL rows into webhook domain types before route handlers or capture logic see them.
 
-### Inbox event stream
+### Endpoint event stream
 
-The live server-sent event stream for one inbox. It sends readiness, captured request, clear, and heartbeat events while hiding emitter details from route modules.
+The live server-sent event stream for one endpoint. It sends readiness, captured request, clear, and heartbeat events while hiding emitter details from route modules.
 
-### Browser inbox session
+### Browser endpoint session
 
-The client-side inspector flow that chooses the active inbox, remembers recent inboxes and inbox names, loads captured requests, subscribes to the inbox event stream, and exposes stable inbox actions to UI modules.
+The client-side inspector flow that chooses the active endpoint, remembers recent webhook endpoints and endpoint names, loads captured requests, subscribes to the endpoint event stream, and exposes stable endpoint actions to UI modules.

@@ -1,6 +1,6 @@
 export type CapturedRequest = {
   id: string
-  token: string
+  endpointId: string
   method: string
   url: string
   path: string

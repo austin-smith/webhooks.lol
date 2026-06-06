@@ -1,6 +1,6 @@
 import { NO_STORE_HEADERS } from "@/lib/http/headers"
 import type { RequestsResponse } from "@/lib/webhooks/api-contracts"
-import { publishInboxCleared } from "@/lib/webhooks/inbox-event-stream"
+import { publishEndpointCleared } from "@/lib/webhooks/endpoint-event-stream"
 import { clearRequests, listRequests } from "@/lib/webhooks/repository"
 
 export const runtime = "nodejs"
@@ -8,12 +8,12 @@ export const dynamic = "force-dynamic"
 
 export async function GET(
   _request: Request,
-  context: RouteContext<"/api/inboxes/[token]/requests">
+  context: RouteContext<"/api/endpoints/[endpointId]/requests">
 ) {
-  const { token } = await context.params
+  const { endpointId } = await context.params
   const response = {
-    token,
-    requests: await listRequests(token),
+    endpointId,
+    requests: await listRequests(endpointId),
   } satisfies RequestsResponse
 
   return Response.json(response, { headers: NO_STORE_HEADERS })
@@ -21,14 +21,14 @@ export async function GET(
 
 export async function DELETE(
   _request: Request,
-  context: RouteContext<"/api/inboxes/[token]/requests">
+  context: RouteContext<"/api/endpoints/[endpointId]/requests">
 ) {
-  const { token } = await context.params
+  const { endpointId } = await context.params
 
-  await clearRequests(token)
-  publishInboxCleared(token)
+  await clearRequests(endpointId)
+  publishEndpointCleared(endpointId)
   const response = {
-    token,
+    endpointId,
     requests: [],
   } satisfies RequestsResponse
 

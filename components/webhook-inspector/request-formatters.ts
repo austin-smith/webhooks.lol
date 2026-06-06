@@ -96,7 +96,7 @@ export function formatRawRequest(request: CapturedRequest) {
 
 function getRequestTarget(request: CapturedRequest) {
   const url = request.url || request.path || "/"
-  const internalPrefix = `/api/hook/${request.token}`
+  const internalPrefix = `/api/hook/${request.endpointId}`
 
   if (url === internalPrefix) {
     return request.path || "/"
@@ -140,12 +140,12 @@ export function formatRequestDateTime(value: string) {
   }).format(new Date(value))
 }
 
-export function formatShortToken(token: string | null) {
-  if (!token) {
-    return "No inbox"
+export function formatShortEndpointId(endpointId: string | null) {
+  if (!endpointId) {
+    return "No endpoint"
   }
 
-  return token.slice(0, 8)
+  return endpointId.slice(0, 8)
 }
 
 function formatByteValue(value: number, unitIndex: number) {

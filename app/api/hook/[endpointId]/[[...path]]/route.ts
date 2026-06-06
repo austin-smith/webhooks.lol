@@ -4,19 +4,19 @@ import {
 } from "@/lib/http/headers"
 import { captureInboundRequest } from "@/lib/webhooks/inbound-capture"
 import {
-  renderInboxResponseBodyTemplate,
-  type InboxResponseConfig,
-} from "@/lib/webhooks/inbox-response"
+  renderEndpointResponseBodyTemplate,
+  type EndpointResponseConfig,
+} from "@/lib/webhooks/endpoint-response"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
 async function capture(
   request: Request,
-  context: RouteContext<"/api/hook/[token]/[[...path]]">
+  context: RouteContext<"/api/hook/[endpointId]/[[...path]]">
 ) {
-  const { token } = await context.params
-  const outcome = await captureInboundRequest({ request, token })
+  const { endpointId } = await context.params
+  const outcome = await captureInboundRequest({ request, endpointId })
 
   if (outcome.kind === "body-too-large") {
     return Response.json(
@@ -33,13 +33,13 @@ async function capture(
     id: outcome.id,
     method: request.method,
     response: outcome.response,
-    token: outcome.token,
+    endpointId: outcome.endpointId,
   })
 }
 
 export function OPTIONS(
   request: Request,
-  context: RouteContext<"/api/hook/[token]/[[...path]]">
+  context: RouteContext<"/api/hook/[endpointId]/[[...path]]">
 ) {
   if (!isCorsPreflightRequest(request)) {
     return capture(request, context)
@@ -62,12 +62,12 @@ function createCapturedResponse({
   id,
   method,
   response,
-  token,
+  endpointId,
 }: {
   id: string
   method: string
-  response: InboxResponseConfig
-  token: string
+  response: EndpointResponseConfig
+  endpointId: string
 }) {
   if (response.mode === "default") {
     if (method === "HEAD") {
@@ -81,7 +81,7 @@ function createCapturedResponse({
       {
         ok: true,
         id,
-        token,
+        endpointId,
       },
       { headers: CORS_NO_STORE_HEADERS }
     )
@@ -99,8 +99,8 @@ function createCapturedResponse({
   const body =
     method === "HEAD" || responseStatusForbidsBody(response.status)
       ? null
-      : renderInboxResponseBodyTemplate(response.body, {
-          inboxToken: token,
+      : renderEndpointResponseBodyTemplate(response.body, {
+          endpointId: endpointId,
           requestId: id,
         })
 

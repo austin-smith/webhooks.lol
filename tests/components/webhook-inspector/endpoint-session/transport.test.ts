@@ -1,0 +1,161 @@
+import { describe, expect, it, vi } from "vitest"
+
+import { createFetchEndpointTransport } from "@/components/webhook-inspector/endpoint-session/transport"
+import { DEFAULT_ENDPOINT_RESPONSE_CONFIG } from "@/lib/webhooks/endpoint-response"
+import type { CapturedRequest } from "@/lib/webhooks/types"
+
+function createResponse(body: unknown, init: ResponseInit = {}) {
+  return new Response(JSON.stringify(body), {
+    headers: { "content-type": "application/json" },
+    ...init,
+  })
+}
+
+function createRequest(): CapturedRequest {
+  return {
+    id: "captured-1",
+    endpointId: "endpoint",
+    method: "POST",
+    url: "/orders",
+    path: "/orders",
+    query: {},
+    headers: {},
+    bodyText: "",
+    bodyBase64: "",
+    bodySize: 0,
+    contentType: null,
+    receivedAt: "2026-06-05T00:00:00.000Z",
+    ip: null,
+  }
+}
+
+describe("endpoint transport", () => {
+  it("creates, loads, and clears through the fetch adapter", async () => {
+    const customResponse = {
+      mode: "custom" as const,
+      status: 201,
+      contentType: "application/json",
+      body: '{"ok":true}',
+    }
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(
+        createResponse({ endpointId: "new-endpoint" })
+      )
+      .mockResolvedValueOnce(createResponse({ requests: [createRequest()] }))
+      .mockResolvedValueOnce(createResponse({ requests: [] }))
+      .mockResolvedValueOnce(
+        createResponse({
+          endpointId: "endpoint",
+          response: DEFAULT_ENDPOINT_RESPONSE_CONFIG,
+        })
+      )
+      .mockResolvedValueOnce(
+        createResponse({
+          endpointId: "endpoint",
+          response: customResponse,
+        })
+      )
+      .mockResolvedValueOnce(
+        createResponse({
+          endpointId: "endpoint",
+          response: DEFAULT_ENDPOINT_RESPONSE_CONFIG,
+        })
+      )
+    const transport = createFetchEndpointTransport(fetcher)
+    const override = {
+      status: 201,
+      contentType: "application/json",
+      body: '{"ok":true}',
+    }
+
+    await expect(transport.createEndpoint()).resolves.toBe(
+      "new-endpoint"
+    )
+    await expect(transport.loadRequests("endpoint")).resolves.toEqual([
+      createRequest(),
+    ])
+    await expect(transport.clearEndpoint("endpoint")).resolves.toBeUndefined()
+    await expect(
+      transport.loadEndpointResponseConfig("endpoint")
+    ).resolves.toEqual(DEFAULT_ENDPOINT_RESPONSE_CONFIG)
+    await expect(
+      transport.saveEndpointResponseOverride("endpoint", override)
+    ).resolves.toEqual(customResponse)
+    await expect(
+      transport.clearEndpointResponseOverride("endpoint")
+    ).resolves.toEqual(DEFAULT_ENDPOINT_RESPONSE_CONFIG)
+
+    expect(fetcher).toHaveBeenNthCalledWith(1, "/api/endpoints", {
+      method: "POST",
+    })
+    expect(fetcher).toHaveBeenNthCalledWith(
+      2,
+      "/api/endpoints/endpoint/requests",
+      {
+        cache: "no-store",
+      }
+    )
+    expect(fetcher).toHaveBeenNthCalledWith(
+      3,
+      "/api/endpoints/endpoint/requests",
+      {
+        method: "DELETE",
+      }
+    )
+    expect(fetcher).toHaveBeenNthCalledWith(
+      4,
+      "/api/endpoints/endpoint/response",
+      {
+        cache: "no-store",
+      }
+    )
+    expect(fetcher).toHaveBeenNthCalledWith(
+      5,
+      "/api/endpoints/endpoint/response",
+      {
+        body: JSON.stringify(override),
+        headers: {
+          "content-type": "application/json",
+        },
+        method: "PUT",
+      }
+    )
+    expect(fetcher).toHaveBeenNthCalledWith(
+      6,
+      "/api/endpoints/endpoint/response",
+      {
+        method: "DELETE",
+      }
+    )
+  })
+
+  it("maps failed responses to stable errors", async () => {
+    const transport = createFetchEndpointTransport(
+      vi.fn().mockResolvedValue(createResponse({}, { status: 500 }))
+    )
+
+    await expect(transport.createEndpoint()).rejects.toThrow(
+      "Could not create endpoint."
+    )
+    await expect(transport.loadRequests("endpoint")).rejects.toThrow(
+      "Could not load requests."
+    )
+    await expect(transport.clearEndpoint("endpoint")).rejects.toThrow(
+      "Could not clear endpoint."
+    )
+    await expect(
+      transport.loadEndpointResponseConfig("endpoint")
+    ).rejects.toThrow("Could not load response override.")
+    await expect(
+      transport.saveEndpointResponseOverride("endpoint", {
+        status: 200,
+        contentType: "text/plain",
+        body: "",
+      })
+    ).rejects.toThrow("Could not save response override.")
+    await expect(
+      transport.clearEndpointResponseOverride("endpoint")
+    ).rejects.toThrow("Could not reset response override.")
+  })
+})

@@ -1,21 +1,22 @@
 import type { CapturedRequest } from "@/lib/webhooks/types"
 import type {
-  InboxResponseConfig,
-  InboxResponseOverrideInput,
-} from "@/lib/webhooks/inbox-response"
+  EndpointResponseConfig,
+  EndpointResponseOverrideInput,
+} from "@/lib/webhooks/endpoint-response"
 
-export type CreateInboxResponse = {
-  token: string
+export type CreateEndpointResponse = {
+  endpointId: string
 }
 
 export type RequestsResponse = {
-  token: string
+  endpointId: string
   requests: CapturedRequest[]
 }
 
-export type InboxResponseConfigResponse = {
-  token: string
-  response: InboxResponseConfig
+export type EndpointResponseConfigResponse = {
+  endpointId: string
+  response: EndpointResponseConfig
 }
 
-export type UpdateInboxResponseOverrideRequest = InboxResponseOverrideInput
+export type UpdateEndpointResponseOverrideRequest =
+  EndpointResponseOverrideInput

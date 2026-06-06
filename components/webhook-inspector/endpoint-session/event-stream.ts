@@ -1,10 +1,13 @@
 import type { CapturedRequest } from "@/lib/webhooks/types"
 
-export type InboxEventStream = {
-  subscribe: (token: string, handlers: InboxEventHandlers) => () => void
+export type EndpointEventStream = {
+  subscribe: (
+    endpointId: string,
+    handlers: EndpointEventHandlers
+  ) => () => void
 }
 
-export type InboxEventHandlers = {
+export type EndpointEventHandlers = {
   onClear: () => void
   onError: () => void
   onReady: () => void
@@ -13,15 +16,15 @@ export type InboxEventHandlers = {
 
 type EventSourceFactory = (url: string) => EventSource
 
-export function createBrowserInboxEventStream(
+export function createBrowserEndpointEventStream(
   createSource: EventSourceFactory = (url) => new EventSource(url)
-): InboxEventStream {
+): EndpointEventStream {
   return {
-    subscribe(token, handlers) {
-      const events = createSource(`/api/inboxes/${token}/events`)
+    subscribe(endpointId, handlers) {
+      const events = createSource(`/api/endpoints/${endpointId}/events`)
 
       const onReady = (event: Event) => {
-        if (readTokenEvent(event) === token) {
+        if (readEndpointIdEvent(event) === endpointId) {
           handlers.onReady()
         }
       }
@@ -29,13 +32,13 @@ export function createBrowserInboxEventStream(
       const onRequest = (event: Event) => {
         const request = readCapturedRequestEvent(event)
 
-        if (request?.token === token) {
+        if (request?.endpointId === endpointId) {
           handlers.onRequest(request)
         }
       }
 
       const onClear = (event: Event) => {
-        if (readTokenEvent(event) === token) {
+        if (readEndpointIdEvent(event) === endpointId) {
           handlers.onClear()
         }
       }
@@ -65,7 +68,7 @@ export function readCapturedRequestEvent(event: Event) {
 
     if (
       typeof data.id !== "string" ||
-      typeof data.token !== "string" ||
+      typeof data.endpointId !== "string" ||
       typeof data.method !== "string" ||
       typeof data.receivedAt !== "string"
     ) {
@@ -78,15 +81,17 @@ export function readCapturedRequestEvent(event: Event) {
   }
 }
 
-export function readTokenEvent(event: Event) {
+export function readEndpointIdEvent(event: Event) {
   if (!(event instanceof MessageEvent)) {
     return null
   }
 
   try {
-    const data = JSON.parse(event.data) as { token?: unknown }
+    const data = JSON.parse(event.data) as { endpointId?: unknown }
 
-    return typeof data.token === "string" ? data.token : null
+    return typeof data.endpointId === "string"
+      ? data.endpointId
+      : null
   } catch {
     return null
   }

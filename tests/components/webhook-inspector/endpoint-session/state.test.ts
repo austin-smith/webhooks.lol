@@ -2,20 +2,20 @@ import { describe, expect, it } from "vitest"
 
 import {
   mergeCapturedRequest,
-  normalizeInboxNames,
-  normalizeInboxTokens,
+  normalizeEndpointNames,
+  normalizeEndpointIds,
   reconcileLoadedRequests,
-  rememberInboxToken,
-  renameInbox,
+  rememberEndpointId,
+  renameEndpoint,
   selectRequest,
   selectRequestId,
-} from "@/components/webhook-inspector/inbox-session/state"
+} from "@/components/webhook-inspector/endpoint-session/state"
 import type { CapturedRequest } from "@/lib/webhooks/types"
 
 function createRequest(id: string): CapturedRequest {
   return {
     id,
-    token: "inbox-token",
+    endpointId: "endpoint-id",
     method: "POST",
     url: "/orders",
     path: "/orders",
@@ -30,7 +30,7 @@ function createRequest(id: string): CapturedRequest {
   }
 }
 
-describe("inbox session state", () => {
+describe("endpoint session state", () => {
   it("keeps selection when the selected request still exists", () => {
     const requests = [createRequest("1"), createRequest("2")]
 
@@ -83,9 +83,9 @@ describe("inbox session state", () => {
     ).toEqual([])
   })
 
-  it("normalizes recent inbox tokens", () => {
+  it("normalizes recent webhook endpoint IDs", () => {
     expect(
-      normalizeInboxTokens([
+      normalizeEndpointIds([
         "a",
         "",
         "b",
@@ -101,12 +101,15 @@ describe("inbox session state", () => {
       ])
     ).toEqual(["a", "b", "c", "d", "e", "f", "g", "h"])
 
-    expect(rememberInboxToken("new", ["old", "new"])).toEqual(["new", "old"])
+    expect(rememberEndpointId("new", ["old", "new"])).toEqual([
+      "new",
+      "old",
+    ])
   })
 
-  it("keeps inbox names only for known tokens", () => {
+  it("keeps endpoint names only for known webhook endpoint IDs", () => {
     expect(
-      normalizeInboxNames(
+      normalizeEndpointNames(
         {
           a: "Alpha",
           b: "Beta",
@@ -118,24 +121,24 @@ describe("inbox session state", () => {
     ).toEqual({ a: "Alpha" })
   })
 
-  it("renames and clears the active inbox name", () => {
+  it("renames and clears the active endpoint name", () => {
     const currentNames = { active: "Old", other: "Other" }
 
     expect(
-      renameInbox({
+      renameEndpoint({
         currentNames,
         name: "New",
-        recentTokens: ["other"],
-        token: "active",
+        recentEndpointIds: ["other"],
+        endpointId: "active",
       })
     ).toEqual({ active: "New", other: "Other" })
 
     expect(
-      renameInbox({
+      renameEndpoint({
         currentNames,
         name: " ",
-        recentTokens: ["other"],
-        token: "active",
+        recentEndpointIds: ["other"],
+        endpointId: "active",
       })
     ).toEqual({ other: "Other" })
   })

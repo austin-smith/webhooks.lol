@@ -6,13 +6,17 @@ const { captureInboundRequest } = vi.hoisted(() => ({
 
 vi.mock("@/lib/webhooks/inbound-capture", () => ({ captureInboundRequest }))
 
-import { HEAD, OPTIONS, POST } from "@/app/api/hook/[token]/[[...path]]/route"
-import { DEFAULT_INBOX_RESPONSE_CONFIG } from "@/lib/webhooks/inbox-response"
+import {
+  HEAD,
+  OPTIONS,
+  POST,
+} from "@/app/api/hook/[endpointId]/[[...path]]/route"
+import { DEFAULT_ENDPOINT_RESPONSE_CONFIG } from "@/lib/webhooks/endpoint-response"
 
-function createContext(token = "inbox-token") {
+function createContext(endpointId = "endpoint-id") {
   return {
-    params: Promise.resolve({ token }),
-  } as RouteContext<"/api/hook/[token]/[[...path]]">
+    params: Promise.resolve({ endpointId }),
+  } as RouteContext<"/api/hook/[endpointId]/[[...path]]">
 }
 
 describe("hook route OPTIONS", () => {
@@ -22,7 +26,7 @@ describe("hook route OPTIONS", () => {
 
   it("returns CORS preflight responses without capturing", async () => {
     const response = await OPTIONS(
-      new Request("https://hooks.example.com/api/hook/inbox-token", {
+      new Request("https://hooks.example.com/api/hook/endpoint-id", {
         method: "OPTIONS",
         headers: {
           "access-control-request-method": "POST",
@@ -43,12 +47,12 @@ describe("hook route OPTIONS", () => {
     captureInboundRequest.mockResolvedValueOnce({
       kind: "captured",
       id: "captured-1",
-      response: DEFAULT_INBOX_RESPONSE_CONFIG,
-      token: "inbox-token",
+      response: DEFAULT_ENDPOINT_RESPONSE_CONFIG,
+      endpointId: "endpoint-id",
     })
 
     const request = new Request(
-      "https://hooks.example.com/api/hook/inbox-token/probe",
+      "https://hooks.example.com/api/hook/endpoint-id/probe",
       {
         method: "OPTIONS",
       }
@@ -58,11 +62,11 @@ describe("hook route OPTIONS", () => {
     await expect(response.json()).resolves.toEqual({
       ok: true,
       id: "captured-1",
-      token: "inbox-token",
+      endpointId: "endpoint-id",
     })
     expect(captureInboundRequest).toHaveBeenCalledWith({
       request,
-      token: "inbox-token",
+      endpointId: "endpoint-id",
     })
   })
 })
@@ -76,12 +80,12 @@ describe("hook route responses", () => {
     captureInboundRequest.mockResolvedValueOnce({
       kind: "captured",
       id: "captured-1",
-      response: DEFAULT_INBOX_RESPONSE_CONFIG,
-      token: "inbox-token",
+      response: DEFAULT_ENDPOINT_RESPONSE_CONFIG,
+      endpointId: "endpoint-id",
     })
 
     const response = await POST(
-      new Request("https://hooks.example.com/api/hook/inbox-token", {
+      new Request("https://hooks.example.com/api/hook/endpoint-id", {
         method: "POST",
       }),
       createContext()
@@ -92,7 +96,7 @@ describe("hook route responses", () => {
     await expect(response.json()).resolves.toEqual({
       ok: true,
       id: "captured-1",
-      token: "inbox-token",
+      endpointId: "endpoint-id",
     })
   })
 
@@ -106,11 +110,11 @@ describe("hook route responses", () => {
         contentType: "application/json",
         body: '{"accepted":true}',
       },
-      token: "inbox-token",
+      endpointId: "endpoint-id",
     })
 
     const response = await POST(
-      new Request("https://hooks.example.com/api/hook/inbox-token", {
+      new Request("https://hooks.example.com/api/hook/endpoint-id", {
         method: "POST",
       }),
       createContext()
@@ -130,13 +134,13 @@ describe("hook route responses", () => {
         mode: "custom",
         status: 202,
         contentType: "application/json",
-        body: '{"id":"{{request.id}}","token":"{{inbox.token}}"}',
+        body: '{"id":"{{request.id}}","endpointId":"{{endpoint.id}}"}',
       },
-      token: "inbox-token",
+      endpointId: "endpoint-id",
     })
 
     const response = await POST(
-      new Request("https://hooks.example.com/api/hook/inbox-token", {
+      new Request("https://hooks.example.com/api/hook/endpoint-id", {
         method: "POST",
       }),
       createContext()
@@ -144,7 +148,7 @@ describe("hook route responses", () => {
 
     expect(response.status).toBe(202)
     await expect(response.text()).resolves.toBe(
-      '{"id":"captured-1","token":"inbox-token"}'
+      '{"id":"captured-1","endpointId":"endpoint-id"}'
     )
   })
 
@@ -158,11 +162,11 @@ describe("hook route responses", () => {
         contentType: "text/plain",
         body: "accepted",
       },
-      token: "inbox-token",
+      endpointId: "endpoint-id",
     })
 
     const response = await HEAD(
-      new Request("https://hooks.example.com/api/hook/inbox-token", {
+      new Request("https://hooks.example.com/api/hook/endpoint-id", {
         method: "HEAD",
       }),
       createContext()
@@ -179,7 +183,7 @@ describe("hook route responses", () => {
     })
 
     const response = await POST(
-      new Request("https://hooks.example.com/api/hook/inbox-token", {
+      new Request("https://hooks.example.com/api/hook/endpoint-id", {
         method: "POST",
       }),
       createContext()

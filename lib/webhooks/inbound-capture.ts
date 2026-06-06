@@ -1,11 +1,11 @@
 import "server-only"
 
-import { publishRequest } from "@/lib/webhooks/inbox-event-stream"
+import { publishRequest } from "@/lib/webhooks/endpoint-event-stream"
 import {
-  getInboxResponseConfig,
+  getEndpointResponseConfig,
   saveCapturedRequest,
 } from "@/lib/webhooks/repository"
-import type { InboxResponseConfig } from "@/lib/webhooks/inbox-response"
+import type { EndpointResponseConfig } from "@/lib/webhooks/endpoint-response"
 import type {
   CapturedRequest,
   CapturedRequestInput,
@@ -27,7 +27,9 @@ type CapturedBody = {
 }
 
 type InboundCaptureDeps = {
-  getInboxResponseConfig: (token: string) => Promise<InboxResponseConfig>
+  getEndpointResponseConfig: (
+    endpointId: string
+  ) => Promise<EndpointResponseConfig>
   publishRequest: (request: CapturedRequest) => void
   saveCapturedRequest: (input: CapturedRequestInput) => Promise<CapturedRequest>
 }
@@ -36,8 +38,8 @@ export type InboundCaptureOutcome =
   | {
       kind: "captured"
       id: string
-      response: InboxResponseConfig
-      token: string
+      response: EndpointResponseConfig
+      endpointId: string
     }
   | {
       kind: "body-too-large"
@@ -45,19 +47,19 @@ export type InboundCaptureOutcome =
     }
 
 export function createInboundCapture({
-  getInboxResponseConfig,
+  getEndpointResponseConfig,
   publishRequest,
   saveCapturedRequest,
 }: InboundCaptureDeps) {
   return async function captureInboundRequest({
     request,
-    token,
+    endpointId,
   }: {
     request: Request
-    token: string
+    endpointId: string
   }): Promise<InboundCaptureOutcome> {
     const requestUrl = new URL(request.url)
-    const requestPath = readCapturedPath(requestUrl, token)
+    const requestPath = readCapturedPath(requestUrl, endpointId)
     const requestTarget = `${requestPath}${requestUrl.search}`
     let body: CapturedBody
 
@@ -75,7 +77,7 @@ export function createInboundCapture({
     }
 
     const capturedRequest = await saveCapturedRequest({
-      token,
+      endpointId,
       method: request.method,
       url: requestTarget,
       path: requestPath,
@@ -93,14 +95,14 @@ export function createInboundCapture({
     return {
       kind: "captured",
       id: capturedRequest.id,
-      response: await getInboxResponseConfig(token),
-      token,
+      response: await getEndpointResponseConfig(endpointId),
+      endpointId,
     }
   }
 }
 
 export const captureInboundRequest = createInboundCapture({
-  getInboxResponseConfig,
+  getEndpointResponseConfig,
   publishRequest,
   saveCapturedRequest,
 })
@@ -194,15 +196,15 @@ function readQuery(url: URL) {
   return query
 }
 
-function readCapturedPath(url: URL, token: string) {
-  const inboxPath = `/api/hook/${token}`
+function readCapturedPath(url: URL, endpointId: string) {
+  const endpointPath = `/api/hook/${endpointId}`
 
-  if (url.pathname === inboxPath) {
+  if (url.pathname === endpointPath) {
     return "/"
   }
 
-  if (url.pathname.startsWith(`${inboxPath}/`)) {
-    return url.pathname.slice(inboxPath.length)
+  if (url.pathname.startsWith(`${endpointPath}/`)) {
+    return url.pathname.slice(endpointPath.length)
   }
 
   return "/"

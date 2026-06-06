@@ -1,14 +1,14 @@
 import { NO_STORE_HEADERS } from "@/lib/http/headers"
-import type { InboxResponseConfigResponse } from "@/lib/webhooks/api-contracts"
+import type { EndpointResponseConfigResponse } from "@/lib/webhooks/api-contracts"
 import {
-  InboxResponseValidationError,
+  EndpointResponseValidationError,
   MAX_RESPONSE_OVERRIDE_REQUEST_BYTES,
-  parseInboxResponseOverrideInput,
-} from "@/lib/webhooks/inbox-response"
+  parseEndpointResponseOverrideInput,
+} from "@/lib/webhooks/endpoint-response"
 import {
-  clearInboxResponseOverride,
-  getInboxResponseConfig,
-  setInboxResponseOverride,
+  clearEndpointResponseOverride,
+  getEndpointResponseConfig,
+  setEndpointResponseOverride,
 } from "@/lib/webhooks/repository"
 
 export const runtime = "nodejs"
@@ -23,22 +23,22 @@ class RequestBodyTooLargeError extends Error {
 
 export async function GET(
   _request: Request,
-  context: RouteContext<"/api/inboxes/[token]/response">
+  context: RouteContext<"/api/endpoints/[endpointId]/response">
 ) {
-  const { token } = await context.params
+  const { endpointId } = await context.params
   const response = {
-    token,
-    response: await getInboxResponseConfig(token),
-  } satisfies InboxResponseConfigResponse
+    endpointId,
+    response: await getEndpointResponseConfig(endpointId),
+  } satisfies EndpointResponseConfigResponse
 
   return Response.json(response, { headers: NO_STORE_HEADERS })
 }
 
 export async function PUT(
   request: Request,
-  context: RouteContext<"/api/inboxes/[token]/response">
+  context: RouteContext<"/api/endpoints/[endpointId]/response">
 ) {
-  const { token } = await context.params
+  const { endpointId } = await context.params
 
   let body: unknown
 
@@ -66,15 +66,18 @@ export async function PUT(
   }
 
   try {
-    const override = parseInboxResponseOverrideInput(body)
+    const override = parseEndpointResponseOverrideInput(body)
     const response = {
-      token,
-      response: await setInboxResponseOverride({ token, override }),
-    } satisfies InboxResponseConfigResponse
+      endpointId,
+      response: await setEndpointResponseOverride({
+        endpointId,
+        override,
+      }),
+    } satisfies EndpointResponseConfigResponse
 
     return Response.json(response, { headers: NO_STORE_HEADERS })
   } catch (error) {
-    if (error instanceof InboxResponseValidationError) {
+    if (error instanceof EndpointResponseValidationError) {
       return Response.json(
         {
           ok: false,
@@ -91,13 +94,13 @@ export async function PUT(
 
 export async function DELETE(
   _request: Request,
-  context: RouteContext<"/api/inboxes/[token]/response">
+  context: RouteContext<"/api/endpoints/[endpointId]/response">
 ) {
-  const { token } = await context.params
+  const { endpointId } = await context.params
   const response = {
-    token,
-    response: await clearInboxResponseOverride(token),
-  } satisfies InboxResponseConfigResponse
+    endpointId,
+    response: await clearEndpointResponseOverride(endpointId),
+  } satisfies EndpointResponseConfigResponse
 
   return Response.json(response, { headers: NO_STORE_HEADERS })
 }

@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest"
 
 import {
-  InboxResponseValidationError,
+  EndpointResponseValidationError,
   MAX_RESPONSE_BODY_BYTES,
-  parseInboxResponseOverrideInput,
-  renderInboxResponseBodyTemplate,
-} from "@/lib/webhooks/inbox-response"
+  parseEndpointResponseOverrideInput,
+  renderEndpointResponseBodyTemplate,
+} from "@/lib/webhooks/endpoint-response"
 
-describe("inbox response overrides", () => {
+describe("endpoint response overrides", () => {
   it("normalizes valid override input", () => {
     expect(
-      parseInboxResponseOverrideInput({
+      parseEndpointResponseOverrideInput({
         status: 201,
         contentType: " application/json ",
         body: '{"ok":true}',
@@ -26,17 +26,17 @@ describe("inbox response overrides", () => {
     const oversizedBody = "x".repeat(MAX_RESPONSE_BODY_BYTES + 1)
 
     expect(() =>
-      parseInboxResponseOverrideInput({
+      parseEndpointResponseOverrideInput({
         status: 199,
         contentType: "",
         body: oversizedBody,
       })
-    ).toThrow(InboxResponseValidationError)
+    ).toThrow(EndpointResponseValidationError)
   })
 
   it("rejects custom headers", () => {
     expect(() =>
-      parseInboxResponseOverrideInput({
+      parseEndpointResponseOverrideInput({
         status: 200,
         contentType: "text/plain",
         body: "",
@@ -49,7 +49,7 @@ describe("inbox response overrides", () => {
 
   it("rejects content types that cannot be serialized by Fetch", () => {
     expect(() =>
-      parseInboxResponseOverrideInput({
+      parseEndpointResponseOverrideInput({
         status: 200,
         contentType: "text/plain\nx-test: injected",
         body: "",
@@ -59,7 +59,7 @@ describe("inbox response overrides", () => {
 
   it("accepts override input without headers", () => {
     expect(
-      parseInboxResponseOverrideInput({
+      parseEndpointResponseOverrideInput({
         status: 204,
         contentType: "text/plain",
         body: "",
@@ -73,13 +73,13 @@ describe("inbox response overrides", () => {
 
   it("renders supported response body variables", () => {
     expect(
-      renderInboxResponseBodyTemplate(
-        "{{request.id}} {{inbox.token}} {{unknown.value}}",
+      renderEndpointResponseBodyTemplate(
+        "{{request.id}} {{endpoint.id}} {{unknown.value}}",
         {
-          inboxToken: "inbox-token",
+          endpointId: "endpoint-id",
           requestId: "captured-1",
         }
       )
-    ).toBe("captured-1 inbox-token {{unknown.value}}")
+    ).toBe("captured-1 endpoint-id {{unknown.value}}")
   })
 })

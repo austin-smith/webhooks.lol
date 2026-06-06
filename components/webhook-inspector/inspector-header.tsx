@@ -6,12 +6,12 @@ import { CheckIcon, CopyIcon } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import type {
-  InboxResponseConfig,
-  InboxResponseOverrideInput,
-} from "@/lib/webhooks/inbox-response"
+  EndpointResponseConfig,
+  EndpointResponseOverrideInput,
+} from "@/lib/webhooks/endpoint-response"
 import { cn } from "@/lib/utils"
 
-import { InboxSwitcher } from "./inbox-switcher"
+import { EndpointSwitcher } from "./endpoint-switcher"
 import { InspectorIconButton } from "./inspector-icon-button"
 import { ResponseOverrideControl } from "./response-override-control"
 import type { ConnectionState } from "./types"
@@ -21,42 +21,44 @@ type InspectorHeaderProps = {
   connectionState: ConnectionState
   copied: boolean
   copyMessage: string
-  inboxNames: Record<string, string>
+  endpointNames: Record<string, string>
   isLoading: boolean
   isSavingResponse: boolean
-  recentTokens: string[]
-  responseConfig: InboxResponseConfig
-  token: string | null
+  recentEndpointIds: string[]
+  responseConfig: EndpointResponseConfig
+  endpointId: string | null
   webhookUrl: string
   onCopyWebhookUrl: () => void
-  onNewInbox: () => void
-  onRenameInbox: (name: string) => void
+  onNewEndpoint: () => void
+  onRenameEndpoint: (name: string) => void
   onResetResponseOverride: () => Promise<void>
   onSaveResponseOverride: (
-    override: InboxResponseOverrideInput
+    override: EndpointResponseOverrideInput
   ) => Promise<void>
-  onSwitchInbox: (token: string) => void
+  onSwitchEndpoint: (endpointId: string) => void
 }
 
 export function InspectorHeader({
   connectionState,
   copied,
   copyMessage,
-  inboxNames,
+  endpointNames,
   isLoading,
   isSavingResponse,
   onResetResponseOverride,
   onSaveResponseOverride,
-  recentTokens,
+  recentEndpointIds,
   responseConfig,
-  token,
+  endpointId,
   webhookUrl,
   onCopyWebhookUrl,
-  onNewInbox,
-  onRenameInbox,
-  onSwitchInbox,
+  onNewEndpoint,
+  onRenameEndpoint,
+  onSwitchEndpoint,
 }: InspectorHeaderProps) {
-  const inboxName = token ? (inboxNames[token] ?? "") : ""
+  const endpointName = endpointId
+    ? (endpointNames[endpointId] ?? "")
+    : ""
 
   return (
     <header className="flex min-w-0 flex-col gap-3 border-b pb-4">
@@ -81,18 +83,18 @@ export function InspectorHeader({
       </div>
 
       <div className="grid min-w-0 grid-cols-[minmax(6.75rem,8.5rem)_minmax(0,1fr)_auto] overflow-hidden rounded-md border bg-card sm:grid-cols-[minmax(7.5rem,12rem)_minmax(0,1fr)_auto]">
-        <InboxSwitcher
-          disabled={isLoading || !token}
-          inboxNames={inboxNames}
-          name={inboxName}
-          recentTokens={recentTokens}
-          token={token}
-          onNewInbox={onNewInbox}
-          onRenameInbox={onRenameInbox}
-          onSwitchInbox={onSwitchInbox}
+        <EndpointSwitcher
+          disabled={isLoading || !endpointId}
+          endpointNames={endpointNames}
+          name={endpointName}
+          recentEndpointIds={recentEndpointIds}
+          endpointId={endpointId}
+          onNewEndpoint={onNewEndpoint}
+          onRenameEndpoint={onRenameEndpoint}
+          onSwitchEndpoint={onSwitchEndpoint}
         />
 
-        <div className="flex min-w-0 items-center gap-1 border-l pl-2 pr-1">
+        <div className="flex min-w-0 items-center gap-1 border-l pr-1 pl-2">
           {webhookUrl ? (
             <Input
               readOnly
@@ -129,7 +131,7 @@ export function InspectorHeader({
 
         <div className="flex items-center border-l p-1">
           <ResponseOverrideControl
-            disabled={isLoading || !token}
+            disabled={isLoading || !endpointId}
             isSaving={isSavingResponse}
             responseConfig={responseConfig}
             onReset={onResetResponseOverride}

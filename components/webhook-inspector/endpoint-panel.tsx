@@ -1,5 +1,5 @@
 import * as React from "react"
-import { InboxIcon, RefreshCwIcon, Trash2Icon } from "lucide-react"
+import { RefreshCwIcon, Trash2Icon, WebhookIcon } from "lucide-react"
 
 import {
   Empty,
@@ -21,27 +21,27 @@ import { InspectorIconButton } from "./inspector-icon-button"
 import { RequestMethodBadge } from "./request-method-badge"
 import { formatRequestListPath, formatRequestTime } from "./request-formatters"
 
-type InboxPanelProps = {
+type EndpointPanelProps = {
   canRefresh: boolean
   isClearing: boolean
   isLoading: boolean
   requests: CapturedRequest[]
   selectedId: string | null
-  onClearInbox: () => void
-  onRefreshInbox: () => void
+  onClearEndpoint: () => void
+  onRefreshEndpoint: () => void
   onSelectRequest: (id: string) => void
 }
 
-export function InboxPanel({
+export function EndpointPanel({
   canRefresh,
   isClearing,
   isLoading,
   requests,
   selectedId,
-  onClearInbox,
-  onRefreshInbox,
+  onClearEndpoint,
+  onRefreshEndpoint,
   onSelectRequest,
-}: InboxPanelProps) {
+}: EndpointPanelProps) {
   const showLoadingIndicator = useDelayedFlag(
     isLoading,
     LOADING_INDICATOR_DELAY_MS
@@ -54,7 +54,7 @@ export function InboxPanel({
           <h2 className="text-sm font-semibold">REQUESTS</h2>
           <div className="min-h-4 text-[0.68rem] text-muted-foreground">
             {isLoading ? null : (
-              <span className="duration-200 animate-in fade-in-0 motion-reduce:animate-none">
+              <span className="animate-in duration-200 fade-in-0 motion-reduce:animate-none">
                 {requests.length} captured
               </span>
             )}
@@ -64,14 +64,14 @@ export function InboxPanel({
           <InspectorIconButton
             label="Refresh"
             disabled={!canRefresh}
-            onClick={onRefreshInbox}
+            onClick={onRefreshEndpoint}
             icon={RefreshCwIcon}
             variant="ghost"
           />
           <InspectorIconButton
             label="Clear"
             disabled={!canRefresh || isClearing || requests.length === 0}
-            onClick={onClearInbox}
+            onClick={onClearEndpoint}
             icon={Trash2Icon}
             variant="ghost"
           />
@@ -88,7 +88,7 @@ export function InboxPanel({
               {requests.map((request) => (
                 <li
                   key={request.id}
-                  className="duration-200 ease-out animate-in fade-in-0 slide-in-from-top-1 motion-reduce:animate-none"
+                  className="animate-in duration-200 ease-out fade-in-0 slide-in-from-top-1 motion-reduce:animate-none"
                 >
                   <RequestListItem
                     request={request}
@@ -100,10 +100,10 @@ export function InboxPanel({
             </ul>
           </ScrollArea>
         ) : (
-          <Empty className="h-full rounded-sm border border-dashed bg-background/60 p-4 duration-200 animate-in fade-in-0 motion-reduce:animate-none">
+          <Empty className="h-full animate-in rounded-sm border border-dashed bg-background/60 p-4 duration-200 fade-in-0 motion-reduce:animate-none">
             <EmptyHeader>
               <EmptyMedia variant="icon" className="rounded-sm">
-                <InboxIcon />
+                <WebhookIcon />
               </EmptyMedia>
               <EmptyTitle>NO REQUESTS</EmptyTitle>
               <EmptyDescription className="text-xs">WAITING</EmptyDescription>
@@ -154,7 +154,7 @@ function RequestListLoading() {
   return (
     <div
       role="status"
-      className="flex items-center gap-2 px-1 text-[0.68rem] text-muted-foreground duration-200 animate-in fade-in-0 motion-reduce:animate-none"
+      className="flex animate-in items-center gap-2 px-1 text-[0.68rem] text-muted-foreground duration-200 fade-in-0 motion-reduce:animate-none"
     >
       <span
         className="size-1.5 animate-pulse rounded-full bg-muted-foreground"

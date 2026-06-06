@@ -7,7 +7,8 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 
 export const metadata: Metadata = {
   title: "webhooks.lol",
-  description: "A simple webhook inbox for receiving and inspecting requests.",
+  description:
+    "A simple webhook endpoint for receiving and inspecting requests.",
 }
 
 export default function RootLayout({

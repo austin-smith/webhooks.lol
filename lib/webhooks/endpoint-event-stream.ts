@@ -8,8 +8,8 @@ const REQUEST_EVENT = "request"
 const CLEAR_EVENT = "clear"
 const HEARTBEAT_INTERVAL_MS = 25_000
 
-type InboxClearedEvent = {
-  token: string
+type EndpointClearedEvent = {
+  endpointId: string
 }
 
 const globalForEvents = globalThis as typeof globalThis & {
@@ -30,16 +30,16 @@ export function publishRequest(request: CapturedRequest) {
   getWebhookEvents().emit(REQUEST_EVENT, request)
 }
 
-export function publishInboxCleared(token: string) {
-  getWebhookEvents().emit(CLEAR_EVENT, { token })
+export function publishEndpointCleared(endpointId: string) {
+  getWebhookEvents().emit(CLEAR_EVENT, { endpointId })
 }
 
-export function openInboxEventStream({
+export function openEndpointEventStream({
   signal,
-  token,
+  endpointId,
 }: {
   signal: AbortSignal
-  token: string
+  endpointId: string
 }) {
   const encoder = new TextEncoder()
   let cleanupStream: (() => void) | null = null
@@ -70,13 +70,13 @@ export function openInboxEventStream({
       }
 
       const onRequest = (capturedRequest: CapturedRequest) => {
-        if (capturedRequest.token === token) {
+        if (capturedRequest.endpointId === endpointId) {
           send(REQUEST_EVENT, capturedRequest)
         }
       }
 
-      const onClear = (event: InboxClearedEvent) => {
-        if (event.token === token) {
+      const onClear = (event: EndpointClearedEvent) => {
+        if (event.endpointId === endpointId) {
           send(CLEAR_EVENT, event)
         }
       }
@@ -111,7 +111,7 @@ export function openInboxEventStream({
 
       events.on(REQUEST_EVENT, onRequest)
       events.on(CLEAR_EVENT, onClear)
-      send("ready", { token })
+      send("ready", { endpointId })
 
       signal.addEventListener("abort", cleanup, { once: true })
     },

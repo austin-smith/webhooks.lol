@@ -3,9 +3,9 @@
   <br><span style="font-family: monospace;">webhooks.lol</span>
 </h1>
 
-A small webhook inbox for receiving and inspecting HTTP requests.
+A small webhook endpoint for receiving and inspecting HTTP requests.
 
-The app creates private inbox URLs, captures requests sent to them, and shows the latest traffic in a compact inspector. It is intentionally simple: a request list, a detail pane, and a small remembered-inbox switcher for moving between URLs you have created.
+The app creates private endpoint URLs, captures requests sent to them, and shows the latest traffic in a compact inspector. It is intentionally simple: a request list, a detail pane, and a small remembered-endpoint switcher for moving between URLs you have created.
 
 ## Run
 
@@ -32,27 +32,27 @@ For production, run it on a Node.js host with PostgreSQL available through `DATA
 ## Use
 
 1. Open the app.
-2. Optionally rename the current inbox so it is easier to recognize later.
+2. Optionally rename the current endpoint so it is easier to recognize later.
 3. Copy the `RECEIVE_URL`.
 4. Send any request to that URL, or to a nested path below it.
 
 Example:
 
 ```bash
-curl -X POST https://hooks.example.com/api/hook/<token>/payments/created \
+curl -X POST https://hooks.example.com/api/hook/<id>/payments/created \
   -H "content-type: application/json" \
   -d '{"event":"payment.created","amount":42}'
 ```
 
-Captured requests appear live in the inbox. Select a request to inspect the parsed body, headers, query string, and raw HTTP request.
+Captured requests appear live in the endpoint. Select a request to inspect the parsed body, headers, query string, and raw HTTP request.
 
 ## Behavior
 
 - Requests persist in PostgreSQL through Drizzle-managed schema migrations.
-- The app keeps the latest 500 requests per inbox.
+- The app keeps the latest 500 requests per endpoint.
 - Request bodies are capped at 1 MiB. Larger payloads return `413`.
 - Browser preflight requests return CORS headers and are not saved as webhook traffic.
-- The browser remembers recent inbox tokens and optional inbox names for the current user.
+- The browser remembers recent webhook endpoint IDs and optional endpoint names for the current user.
 
 ## Scripts
 

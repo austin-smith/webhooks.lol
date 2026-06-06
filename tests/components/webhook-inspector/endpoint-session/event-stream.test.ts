@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "vitest"
 
 import {
-  createBrowserInboxEventStream,
+  createBrowserEndpointEventStream,
   readCapturedRequestEvent,
-  readTokenEvent,
-} from "@/components/webhook-inspector/inbox-session/event-stream"
+  readEndpointIdEvent,
+} from "@/components/webhook-inspector/endpoint-session/event-stream"
 import type { CapturedRequest } from "@/lib/webhooks/types"
 
 class FakeEventSource extends EventTarget {
@@ -30,10 +30,10 @@ class FakeEventSource extends EventTarget {
   }
 }
 
-function createRequest(token: string): CapturedRequest {
+function createRequest(endpointId: string): CapturedRequest {
   return {
     id: "captured-1",
-    token,
+    endpointId,
     method: "POST",
     url: "/orders",
     path: "/orders",
@@ -48,32 +48,34 @@ function createRequest(token: string): CapturedRequest {
   }
 }
 
-describe("inbox event stream", () => {
-  it("reads token and captured request message events", () => {
+describe("endpoint event stream", () => {
+  it("reads webhook endpoint ID and captured request message events", () => {
     expect(
-      readTokenEvent(new MessageEvent("ready", { data: '{"token":"inbox"}' }))
-    ).toBe("inbox")
+      readEndpointIdEvent(
+        new MessageEvent("ready", { data: '{"endpointId":"endpoint"}' })
+      )
+    ).toBe("endpoint")
 
     expect(
       readCapturedRequestEvent(
         new MessageEvent("request", {
-          data: JSON.stringify(createRequest("inbox")),
+          data: JSON.stringify(createRequest("endpoint")),
         })
       )
-    ).toEqual(createRequest("inbox"))
+    ).toEqual(createRequest("endpoint"))
 
     expect(
       readCapturedRequestEvent(
         new MessageEvent("request", {
-          data: JSON.stringify({ token: "inbox" }),
+          data: JSON.stringify({ endpointId: "endpoint" }),
         })
       )
     ).toBeNull()
   })
 
-  it("filters stream events to the subscribed inbox", () => {
+  it("filters stream events to the subscribed endpoint", () => {
     const sources: FakeEventSource[] = []
-    const stream = createBrowserInboxEventStream((url) => {
+    const stream = createBrowserEndpointEventStream((url) => {
       const source = new FakeEventSource(url)
 
       sources.push(source)
@@ -87,21 +89,21 @@ describe("inbox event stream", () => {
       onRequest: vi.fn(),
     }
 
-    const unsubscribe = stream.subscribe("inbox", handlers)
+    const unsubscribe = stream.subscribe("endpoint", handlers)
     const source = sources[0]
 
-    expect(source.url).toBe("/api/inboxes/inbox/events")
+    expect(source.url).toBe("/api/endpoints/endpoint/events")
 
-    source.emit("ready", { token: "other" })
-    source.emit("ready", { token: "inbox" })
+    source.emit("ready", { endpointId: "other" })
+    source.emit("ready", { endpointId: "endpoint" })
     source.emit("request", createRequest("other"))
-    source.emit("request", createRequest("inbox"))
-    source.emit("clear", { token: "other" })
-    source.emit("clear", { token: "inbox" })
+    source.emit("request", createRequest("endpoint"))
+    source.emit("clear", { endpointId: "other" })
+    source.emit("clear", { endpointId: "endpoint" })
     source.fail()
 
     expect(handlers.onReady).toHaveBeenCalledTimes(1)
-    expect(handlers.onRequest).toHaveBeenCalledWith(createRequest("inbox"))
+    expect(handlers.onRequest).toHaveBeenCalledWith(createRequest("endpoint"))
     expect(handlers.onClear).toHaveBeenCalledTimes(1)
     expect(handlers.onError).toHaveBeenCalledTimes(1)
 

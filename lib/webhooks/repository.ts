@@ -5,35 +5,35 @@ import { and, desc, eq, notInArray, sql } from "drizzle-orm"
 import { getDatabase } from "@/lib/database/client"
 import {
   capturedRequests,
-  inboxes,
-  inboxResponses,
+  endpoints,
+  endpointResponses,
 } from "@/lib/database/schema"
 import {
-  DEFAULT_INBOX_RESPONSE_CONFIG,
-  type InboxResponseConfig,
-  type InboxResponseOverrideInput,
-} from "@/lib/webhooks/inbox-response"
+  DEFAULT_ENDPOINT_RESPONSE_CONFIG,
+  type EndpointResponseConfig,
+  type EndpointResponseOverrideInput,
+} from "@/lib/webhooks/endpoint-response"
 import type {
   CapturedRequest,
   CapturedRequestInput,
 } from "@/lib/webhooks/types"
 
-const MAX_REQUESTS_PER_INBOX = 500
+const MAX_REQUESTS_PER_ENDPOINT = 500
 
-export async function createInbox() {
-  const token = crypto.randomUUID()
-  await ensureInbox(token)
-  return token
+export async function createEndpoint() {
+  const endpointId = crypto.randomUUID()
+  await ensureEndpoint(endpointId)
+  return endpointId
 }
 
-export async function ensureInbox(token: string) {
+export async function ensureEndpoint(endpointId: string) {
   await getDatabase()
-    .insert(inboxes)
+    .insert(endpoints)
     .values({
-      token,
+      id: endpointId,
       createdAt: new Date(),
     })
-    .onConflictDoNothing({ target: inboxes.token })
+    .onConflictDoNothing({ target: endpoints.id })
 }
 
 export async function saveCapturedRequest(input: CapturedRequestInput) {
@@ -48,20 +48,20 @@ export async function saveCapturedRequest(input: CapturedRequestInput) {
 
   await db.transaction(async (transaction) => {
     await transaction
-      .insert(inboxes)
+      .insert(endpoints)
       .values({
-        token: request.token,
+        id: request.endpointId,
         createdAt: new Date(),
       })
-      .onConflictDoNothing({ target: inboxes.token })
+      .onConflictDoNothing({ target: endpoints.id })
 
     await transaction.execute(
-      sql`select 1 from ${inboxes} where ${inboxes.token} = ${request.token} for update`
+      sql`select 1 from ${endpoints} where ${endpoints.id} = ${request.endpointId} for update`
     )
 
     await transaction.insert(capturedRequests).values({
       id: request.id,
-      token: request.token,
+      endpointId: request.endpointId,
       method: request.method,
       url: request.url,
       path: request.path,
@@ -78,15 +78,15 @@ export async function saveCapturedRequest(input: CapturedRequestInput) {
     const retainedRequestIds = transaction
       .select({ id: capturedRequests.id })
       .from(capturedRequests)
-      .where(eq(capturedRequests.token, request.token))
+      .where(eq(capturedRequests.endpointId, request.endpointId))
       .orderBy(desc(capturedRequests.receivedAt))
-      .limit(MAX_REQUESTS_PER_INBOX)
+      .limit(MAX_REQUESTS_PER_ENDPOINT)
 
     await transaction
       .delete(capturedRequests)
       .where(
         and(
-          eq(capturedRequests.token, request.token),
+          eq(capturedRequests.endpointId, request.endpointId),
           notInArray(capturedRequests.id, retainedRequestIds)
         )
       )
@@ -95,66 +95,66 @@ export async function saveCapturedRequest(input: CapturedRequestInput) {
   return request
 }
 
-export async function listRequests(token: string) {
-  await ensureInbox(token)
+export async function listRequests(endpointId: string) {
+  await ensureEndpoint(endpointId)
 
   const rows = await getDatabase()
     .select()
     .from(capturedRequests)
-    .where(eq(capturedRequests.token, token))
+    .where(eq(capturedRequests.endpointId, endpointId))
     .orderBy(desc(capturedRequests.receivedAt))
-    .limit(MAX_REQUESTS_PER_INBOX)
+    .limit(MAX_REQUESTS_PER_ENDPOINT)
 
   return rows.map(mapCapturedRequestRow)
 }
 
-export async function clearRequests(token: string) {
-  await ensureInbox(token)
+export async function clearRequests(endpointId: string) {
+  await ensureEndpoint(endpointId)
 
   await getDatabase()
     .delete(capturedRequests)
-    .where(eq(capturedRequests.token, token))
+    .where(eq(capturedRequests.endpointId, endpointId))
 }
 
-export async function getInboxResponseConfig(
-  token: string
-): Promise<InboxResponseConfig> {
-  await ensureInbox(token)
+export async function getEndpointResponseConfig(
+  endpointId: string
+): Promise<EndpointResponseConfig> {
+  await ensureEndpoint(endpointId)
 
   const rows = await getDatabase()
     .select()
-    .from(inboxResponses)
-    .where(eq(inboxResponses.token, token))
+    .from(endpointResponses)
+    .where(eq(endpointResponses.endpointId, endpointId))
     .limit(1)
 
   const configuredResponse = rows[0]
 
   if (!configuredResponse) {
-    return DEFAULT_INBOX_RESPONSE_CONFIG
+    return DEFAULT_ENDPOINT_RESPONSE_CONFIG
   }
 
-  return mapInboxResponseRow(configuredResponse)
+  return mapEndpointResponseRow(configuredResponse)
 }
 
-export async function setInboxResponseOverride({
-  token,
+export async function setEndpointResponseOverride({
+  endpointId,
   override,
 }: {
-  token: string
-  override: InboxResponseOverrideInput
+  endpointId: string
+  override: EndpointResponseOverrideInput
 }) {
-  await ensureInbox(token)
+  await ensureEndpoint(endpointId)
 
   await getDatabase()
-    .insert(inboxResponses)
+    .insert(endpointResponses)
     .values({
-      token,
+      endpointId,
       status: override.status,
       contentType: override.contentType,
       body: override.body,
     })
     .onConflictDoUpdate({
-      target: inboxResponses.token,
+      target: endpointResponses.endpointId,
       set: {
         status: override.status,
         contentType: override.contentType,
@@ -166,23 +166,25 @@ export async function setInboxResponseOverride({
   return {
     mode: "custom",
     ...override,
-  } satisfies InboxResponseConfig
+  } satisfies EndpointResponseConfig
 }
 
-export async function clearInboxResponseOverride(token: string) {
-  await ensureInbox(token)
+export async function clearEndpointResponseOverride(
+  endpointId: string
+) {
+  await ensureEndpoint(endpointId)
 
   await getDatabase()
-    .delete(inboxResponses)
-    .where(eq(inboxResponses.token, token))
+    .delete(endpointResponses)
+    .where(eq(endpointResponses.endpointId, endpointId))
 
-  return DEFAULT_INBOX_RESPONSE_CONFIG
+  return DEFAULT_ENDPOINT_RESPONSE_CONFIG
 }
 
 function mapCapturedRequestRow(row: typeof capturedRequests.$inferSelect) {
   return {
     id: row.id,
-    token: row.token,
+    endpointId: row.endpointId,
     method: row.method,
     url: row.url,
     path: row.path,
@@ -197,11 +199,13 @@ function mapCapturedRequestRow(row: typeof capturedRequests.$inferSelect) {
   } satisfies CapturedRequest
 }
 
-function mapInboxResponseRow(row: typeof inboxResponses.$inferSelect) {
+function mapEndpointResponseRow(
+  row: typeof endpointResponses.$inferSelect
+) {
   return {
     mode: "custom",
     status: row.status,
     contentType: row.contentType,
     body: row.body,
-  } satisfies InboxResponseConfig
+  } satisfies EndpointResponseConfig
 }

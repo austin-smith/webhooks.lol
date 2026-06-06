@@ -1,18 +1,18 @@
 import { describe, expect, it } from "vitest"
 
 import {
-  openInboxEventStream,
-  publishInboxCleared,
+  openEndpointEventStream,
+  publishEndpointCleared,
   publishRequest,
-} from "@/lib/webhooks/inbox-event-stream"
+} from "@/lib/webhooks/endpoint-event-stream"
 import type { CapturedRequest } from "@/lib/webhooks/types"
 
 const decoder = new TextDecoder()
 
-function createRequest(token: string, id: string): CapturedRequest {
+function createRequest(endpointId: string, id: string): CapturedRequest {
   return {
     id,
-    token,
+    endpointId,
     method: "POST",
     url: "/live/check",
     path: "/live/check",
@@ -37,28 +37,28 @@ async function readEvent(reader: ReadableStreamDefaultReader<Uint8Array>) {
   return decoder.decode(result.value)
 }
 
-describe("openInboxEventStream", () => {
+describe("openEndpointEventStream", () => {
   it("sends ready and matching request events", async () => {
     const controller = new AbortController()
-    const stream = openInboxEventStream({
+    const stream = openEndpointEventStream({
       signal: controller.signal,
-      token: "inbox-token",
+      endpointId: "endpoint-id",
     })
     const reader = stream.getReader()
 
     try {
       await expect(readEvent(reader)).resolves.toBe(
-        'event: ready\ndata: {"token":"inbox-token"}\n\n'
+        'event: ready\ndata: {"endpointId":"endpoint-id"}\n\n'
       )
 
-      publishRequest(createRequest("other-token", "ignored"))
-      publishRequest(createRequest("inbox-token", "captured-1"))
+      publishRequest(createRequest("other-endpoint-id", "ignored"))
+      publishRequest(createRequest("endpoint-id", "captured-1"))
 
       const event = await readEvent(reader)
 
       expect(event).toContain("event: request\n")
       expect(event).toContain('"id":"captured-1"')
-      expect(event).toContain('"token":"inbox-token"')
+      expect(event).toContain('"endpointId":"endpoint-id"')
       expect(event).not.toContain("ignored")
     } finally {
       controller.abort()
@@ -66,22 +66,22 @@ describe("openInboxEventStream", () => {
     }
   })
 
-  it("sends clear events for the matching inbox", async () => {
+  it("sends clear events for the matching endpoint", async () => {
     const controller = new AbortController()
-    const stream = openInboxEventStream({
+    const stream = openEndpointEventStream({
       signal: controller.signal,
-      token: "clear-token",
+      endpointId: "clear-endpoint-id",
     })
     const reader = stream.getReader()
 
     try {
       await readEvent(reader)
 
-      publishInboxCleared("other-token")
-      publishInboxCleared("clear-token")
+      publishEndpointCleared("other-endpoint-id")
+      publishEndpointCleared("clear-endpoint-id")
 
       await expect(readEvent(reader)).resolves.toBe(
-        'event: clear\ndata: {"token":"clear-token"}\n\n'
+        'event: clear\ndata: {"endpointId":"clear-endpoint-id"}\n\n'
       )
     } finally {
       controller.abort()

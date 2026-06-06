@@ -1,39 +1,41 @@
 import type { CapturedRequest } from "@/lib/webhooks/types"
 import type {
-  InboxResponseConfig,
-  InboxResponseOverrideInput,
-} from "@/lib/webhooks/inbox-response"
+  EndpointResponseConfig,
+  EndpointResponseOverrideInput,
+} from "@/lib/webhooks/endpoint-response"
 
 export type ConnectionState = "live" | "connecting" | "offline"
 
-export type InboxActions = {
-  clearInbox: () => void
+export type EndpointActions = {
+  clearEndpoint: () => void
   clearResponseOverride: () => Promise<void>
-  renameInbox: (name: string) => void
-  refreshInbox: () => void
-  saveResponseOverride: (override: InboxResponseOverrideInput) => Promise<void>
+  renameEndpoint: (name: string) => void
+  refreshEndpoint: () => void
+  saveResponseOverride: (
+    override: EndpointResponseOverrideInput
+  ) => Promise<void>
   selectRequest: (id: string) => void
-  startNewInbox: () => void
-  switchInbox: (token: string) => void
+  startNewEndpoint: () => void
+  switchEndpoint: (endpointId: string) => void
 }
 
-export type InboxNames = Record<string, string>
+export type EndpointNames = Record<string, string>
 
-export type WebhookInboxState = {
+export type EndpointState = {
   canRefresh: boolean
   connectionState: ConnectionState
   errorMessage: string | null
-  inboxNames: InboxNames
+  endpointNames: EndpointNames
   isClearing: boolean
   isLoading: boolean
   isSavingResponse: boolean
-  recentTokens: string[]
-  responseConfig: InboxResponseConfig
+  recentEndpointIds: string[]
+  responseConfig: EndpointResponseConfig
   requests: CapturedRequest[]
   selectedRequest: CapturedRequest | null
-  token: string | null
+  endpointId: string | null
 }
 
-export type WebhookInbox = WebhookInboxState & {
-  actions: InboxActions
+export type Endpoint = EndpointState & {
+  actions: EndpointActions
 }

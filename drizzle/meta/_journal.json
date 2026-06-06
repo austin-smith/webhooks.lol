@@ -22,6 +22,13 @@
       "when": 1780785833231,
       "tag": "0002_young_nick_fury",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1780787390242,
+      "tag": "0003_exotic_micromacro",
+      "breakpoints": true
     }
   ]
 }

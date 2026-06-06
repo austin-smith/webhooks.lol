@@ -26,48 +26,48 @@ import {
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 
-import type { InboxNames } from "./types"
-import { formatShortToken } from "./request-formatters"
+import type { EndpointNames } from "./types"
+import { formatShortEndpointId } from "./request-formatters"
 
-type InboxSwitcherProps = {
+type EndpointSwitcherProps = {
   disabled: boolean
-  inboxNames: InboxNames
+  endpointNames: EndpointNames
   name: string
-  recentTokens: string[]
-  token: string | null
-  onNewInbox: () => void
-  onRenameInbox: (name: string) => void
-  onSwitchInbox: (token: string) => void
+  recentEndpointIds: string[]
+  endpointId: string | null
+  onNewEndpoint: () => void
+  onRenameEndpoint: (name: string) => void
+  onSwitchEndpoint: (endpointId: string) => void
 }
 
-export function InboxSwitcher({
+export function EndpointSwitcher({
   disabled,
-  inboxNames,
+  endpointNames,
   name,
-  recentTokens,
-  token,
-  onNewInbox,
-  onRenameInbox,
-  onSwitchInbox,
-}: InboxSwitcherProps) {
+  recentEndpointIds,
+  endpointId,
+  onNewEndpoint,
+  onRenameEndpoint,
+  onSwitchEndpoint,
+}: EndpointSwitcherProps) {
   const [open, setOpen] = React.useState(false)
   const [query, setQuery] = React.useState("")
   const [isRenaming, setIsRenaming] = React.useState(false)
   const [draftName, setDraftName] = React.useState("")
-  const filteredTokens = React.useMemo(() => {
+  const filteredEndpointIds = React.useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
 
     if (!normalizedQuery) {
-      return recentTokens
+      return recentEndpointIds
     }
 
-    return recentTokens.filter((recentToken) => {
-      const inboxName = inboxNames[recentToken] ?? ""
-      return `${inboxName} ${recentToken}`
+    return recentEndpointIds.filter((recentEndpointId) => {
+      const endpointName = endpointNames[recentEndpointId] ?? ""
+      return `${endpointName} ${recentEndpointId}`
         .toLowerCase()
         .includes(normalizedQuery)
     })
-  }, [inboxNames, query, recentTokens])
+  }, [endpointNames, query, recentEndpointIds])
 
   function changeOpen(nextOpen: boolean) {
     setOpen(nextOpen)
@@ -79,16 +79,17 @@ export function InboxSwitcher({
     }
   }
 
-  const selectedLabel = name.trim() || formatShortToken(token)
+  const selectedLabel =
+    name.trim() || formatShortEndpointId(endpointId)
 
-  function switchInbox(nextToken: string) {
-    onSwitchInbox(nextToken)
+  function switchEndpoint(nextEndpointId: string) {
+    onSwitchEndpoint(nextEndpointId)
     changeOpen(false)
   }
 
   function saveName(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    onRenameInbox(draftName.trim())
+    onRenameEndpoint(draftName.trim())
     setIsRenaming(false)
   }
 
@@ -98,11 +99,11 @@ export function InboxSwitcher({
         <button
           type="button"
           disabled={disabled}
-          aria-label="Switch inbox"
+          aria-label="Switch endpoint"
           className="group flex h-10 min-w-0 items-center justify-between gap-2 rounded-l-md px-3 text-left transition-colors hover:bg-muted/55 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 aria-expanded:bg-muted"
         >
-          {token ? (
-            <span className="min-w-0 truncate font-mono text-xs font-medium duration-200 animate-in fade-in-0 motion-reduce:animate-none">
+          {endpointId ? (
+            <span className="min-w-0 animate-in truncate font-mono text-xs font-medium duration-200 fade-in-0 motion-reduce:animate-none">
               {selectedLabel}
             </span>
           ) : (
@@ -118,29 +119,31 @@ export function InboxSwitcher({
         <div className="border-b p-2">
           <label className="flex h-8 items-center gap-2 rounded-sm border bg-background px-2 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/30">
             <SearchIcon className="size-3.5 shrink-0 text-muted-foreground" />
-            <span className="sr-only">Search inboxes</span>
+            <span className="sr-only">Search endpoints</span>
             <Input
               density="compact"
               variant="embedded"
               value={query}
               onChange={(event) => setQuery(event.currentTarget.value)}
               className="px-0 font-mono"
-              placeholder="Search inboxes"
+              placeholder="Search endpoints"
             />
           </label>
         </div>
 
         <ScrollArea className="max-h-64">
           <div className="flex flex-col gap-1 p-1.5">
-            {filteredTokens.length > 0 ? (
-              filteredTokens.map((recentToken) => (
-                <InboxSwitcherRow
-                  key={recentToken}
-                  inboxNames={inboxNames}
-                  isRenaming={isRenaming && recentToken === token}
+            {filteredEndpointIds.length > 0 ? (
+              filteredEndpointIds.map((recentEndpointId) => (
+                <EndpointSwitcherRow
+                  key={recentEndpointId}
+                  endpointNames={endpointNames}
+                  isRenaming={
+                    isRenaming && recentEndpointId === endpointId
+                  }
                   nameDraft={draftName}
-                  selected={recentToken === token}
-                  token={recentToken}
+                  selected={recentEndpointId === endpointId}
+                  endpointId={recentEndpointId}
                   onChangeNameDraft={setDraftName}
                   onCancelRename={() => {
                     setDraftName("")
@@ -151,12 +154,12 @@ export function InboxSwitcher({
                     setIsRenaming(true)
                   }}
                   onSaveName={saveName}
-                  onSelect={() => switchInbox(recentToken)}
+                  onSelect={() => switchEndpoint(recentEndpointId)}
                 />
               ))
             ) : (
               <div className="px-2 py-6 text-center text-[0.72rem] text-muted-foreground">
-                No matching inbox
+                No matching endpoint
               </div>
             )}
           </div>
@@ -167,13 +170,13 @@ export function InboxSwitcher({
             type="button"
             disabled={disabled}
             onClick={() => {
-              onNewInbox()
+              onNewEndpoint()
               changeOpen(false)
             }}
             className="flex h-9 w-full items-center gap-2 rounded-sm border border-transparent px-2 text-left text-xs transition-colors hover:border-border hover:bg-background focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
           >
             <PlusIcon className="size-3.5 text-muted-foreground" />
-            <span>New inbox</span>
+            <span>New endpoint</span>
           </button>
         </div>
       </PopoverContent>
@@ -181,31 +184,31 @@ export function InboxSwitcher({
   )
 }
 
-function InboxSwitcherRow({
-  inboxNames,
+function EndpointSwitcherRow({
+  endpointNames,
   isRenaming,
   nameDraft,
   selected,
-  token,
+  endpointId,
   onChangeNameDraft,
   onCancelRename,
   onRename,
   onSaveName,
   onSelect,
 }: {
-  inboxNames: InboxNames
+  endpointNames: EndpointNames
   isRenaming: boolean
   nameDraft: string
   selected: boolean
-  token: string
+  endpointId: string
   onChangeNameDraft: (name: string) => void
   onCancelRename: () => void
   onRename: () => void
   onSaveName: (event: React.FormEvent<HTMLFormElement>) => void
   onSelect: () => void
 }) {
-  const name = inboxNames[token]?.trim()
-  const shortToken = formatShortToken(token)
+  const name = endpointNames[endpointId]?.trim()
+  const shortId = formatShortEndpointId(endpointId)
 
   if (isRenaming) {
     return (
@@ -215,7 +218,7 @@ function InboxSwitcherRow({
       >
         <Input
           autoFocus
-          aria-label="Inbox label"
+          aria-label="Endpoint label"
           density="compact"
           value={nameDraft}
           onChange={(event) => onChangeNameDraft(event.currentTarget.value)}
@@ -232,10 +235,10 @@ function InboxSwitcherRow({
           type="submit"
           size="icon-sm"
           className="rounded-sm"
-          aria-label="Save inbox label"
+          aria-label="Save endpoint label"
         >
           <CheckIcon data-icon="inline-start" />
-          <span className="sr-only">Save inbox label</span>
+          <span className="sr-only">Save endpoint label</span>
         </Button>
         <button
           type="button"
@@ -262,12 +265,10 @@ function InboxSwitcherRow({
         onClick={onSelect}
         className="flex min-w-0 flex-col px-2 py-1.5 text-left focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
       >
-        <span className="truncate text-xs font-medium">
-          {name || shortToken}
-        </span>
+        <span className="truncate text-xs font-medium">{name || shortId}</span>
         {name ? (
           <span className="truncate text-[0.68rem] text-muted-foreground">
-            {shortToken}
+            {shortId}
           </span>
         ) : null}
       </button>
@@ -278,14 +279,14 @@ function InboxSwitcherRow({
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  aria-label="Rename selected inbox"
+                  aria-label="Rename selected endpoint"
                   onClick={onRename}
                   className="flex size-7 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-background hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
                 >
                   <PencilIcon className="size-3.5" />
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="left">Rename inbox</TooltipContent>
+              <TooltipContent side="left">Rename endpoint</TooltipContent>
             </Tooltip>
             <CheckIcon className="size-3.5 text-foreground" />
           </>

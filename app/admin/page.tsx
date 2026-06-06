@@ -70,7 +70,10 @@ function AdminDashboard({ dashboard, session }: AdminDashboardProps) {
     <AdminShell>
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <MetricCard label="Requests" value={dashboard.counts.requests} />
-        <MetricCard label="Inboxes" value={dashboard.counts.inboxes} />
+        <MetricCard
+          label="Endpoints"
+          value={dashboard.counts.endpoints}
+        />
         <MetricCard label="Users" value={dashboard.counts.users} />
         <MetricCard label="Admin" value={dashboard.counts.admins} />
       </section>
@@ -86,7 +89,7 @@ function AdminDashboard({ dashboard, session }: AdminDashboardProps) {
                 <tr>
                   <th className="py-2 pr-3 font-medium">Time</th>
                   <th className="py-2 pr-3 font-medium">Method</th>
-                  <th className="py-2 pr-3 font-medium">Inbox</th>
+                  <th className="py-2 pr-3 font-medium">Endpoint</th>
                   <th className="py-2 pr-3 font-medium">Path</th>
                   <th className="py-2 pr-3 text-right font-medium">Bytes</th>
                   <th className="py-2 pr-3 font-medium">IP</th>
@@ -102,7 +105,7 @@ function AdminDashboard({ dashboard, session }: AdminDashboardProps) {
                       <RequestMethodBadge method={request.method} />
                     </td>
                     <td className="max-w-36 truncate py-2 pr-3">
-                      {request.token}
+                      {request.endpointId}
                     </td>
                     <td className="max-w-72 truncate py-2 pr-3">
                       {request.path}

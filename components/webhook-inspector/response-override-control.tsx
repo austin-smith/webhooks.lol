@@ -16,23 +16,20 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import {
-  ToggleGroup,
-  ToggleGroupItem,
-} from "@/components/ui/toggle-group"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import type {
-  InboxResponseConfig,
-  InboxResponseOverrideInput,
-} from "@/lib/webhooks/inbox-response"
+  EndpointResponseConfig,
+  EndpointResponseOverrideInput,
+} from "@/lib/webhooks/endpoint-response"
 import { cn } from "@/lib/utils"
 
-type ResponseMode = InboxResponseConfig["mode"]
+type ResponseMode = EndpointResponseConfig["mode"]
 
 const DEFAULT_RESPONSE_BODY_PREVIEW = JSON.stringify(
   {
     ok: true,
     id: "{{request.id}}",
-    token: "{{inbox.token}}",
+    endpointId: "{{endpoint.id}}",
   },
   null,
   2
@@ -44,17 +41,17 @@ const RESPONSE_BODY_VARIABLES = [
     value: "{{request.id}}",
   },
   {
-    label: "Inbox token",
-    value: "{{inbox.token}}",
+    label: "Endpoint ID",
+    value: "{{endpoint.id}}",
   },
 ] as const
 
 type ResponseOverrideControlProps = {
   disabled: boolean
   isSaving: boolean
-  responseConfig: InboxResponseConfig
+  responseConfig: EndpointResponseConfig
   onReset: () => Promise<void>
-  onSave: (override: InboxResponseOverrideInput) => Promise<void>
+  onSave: (override: EndpointResponseOverrideInput) => Promise<void>
 }
 
 export function ResponseOverrideControl({
@@ -197,15 +194,7 @@ export function ResponseOverrideControl({
     } catch {
       // The session owns the user-facing error state.
     }
-  }, [
-    body,
-    closeAfterSuccess,
-    contentType,
-    draftMode,
-    onReset,
-    onSave,
-    status,
-  ])
+  }, [body, closeAfterSuccess, contentType, draftMode, onReset, onSave, status])
 
   const insertBodyVariable = React.useCallback((variable: string) => {
     const textarea = bodyTextareaRef.current
@@ -219,8 +208,7 @@ export function ResponseOverrideControl({
     const end = textarea.selectionEnd
 
     setBody(
-      (current) =>
-        `${current.slice(0, start)}${variable}${current.slice(end)}`
+      (current) => `${current.slice(0, start)}${variable}${current.slice(end)}`
     )
 
     window.requestAnimationFrame(() => {

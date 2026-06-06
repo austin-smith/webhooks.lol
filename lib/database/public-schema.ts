@@ -10,8 +10,8 @@ import {
 } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
-export const inboxes = pgTable("inboxes", {
-  token: text("token").primaryKey(),
+export const endpoints = pgTable("endpoints", {
+  id: text("id").primaryKey(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -21,9 +21,9 @@ export const capturedRequests = pgTable(
   "requests",
   {
     id: uuid("id").primaryKey(),
-    token: text("token")
+    endpointId: text("endpoint_id")
       .notNull()
-      .references(() => inboxes.token, { onDelete: "cascade" }),
+      .references(() => endpoints.id, { onDelete: "cascade" }),
     method: text("method").notNull(),
     url: text("url").notNull(),
     path: text("path").notNull(),
@@ -39,16 +39,19 @@ export const capturedRequests = pgTable(
     ip: text("ip"),
   },
   (table) => [
-    index("requests_token_received_at_idx").on(table.token, table.receivedAt),
+    index("requests_endpoint_id_received_at_idx").on(
+      table.endpointId,
+      table.receivedAt
+    ),
   ]
 )
 
-export const inboxResponses = pgTable(
-  "inbox_responses",
+export const endpointResponses = pgTable(
+  "endpoint_responses",
   {
-    token: text("token")
+    endpointId: text("endpoint_id")
       .primaryKey()
-      .references(() => inboxes.token, { onDelete: "cascade" }),
+      .references(() => endpoints.id, { onDelete: "cascade" }),
     status: integer("status").notNull(),
     contentType: text("content_type").notNull(),
     body: text("body").notNull(),
@@ -62,15 +65,16 @@ export const inboxResponses = pgTable(
   },
   (table) => [
     check(
-      "inbox_responses_status_check",
+      "endpoint_responses_status_check",
       sql`${table.status} between 200 and 599`
     ),
     check(
-      "inbox_responses_content_type_check",
+      "endpoint_responses_content_type_check",
       sql`length(trim(${table.contentType})) > 0`
     ),
   ]
 )
 
 export type CapturedRequestRow = typeof capturedRequests.$inferSelect
-export type InboxResponseRow = typeof inboxResponses.$inferSelect
+export type EndpointResponseRow =
+  typeof endpointResponses.$inferSelect
