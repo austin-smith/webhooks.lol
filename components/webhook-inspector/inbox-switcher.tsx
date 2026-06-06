@@ -53,24 +53,20 @@ export function InboxSwitcher({
   const [query, setQuery] = React.useState("")
   const [isRenaming, setIsRenaming] = React.useState(false)
   const [draftName, setDraftName] = React.useState("")
-  const tokens = React.useMemo(
-    () => getInboxTokens(token, recentTokens),
-    [recentTokens, token]
-  )
   const filteredTokens = React.useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
 
     if (!normalizedQuery) {
-      return tokens
+      return recentTokens
     }
 
-    return tokens.filter((recentToken) => {
+    return recentTokens.filter((recentToken) => {
       const inboxName = inboxNames[recentToken] ?? ""
       return `${inboxName} ${recentToken}`
         .toLowerCase()
         .includes(normalizedQuery)
     })
-  }, [inboxNames, query, tokens])
+  }, [inboxNames, query, recentTokens])
 
   function changeOpen(nextOpen: boolean) {
     setOpen(nextOpen)
@@ -292,8 +288,4 @@ function InboxSwitcherRow({
       </span>
     </div>
   )
-}
-
-function getInboxTokens(token: string | null, recentTokens: string[]) {
-  return Array.from(new Set(token ? [token, ...recentTokens] : recentTokens))
 }
