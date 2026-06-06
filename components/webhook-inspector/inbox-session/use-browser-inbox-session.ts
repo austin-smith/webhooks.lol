@@ -2,6 +2,11 @@
 
 import * as React from "react"
 
+import {
+  DEFAULT_INBOX_RESPONSE_CONFIG,
+  type InboxResponseConfig,
+  type InboxResponseOverrideInput,
+} from "@/lib/webhooks/inbox-response"
 import type { CapturedRequest } from "@/lib/webhooks/types"
 
 import type {
@@ -39,8 +44,11 @@ export function useBrowserInboxSession(): WebhookInbox {
     requests: [],
     selectedId: null,
   })
+  const [responseConfig, setResponseConfig] =
+    React.useState<InboxResponseConfig>(DEFAULT_INBOX_RESPONSE_CONFIG)
   const [isLoading, setIsLoading] = React.useState(true)
   const [isClearing, setIsClearing] = React.useState(false)
+  const [isSavingResponse, setIsSavingResponse] = React.useState(false)
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
   const [connectionState, setConnectionState] =
     React.useState<ConnectionState>("connecting")
@@ -93,6 +101,7 @@ export function useBrowserInboxSession(): WebhookInbox {
       rememberToken(nextToken)
       updateToken(nextToken)
       setRequestState({ requests: [], selectedId: null })
+      setResponseConfig(DEFAULT_INBOX_RESPONSE_CONFIG)
       setErrorMessage(null)
       setConnectionState("connecting")
       setIsLoading(false)
@@ -131,7 +140,10 @@ export function useBrowserInboxSession(): WebhookInbox {
 
         void (async () => {
           try {
-            const nextRequests = await transport.loadRequests(activeToken)
+            const [nextRequests, nextResponseConfig] = await Promise.all([
+              transport.loadRequests(activeToken),
+              transport.loadInboxResponseConfig(activeToken),
+            ])
 
             if (!isActive || activeTokenRef.current !== activeToken) {
               return
@@ -142,6 +154,7 @@ export function useBrowserInboxSession(): WebhookInbox {
               loadedRequests: nextRequests,
               requestIdsAtLoadStart,
             })
+            setResponseConfig(nextResponseConfig)
             setErrorMessage(null)
           } catch (error) {
             if (isActive && activeTokenRef.current === activeToken) {
@@ -319,13 +332,17 @@ export function useBrowserInboxSession(): WebhookInbox {
       setIsLoading(true)
       updateToken(nextToken)
       setRequestState({ requests: [], selectedId: null })
+      setResponseConfig(DEFAULT_INBOX_RESPONSE_CONFIG)
       setConnectionState("connecting")
       const requestIdsAtLoadStart = new Set<string>()
       const clearVersionAtLoadStart = clearVersion.current
 
       void (async () => {
         try {
-          const nextRequests = await transport.loadRequests(nextToken)
+          const [nextRequests, nextResponseConfig] = await Promise.all([
+            transport.loadRequests(nextToken),
+            transport.loadInboxResponseConfig(nextToken),
+          ])
 
           if (activeTokenRef.current !== nextToken) {
             return
@@ -336,6 +353,7 @@ export function useBrowserInboxSession(): WebhookInbox {
             loadedRequests: nextRequests,
             requestIdsAtLoadStart,
           })
+          setResponseConfig(nextResponseConfig)
           setErrorMessage(null)
         } catch (error) {
           if (activeTokenRef.current === nextToken) {
@@ -351,6 +369,67 @@ export function useBrowserInboxSession(): WebhookInbox {
     [applyLoadedRequests, isLoading, token, transport, updateToken]
   )
 
+  const saveResponseOverride = React.useCallback(
+    async (override: InboxResponseOverrideInput) => {
+      if (!token || isSavingResponse) {
+        return
+      }
+
+      const savingToken = token
+
+      setIsSavingResponse(true)
+
+      try {
+        const nextResponseConfig = await transport.saveInboxResponseOverride(
+          savingToken,
+          override
+        )
+
+        if (activeTokenRef.current === savingToken) {
+          setResponseConfig(nextResponseConfig)
+          setErrorMessage(null)
+        }
+      } catch (error) {
+        if (activeTokenRef.current === savingToken) {
+          setErrorMessage(readErrorMessage(error))
+        }
+
+        throw error
+      } finally {
+        setIsSavingResponse(false)
+      }
+    },
+    [isSavingResponse, token, transport]
+  )
+
+  const clearResponseOverride = React.useCallback(async () => {
+    if (!token || isSavingResponse) {
+      return
+    }
+
+    const savingToken = token
+
+    setIsSavingResponse(true)
+
+    try {
+      const nextResponseConfig =
+        await transport.clearInboxResponseOverride(savingToken)
+
+      if (activeTokenRef.current === savingToken) {
+        setResponseConfig(nextResponseConfig)
+        setErrorMessage(null)
+      }
+    } catch (error) {
+      if (activeTokenRef.current === savingToken) {
+        setErrorMessage(readErrorMessage(error))
+      }
+
+      throw error
+    } finally {
+      setIsSavingResponse(false)
+    }
+  }, [isSavingResponse, token, transport])
+
   const selectCapturedRequest = React.useCallback((id: string) => {
     setRequestState((current) => ({
       ...current,
@@ -361,16 +440,20 @@ export function useBrowserInboxSession(): WebhookInbox {
   const actions = React.useMemo<InboxActions>(
     () => ({
       clearInbox,
+      clearResponseOverride,
       renameInbox: renameCurrentInbox,
       refreshInbox,
+      saveResponseOverride,
       selectRequest: selectCapturedRequest,
       startNewInbox,
       switchInbox,
     }),
     [
       clearInbox,
+      clearResponseOverride,
       refreshInbox,
       renameCurrentInbox,
+      saveResponseOverride,
       selectCapturedRequest,
       startNewInbox,
       switchInbox,
@@ -385,7 +468,9 @@ export function useBrowserInboxSession(): WebhookInbox {
     inboxNames,
     isClearing,
     isLoading,
+    isSavingResponse,
     recentTokens,
+    responseConfig,
     requests,
     selectedRequest,
     token,

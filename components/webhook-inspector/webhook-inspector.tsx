@@ -55,24 +55,28 @@ export function WebhookInspector() {
 
   return (
     <main className="flex min-h-svh bg-background p-4 font-mono text-xs text-foreground lg:p-5">
-      <div className="flex min-h-[calc(100svh-2rem)] w-full flex-1 flex-col gap-4 duration-300 ease-out animate-in fade-in-0 lg:min-h-[calc(100svh-2.5rem)] motion-reduce:animate-none">
+      <div className="flex min-h-[calc(100svh-2rem)] w-full flex-1 animate-in flex-col gap-4 duration-300 ease-out fade-in-0 motion-reduce:animate-none lg:min-h-[calc(100svh-2.5rem)]">
         <InspectorHeader
           connectionState={inbox.connectionState}
           copied={copied}
           copyMessage={copyMessage}
           inboxNames={inbox.inboxNames}
           isLoading={inbox.isLoading}
+          isSavingResponse={inbox.isSavingResponse}
           recentTokens={inbox.recentTokens}
+          responseConfig={inbox.responseConfig}
           token={inbox.token}
           webhookUrl={webhookUrl}
           onCopyWebhookUrl={copyWebhookUrl}
           onNewInbox={inbox.actions.startNewInbox}
           onRenameInbox={inbox.actions.renameInbox}
+          onResetResponseOverride={inbox.actions.clearResponseOverride}
+          onSaveResponseOverride={inbox.actions.saveResponseOverride}
           onSwitchInbox={inbox.actions.switchInbox}
         />
 
         {inbox.errorMessage ? (
-          <Alert className="rounded-md duration-200 ease-out animate-in fade-in-0 slide-in-from-top-1 motion-reduce:animate-none">
+          <Alert className="animate-in rounded-md duration-200 ease-out fade-in-0 slide-in-from-top-1 motion-reduce:animate-none">
             <AlertCircleIcon />
             <AlertTitle>REQUEST FAILED</AlertTitle>
             <AlertDescription>{inbox.errorMessage}</AlertDescription>

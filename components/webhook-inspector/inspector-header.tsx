@@ -1,20 +1,19 @@
 "use client"
 
 import Image from "next/image"
-import { CheckIcon, CopyIcon, ExternalLinkIcon } from "lucide-react"
+import { CheckIcon, CopyIcon } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
+import type {
+  InboxResponseConfig,
+  InboxResponseOverrideInput,
+} from "@/lib/webhooks/inbox-response"
 import { cn } from "@/lib/utils"
 
 import { InboxSwitcher } from "./inbox-switcher"
 import { InspectorIconButton } from "./inspector-icon-button"
+import { ResponseOverrideControl } from "./response-override-control"
 import type { ConnectionState } from "./types"
 import { formatConnectionState } from "./request-formatters"
 
@@ -24,12 +23,18 @@ type InspectorHeaderProps = {
   copyMessage: string
   inboxNames: Record<string, string>
   isLoading: boolean
+  isSavingResponse: boolean
   recentTokens: string[]
+  responseConfig: InboxResponseConfig
   token: string | null
   webhookUrl: string
   onCopyWebhookUrl: () => void
   onNewInbox: () => void
   onRenameInbox: (name: string) => void
+  onResetResponseOverride: () => Promise<void>
+  onSaveResponseOverride: (
+    override: InboxResponseOverrideInput
+  ) => Promise<void>
   onSwitchInbox: (token: string) => void
 }
 
@@ -39,7 +44,11 @@ export function InspectorHeader({
   copyMessage,
   inboxNames,
   isLoading,
+  isSavingResponse,
+  onResetResponseOverride,
+  onSaveResponseOverride,
   recentTokens,
+  responseConfig,
   token,
   webhookUrl,
   onCopyWebhookUrl,
@@ -83,7 +92,7 @@ export function InspectorHeader({
           onSwitchInbox={onSwitchInbox}
         />
 
-        <div className="flex min-w-0 items-center border-l px-2">
+        <div className="flex min-w-0 items-center gap-1 border-l pl-2 pr-1">
           {webhookUrl ? (
             <Input
               readOnly
@@ -91,10 +100,10 @@ export function InspectorHeader({
               variant="embedded"
               value={webhookUrl}
               aria-label="Receive URL"
-              className="h-10 px-0 font-mono text-xs text-foreground duration-200 animate-in fade-in-0 motion-reduce:animate-none"
+              className="h-10 min-w-0 flex-1 animate-in px-0 font-mono text-xs text-foreground duration-200 fade-in-0 motion-reduce:animate-none"
             />
           ) : (
-            <div className="flex h-10 w-full items-center">
+            <div className="flex h-10 min-w-0 flex-1 items-center">
               <Skeleton
                 className="h-3 w-44 max-w-full rounded-sm"
                 aria-hidden="true"
@@ -104,9 +113,6 @@ export function InspectorHeader({
               </span>
             </div>
           )}
-        </div>
-
-        <div className="flex items-center border-l p-1">
           <InspectorIconButton
             label={copied ? "Copied URL" : "Copy URL"}
             disabled={!webhookUrl}
@@ -119,34 +125,16 @@ export function InspectorHeader({
           <span className="sr-only" role="status" aria-live="polite">
             {copyMessage}
           </span>
-          {webhookUrl ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  className="rounded-sm"
-                  asChild
-                >
-                  <a href={webhookUrl} target="_blank" rel="noreferrer">
-                    <ExternalLinkIcon data-icon="inline-start" />
-                    <span className="sr-only">Open URL</span>
-                  </a>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Open URL</TooltipContent>
-            </Tooltip>
-          ) : (
-            <InspectorIconButton
-              label="Open URL"
-              disabled
-              icon={ExternalLinkIcon}
-              className="rounded-sm"
-              size="icon-sm"
-              variant="ghost"
-            />
-          )}
+        </div>
+
+        <div className="flex items-center border-l p-1">
+          <ResponseOverrideControl
+            disabled={isLoading || !token}
+            isSaving={isSavingResponse}
+            responseConfig={responseConfig}
+            onReset={onResetResponseOverride}
+            onSave={onSaveResponseOverride}
+          />
         </div>
       </div>
     </header>

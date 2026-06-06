@@ -15,6 +15,13 @@
       "when": 1780750259633,
       "tag": "0001_swift_black_queen",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1780785833231,
+      "tag": "0002_young_nick_fury",
+      "breakpoints": true
     }
   ]
 }

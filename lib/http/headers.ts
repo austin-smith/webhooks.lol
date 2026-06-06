@@ -14,6 +14,13 @@ export const CORS_NO_STORE_HEADERS = {
   ...NO_STORE_HEADERS,
 }
 
+export const WEBHOOK_RESPONSE_SECURITY_HEADERS = {
+  "Content-Security-Policy":
+    "sandbox; default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+  "Referrer-Policy": "no-referrer",
+  "X-Content-Type-Options": "nosniff",
+}
+
 export const EVENT_STREAM_HEADERS = {
   "Cache-Control": "no-cache, no-transform",
   Connection: "keep-alive",

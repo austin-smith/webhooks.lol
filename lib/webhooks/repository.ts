@@ -3,7 +3,16 @@ import "server-only"
 import { and, desc, eq, notInArray, sql } from "drizzle-orm"
 
 import { getDatabase } from "@/lib/database/client"
-import { capturedRequests, inboxes } from "@/lib/database/schema"
+import {
+  capturedRequests,
+  inboxes,
+  inboxResponses,
+} from "@/lib/database/schema"
+import {
+  DEFAULT_INBOX_RESPONSE_CONFIG,
+  type InboxResponseConfig,
+  type InboxResponseOverrideInput,
+} from "@/lib/webhooks/inbox-response"
 import type {
   CapturedRequest,
   CapturedRequestInput,
@@ -73,12 +82,14 @@ export async function saveCapturedRequest(input: CapturedRequestInput) {
       .orderBy(desc(capturedRequests.receivedAt))
       .limit(MAX_REQUESTS_PER_INBOX)
 
-    await transaction.delete(capturedRequests).where(
-      and(
-        eq(capturedRequests.token, request.token),
-        notInArray(capturedRequests.id, retainedRequestIds)
+    await transaction
+      .delete(capturedRequests)
+      .where(
+        and(
+          eq(capturedRequests.token, request.token),
+          notInArray(capturedRequests.id, retainedRequestIds)
+        )
       )
-    )
   })
 
   return request
@@ -105,6 +116,69 @@ export async function clearRequests(token: string) {
     .where(eq(capturedRequests.token, token))
 }
 
+export async function getInboxResponseConfig(
+  token: string
+): Promise<InboxResponseConfig> {
+  await ensureInbox(token)
+
+  const rows = await getDatabase()
+    .select()
+    .from(inboxResponses)
+    .where(eq(inboxResponses.token, token))
+    .limit(1)
+
+  const configuredResponse = rows[0]
+
+  if (!configuredResponse) {
+    return DEFAULT_INBOX_RESPONSE_CONFIG
+  }
+
+  return mapInboxResponseRow(configuredResponse)
+}
+
+export async function setInboxResponseOverride({
+  token,
+  override,
+}: {
+  token: string
+  override: InboxResponseOverrideInput
+}) {
+  await ensureInbox(token)
+
+  await getDatabase()
+    .insert(inboxResponses)
+    .values({
+      token,
+      status: override.status,
+      contentType: override.contentType,
+      body: override.body,
+    })
+    .onConflictDoUpdate({
+      target: inboxResponses.token,
+      set: {
+        status: override.status,
+        contentType: override.contentType,
+        body: override.body,
+        updatedAt: new Date(),
+      },
+    })
+
+  return {
+    mode: "custom",
+    ...override,
+  } satisfies InboxResponseConfig
+}
+
+export async function clearInboxResponseOverride(token: string) {
+  await ensureInbox(token)
+
+  await getDatabase()
+    .delete(inboxResponses)
+    .where(eq(inboxResponses.token, token))
+
+  return DEFAULT_INBOX_RESPONSE_CONFIG
+}
+
 function mapCapturedRequestRow(row: typeof capturedRequests.$inferSelect) {
   return {
     id: row.id,
@@ -121,4 +195,13 @@ function mapCapturedRequestRow(row: typeof capturedRequests.$inferSelect) {
     receivedAt: row.receivedAt.toISOString(),
     ip: row.ip,
   } satisfies CapturedRequest
+}
+
+function mapInboxResponseRow(row: typeof inboxResponses.$inferSelect) {
+  return {
+    mode: "custom",
+    status: row.status,
+    contentType: row.contentType,
+    body: row.body,
+  } satisfies InboxResponseConfig
 }

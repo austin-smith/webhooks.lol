@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
 
 import { createInboundCapture } from "@/lib/webhooks/inbound-capture"
+import { DEFAULT_INBOX_RESPONSE_CONFIG } from "@/lib/webhooks/inbox-response"
 import type { CapturedRequest } from "@/lib/webhooks/types"
 
 function createCapturedRequest(
@@ -23,7 +24,12 @@ describe("createInboundCapture", () => {
     const publishRequest = vi.fn(() => {
       calls.push("publish")
     })
+    const getInboxResponseConfig = vi.fn(async () => {
+      calls.push("response")
+      return DEFAULT_INBOX_RESPONSE_CONFIG
+    })
     const captureInboundRequest = createInboundCapture({
+      getInboxResponseConfig,
       publishRequest,
       saveCapturedRequest,
     })
@@ -46,6 +52,7 @@ describe("createInboundCapture", () => {
     expect(outcome).toEqual({
       kind: "captured",
       id: "captured-1",
+      response: DEFAULT_INBOX_RESPONSE_CONFIG,
       token: "inbox-token",
     })
     expect(saveCapturedRequest).toHaveBeenCalledWith({
@@ -67,7 +74,8 @@ describe("createInboundCapture", () => {
     expect(publishRequest).toHaveBeenCalledWith(
       expect.objectContaining({ id: "captured-1", token: "inbox-token" })
     )
-    expect(calls).toEqual(["save", "publish"])
+    expect(getInboxResponseConfig).toHaveBeenCalledWith("inbox-token")
+    expect(calls).toEqual(["save", "publish", "response"])
   })
 
   it("returns body-too-large without saving or publishing", async () => {
@@ -75,7 +83,11 @@ describe("createInboundCapture", () => {
       createCapturedRequest(input)
     )
     const publishRequest = vi.fn()
+    const getInboxResponseConfig = vi.fn(
+      async () => DEFAULT_INBOX_RESPONSE_CONFIG
+    )
     const captureInboundRequest = createInboundCapture({
+      getInboxResponseConfig,
       publishRequest,
       saveCapturedRequest,
     })
@@ -98,6 +110,7 @@ describe("createInboundCapture", () => {
     })
     expect(saveCapturedRequest).not.toHaveBeenCalled()
     expect(publishRequest).not.toHaveBeenCalled()
+    expect(getInboxResponseConfig).not.toHaveBeenCalled()
   })
 
   it("captures binary bodies as base64 without body text", async () => {
@@ -105,6 +118,7 @@ describe("createInboundCapture", () => {
       createCapturedRequest(input)
     )
     const captureInboundRequest = createInboundCapture({
+      getInboxResponseConfig: vi.fn(async () => DEFAULT_INBOX_RESPONSE_CONFIG),
       publishRequest: vi.fn(),
       saveCapturedRequest,
     })

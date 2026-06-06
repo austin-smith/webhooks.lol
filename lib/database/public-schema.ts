@@ -1,4 +1,5 @@
 import {
+  check,
   index,
   integer,
   jsonb,
@@ -7,6 +8,7 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core"
+import { sql } from "drizzle-orm"
 
 export const inboxes = pgTable("inboxes", {
   token: text("token").primaryKey(),
@@ -41,4 +43,34 @@ export const capturedRequests = pgTable(
   ]
 )
 
+export const inboxResponses = pgTable(
+  "inbox_responses",
+  {
+    token: text("token")
+      .primaryKey()
+      .references(() => inboxes.token, { onDelete: "cascade" }),
+    status: integer("status").notNull(),
+    contentType: text("content_type").notNull(),
+    body: text("body").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    check(
+      "inbox_responses_status_check",
+      sql`${table.status} between 200 and 599`
+    ),
+    check(
+      "inbox_responses_content_type_check",
+      sql`length(trim(${table.contentType})) > 0`
+    ),
+  ]
+)
+
 export type CapturedRequestRow = typeof capturedRequests.$inferSelect
+export type InboxResponseRow = typeof inboxResponses.$inferSelect

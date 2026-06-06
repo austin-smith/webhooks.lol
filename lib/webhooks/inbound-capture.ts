@@ -1,7 +1,11 @@
 import "server-only"
 
 import { publishRequest } from "@/lib/webhooks/inbox-event-stream"
-import { saveCapturedRequest } from "@/lib/webhooks/repository"
+import {
+  getInboxResponseConfig,
+  saveCapturedRequest,
+} from "@/lib/webhooks/repository"
+import type { InboxResponseConfig } from "@/lib/webhooks/inbox-response"
 import type {
   CapturedRequest,
   CapturedRequestInput,
@@ -23,6 +27,7 @@ type CapturedBody = {
 }
 
 type InboundCaptureDeps = {
+  getInboxResponseConfig: (token: string) => Promise<InboxResponseConfig>
   publishRequest: (request: CapturedRequest) => void
   saveCapturedRequest: (input: CapturedRequestInput) => Promise<CapturedRequest>
 }
@@ -31,6 +36,7 @@ export type InboundCaptureOutcome =
   | {
       kind: "captured"
       id: string
+      response: InboxResponseConfig
       token: string
     }
   | {
@@ -39,6 +45,7 @@ export type InboundCaptureOutcome =
     }
 
 export function createInboundCapture({
+  getInboxResponseConfig,
   publishRequest,
   saveCapturedRequest,
 }: InboundCaptureDeps) {
@@ -86,12 +93,14 @@ export function createInboundCapture({
     return {
       kind: "captured",
       id: capturedRequest.id,
+      response: await getInboxResponseConfig(token),
       token,
     }
   }
 }
 
 export const captureInboundRequest = createInboundCapture({
+  getInboxResponseConfig,
   publishRequest,
   saveCapturedRequest,
 })
