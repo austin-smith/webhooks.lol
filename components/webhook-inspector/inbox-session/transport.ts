@@ -2,7 +2,7 @@ import type {
   CapturedRequest,
   CreateInboxResponse,
   RequestsResponse,
-} from "@/lib/webhook-types"
+} from "@/lib/webhooks/types"
 
 export type InboxTransport = {
   clearInbox: (token: string) => Promise<void>

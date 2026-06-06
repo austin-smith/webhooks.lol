@@ -1,4 +1,4 @@
-import type { CapturedRequest } from "@/lib/webhook-types"
+import type { CapturedRequest } from "@/lib/webhooks/types"
 
 export type InboxEventStream = {
   subscribe: (token: string, handlers: InboxEventHandlers) => () => void

@@ -4,8 +4,8 @@ import {
   openInboxEventStream,
   publishInboxCleared,
   publishRequest,
-} from "@/lib/webhook-events"
-import type { CapturedRequest } from "@/lib/webhook-types"
+} from "@/lib/webhooks/events"
+import type { CapturedRequest } from "@/lib/webhooks/types"
 
 const decoder = new TextDecoder()
 

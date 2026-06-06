@@ -1,8 +1,11 @@
 import "server-only"
 
-import { publishRequest } from "@/lib/webhook-events"
-import { saveCapturedRequest } from "@/lib/webhook-store"
-import type { CapturedRequest } from "@/lib/webhook-types"
+import { publishRequest } from "@/lib/webhooks/events"
+import { saveCapturedRequest } from "@/lib/webhooks/repository"
+import type {
+  CapturedRequest,
+  CapturedRequestInput,
+} from "@/lib/webhooks/types"
 
 const MAX_BODY_BYTES = 1024 * 1024
 
@@ -19,11 +22,9 @@ type CapturedBody = {
   size: number
 }
 
-type CapturedRequestInput = Omit<CapturedRequest, "id" | "receivedAt">
-
 type InboundCaptureDeps = {
   publishRequest: (request: CapturedRequest) => void
-  saveCapturedRequest: (input: CapturedRequestInput) => CapturedRequest
+  saveCapturedRequest: (input: CapturedRequestInput) => Promise<CapturedRequest>
 }
 
 export type InboundCaptureOutcome =
@@ -66,7 +67,7 @@ export function createInboundCapture({
       throw error
     }
 
-    const capturedRequest = saveCapturedRequest({
+    const capturedRequest = await saveCapturedRequest({
       token,
       method: request.method,
       url: requestTarget,

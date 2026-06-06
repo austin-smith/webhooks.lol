@@ -5,7 +5,7 @@ import {
   readCapturedRequestEvent,
   readTokenEvent,
 } from "@/components/webhook-inspector/inbox-session/event-stream"
-import type { CapturedRequest } from "@/lib/webhook-types"
+import type { CapturedRequest } from "@/lib/webhooks/types"
 
 class FakeEventSource extends EventTarget {
   onerror: ((event: Event) => void) | null = null

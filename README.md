@@ -11,12 +11,23 @@ The app creates private inbox URLs, captures requests sent to them, and shows th
 
 ```bash
 pnpm install
+cp .env.example .env
+pnpm db:local:start
+pnpm db:migrate
 pnpm dev
 ```
 
 The development server runs on [http://localhost:4665](http://localhost:4665). For real webhook delivery, deploy it behind a public HTTPS URL so external services can reach the receive endpoint.
 
-For production, run it on a Node.js host with persistent disk.
+The local Postgres script runs a named Docker container, `webhooks-lol-postgres`, with a named volume, `webhooks-lol-postgres-data`.
+
+For non-local environments, set `DATABASE_URL` to the target PostgreSQL database and run migrations before starting the app:
+
+```bash
+pnpm db:migrate
+```
+
+For production, run it on a Node.js host with PostgreSQL available through `DATABASE_URL`.
 
 ## Use
 
@@ -37,7 +48,7 @@ Captured requests appear live in the inbox. Select a request to inspect the pars
 
 ## Behavior
 
-- Requests persist in SQLite at `~/.webhooks-lol/webhooks.sqlite`.
+- Requests persist in PostgreSQL through Drizzle-managed schema migrations.
 - The app keeps the latest 500 requests per inbox.
 - Request bodies are capped at 1 MiB. Larger payloads return `413`.
 - Browser preflight requests return CORS headers and are not saved as webhook traffic.
@@ -47,6 +58,12 @@ Captured requests appear live in the inbox. Select a request to inspect the pars
 
 ```bash
 pnpm dev        # start Next.js on port 4665
+pnpm db:generate # generate Drizzle migrations after schema changes
+pnpm db:local:start # start local PostgreSQL with Docker
+pnpm db:local:stop  # stop the local PostgreSQL container
+pnpm db:local:logs  # follow local PostgreSQL logs
+pnpm db:migrate  # apply Drizzle migrations to DATABASE_URL
+pnpm db:push     # push schema directly for local prototyping
 pnpm typecheck  # run TypeScript
 pnpm lint       # run ESLint
 pnpm build      # production build

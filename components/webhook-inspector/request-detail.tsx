@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/empty"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import type { CapturedRequest } from "@/lib/webhook-types"
+import type { CapturedRequest } from "@/lib/webhooks/types"
 import { cn } from "@/lib/utils"
 
 import { CodePanel, KeyValueTable } from "./request-data-panels"

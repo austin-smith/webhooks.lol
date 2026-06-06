@@ -14,6 +14,8 @@ export type CapturedRequest = {
   ip: string | null
 }
 
+export type CapturedRequestInput = Omit<CapturedRequest, "id" | "receivedAt">
+
 export type CreateInboxResponse = {
   token: string
 }

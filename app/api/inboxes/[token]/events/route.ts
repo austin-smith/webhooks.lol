@@ -1,5 +1,5 @@
 import { EVENT_STREAM_HEADERS } from "@/lib/http-headers"
-import { openInboxEventStream } from "@/lib/webhook-events"
+import { openInboxEventStream } from "@/lib/webhooks/events"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"

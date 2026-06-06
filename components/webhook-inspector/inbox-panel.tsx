@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/empty"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { CapturedRequest } from "@/lib/webhook-types"
+import type { CapturedRequest } from "@/lib/webhooks/types"
 import { cn } from "@/lib/utils"
 
 import { InspectorIconButton } from "./inspector-header"

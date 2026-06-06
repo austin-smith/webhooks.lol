@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
 
 import { createFetchInboxTransport } from "@/components/webhook-inspector/inbox-session/transport"
-import type { CapturedRequest } from "@/lib/webhook-types"
+import type { CapturedRequest } from "@/lib/webhooks/types"
 
 function createResponse(body: unknown, init: ResponseInit = {}) {
   return new Response(JSON.stringify(body), {

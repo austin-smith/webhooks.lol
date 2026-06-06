@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
 
-import { createInboundCapture } from "@/lib/inbound-capture"
-import type { CapturedRequest } from "@/lib/webhook-types"
+import { createInboundCapture } from "@/lib/webhooks/inbound-capture"
+import type { CapturedRequest } from "@/lib/webhooks/types"
 
 function createCapturedRequest(
   input: Omit<CapturedRequest, "id" | "receivedAt">
@@ -16,7 +16,7 @@ function createCapturedRequest(
 describe("createInboundCapture", () => {
   it("captures request data and publishes after saving", async () => {
     const calls: string[] = []
-    const saveCapturedRequest = vi.fn((input) => {
+    const saveCapturedRequest = vi.fn(async (input) => {
       calls.push("save")
       return createCapturedRequest(input)
     })
@@ -71,7 +71,9 @@ describe("createInboundCapture", () => {
   })
 
   it("returns body-too-large without saving or publishing", async () => {
-    const saveCapturedRequest = vi.fn(createCapturedRequest)
+    const saveCapturedRequest = vi.fn(async (input) =>
+      createCapturedRequest(input)
+    )
     const publishRequest = vi.fn()
     const captureInboundRequest = createInboundCapture({
       publishRequest,
@@ -99,7 +101,9 @@ describe("createInboundCapture", () => {
   })
 
   it("captures binary bodies as base64 without body text", async () => {
-    const saveCapturedRequest = vi.fn(createCapturedRequest)
+    const saveCapturedRequest = vi.fn(async (input) =>
+      createCapturedRequest(input)
+    )
     const captureInboundRequest = createInboundCapture({
       publishRequest: vi.fn(),
       saveCapturedRequest,

@@ -2,7 +2,7 @@ import "server-only"
 
 import { EventEmitter } from "node:events"
 
-import type { CapturedRequest } from "@/lib/webhook-types"
+import type { CapturedRequest } from "@/lib/webhooks/types"
 
 const REQUEST_EVENT = "request"
 const CLEAR_EVENT = "clear"

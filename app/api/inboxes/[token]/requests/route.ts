@@ -1,6 +1,6 @@
 import { NO_STORE_HEADERS } from "@/lib/http-headers"
-import { publishInboxCleared } from "@/lib/webhook-events"
-import { clearRequests, listRequests } from "@/lib/webhook-store"
+import { publishInboxCleared } from "@/lib/webhooks/events"
+import { clearRequests, listRequests } from "@/lib/webhooks/repository"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -14,7 +14,7 @@ export async function GET(
   return Response.json(
     {
       token,
-      requests: listRequests(token),
+      requests: await listRequests(token),
     },
     { headers: NO_STORE_HEADERS }
   )
@@ -26,7 +26,7 @@ export async function DELETE(
 ) {
   const { token } = await context.params
 
-  clearRequests(token)
+  await clearRequests(token)
   publishInboxCleared(token)
 
   return Response.json(

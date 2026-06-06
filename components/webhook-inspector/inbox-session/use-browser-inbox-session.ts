@@ -2,7 +2,7 @@
 
 import * as React from "react"
 
-import type { CapturedRequest } from "@/lib/webhook-types"
+import type { CapturedRequest } from "@/lib/webhooks/types"
 
 import type {
   ConnectionState,

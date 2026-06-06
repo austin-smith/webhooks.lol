@@ -9,7 +9,7 @@ import {
   selectRequest,
   selectRequestId,
 } from "@/components/webhook-inspector/inbox-session/state"
-import type { CapturedRequest } from "@/lib/webhook-types"
+import type { CapturedRequest } from "@/lib/webhooks/types"
 
 function createRequest(id: string): CapturedRequest {
   return {
