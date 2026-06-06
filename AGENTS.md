@@ -78,10 +78,10 @@ domain module.
 - Run lint: `pnpm lint`
 - Run the full suite before finishing broad changes: `pnpm verify`
 
-Tests live under `tests/` and use Vitest in a Node environment. The Vitest config
-aliases `@/` to the repo root and maps `server-only` to
-`tests/server-only.ts`, so server modules can be tested without Next's runtime
-guard blocking imports.
+Tests live under `tests/`, with webhook domain tests in `tests/lib/webhooks/`.
+Vitest runs in a Node environment. The Vitest config aliases `@/` to the repo
+root and maps `server-only` to `tests/server-only.ts`, so server modules can be
+tested without Next's runtime guard blocking imports.
 
 Add or update focused tests for changed behavior. Repository and route-boundary
 changes should cover persistence rules, request parsing, error responses, and
@@ -114,7 +114,9 @@ behavior.
   limits, body parsing, captured-path/query/header extraction, and publication
   after persistence succeeds.
 - `lib/webhooks/repository.ts` owns inbox and captured-request persistence.
-- `lib/webhooks/events.ts` owns live inbox event-stream behavior.
+- `lib/webhooks/inbox-event-stream.ts` owns live inbox event-stream behavior.
+- `lib/webhooks/api-contracts.ts` owns shared API response shapes used across
+  routes and client transport code.
 - `components/webhook-inspector/inbox-session/*` owns browser-side inbox session
   state, storage, transport, and event-stream handling.
 - `components/ui/*` contains shadcn/Radix-derived primitives. Extend them
