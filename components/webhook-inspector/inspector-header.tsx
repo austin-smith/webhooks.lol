@@ -59,7 +59,7 @@ export function InspectorHeader({
   const endpointName = endpointId ? (endpointNames[endpointId] ?? "") : ""
 
   return (
-    <header className="flex min-w-0 flex-col gap-3 border-b pb-4">
+    <header className="flex min-w-0 flex-col gap-3">
       <div className="flex min-w-0 items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
           <div className="flex size-5 shrink-0 items-center justify-center">
