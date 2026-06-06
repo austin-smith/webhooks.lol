@@ -64,8 +64,10 @@ pnpm db:local:stop  # stop the local PostgreSQL container
 pnpm db:local:logs  # follow local PostgreSQL logs
 pnpm db:migrate  # apply Drizzle migrations to DATABASE_URL
 pnpm db:push     # push schema directly for local prototyping
+pnpm typegen    # generate Next.js route types
 pnpm typecheck  # run TypeScript
 pnpm lint       # run ESLint
+pnpm test       # run Vitest
 pnpm build      # production build
-pnpm verify     # typecheck, lint, and build
+pnpm verify     # typegen, typecheck, lint, test, and build
 ```

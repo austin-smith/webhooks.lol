@@ -21,8 +21,9 @@
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "test": "vitest run",
+    "typegen": "next typegen",
     "typecheck": "tsc --noEmit",
-    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm build"
+    "verify": "pnpm typegen && pnpm typecheck && pnpm lint && pnpm test && pnpm build"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
