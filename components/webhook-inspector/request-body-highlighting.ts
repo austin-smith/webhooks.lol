@@ -18,7 +18,7 @@ const highlightedLanguages = [
 const highlighterPromise = createHighlighterCore({
   engine: createJavaScriptRegexEngine(),
   langs: highlightedLanguages.map((language) => bundledLanguages[language]),
-  themes: [bundledThemes["light-plus"], bundledThemes["dark-plus"]],
+  themes: [bundledThemes["vitesse-light"], bundledThemes["vitesse-dark"]],
 })
 
 export async function highlightRequestBody({
@@ -39,8 +39,8 @@ export async function highlightRequestBody({
   return highlighter.codeToHtml(value, {
     lang: shikiLanguage,
     themes: {
-      dark: "dark-plus",
-      light: "light-plus",
+      dark: "vitesse-dark",
+      light: "vitesse-light",
     },
   })
 }
