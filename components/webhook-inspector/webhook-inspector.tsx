@@ -6,14 +6,14 @@ import { AlertCircleIcon } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 import { InboxPanel } from "./inbox-panel"
+import { useBrowserInboxSession } from "./inbox-session/use-browser-inbox-session"
 import { InspectorHeader } from "./inspector-header"
 import { RequestDetail } from "./request-detail"
 import { useBrowserOrigin } from "./use-browser-origin"
-import { useWebhookInbox } from "./use-webhook-inbox"
 
 export function WebhookInspector() {
   const origin = useBrowserOrigin()
-  const inbox = useWebhookInbox()
+  const inbox = useBrowserInboxSession()
   const webhookUrl =
     inbox.token && origin ? `${origin}/api/hook/${inbox.token}` : ""
   const [copied, setCopied] = React.useState(false)

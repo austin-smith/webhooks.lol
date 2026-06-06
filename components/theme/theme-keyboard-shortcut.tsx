@@ -2,7 +2,7 @@
 
 import * as React from "react"
 
-import { THEME_STORAGE_KEY } from "@/lib/theme"
+import { THEME_STORAGE_KEY } from "@/lib/theme/constants"
 
 type ThemePreference = "dark" | "light"
 

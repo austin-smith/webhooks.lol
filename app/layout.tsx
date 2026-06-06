@@ -2,9 +2,9 @@ import type { Metadata } from "next"
 import Script from "next/script"
 
 import "./globals.css"
-import { ThemeKeyboardShortcut } from "@/components/theme-keyboard-shortcut"
+import { ThemeKeyboardShortcut } from "@/components/theme/theme-keyboard-shortcut"
 import { TooltipProvider } from "@/components/ui/tooltip"
-import { THEME_STORAGE_KEY } from "@/lib/theme"
+import { THEME_STORAGE_KEY } from "@/lib/theme/constants"
 
 export const metadata: Metadata = {
   title: "webhooks.lol",

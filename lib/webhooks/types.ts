@@ -15,12 +15,3 @@ export type CapturedRequest = {
 }
 
 export type CapturedRequestInput = Omit<CapturedRequest, "id" | "receivedAt">
-
-export type CreateInboxResponse = {
-  token: string
-}
-
-export type RequestsResponse = {
-  token: string
-  requests: CapturedRequest[]
-}

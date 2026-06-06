@@ -1,4 +1,4 @@
-import { CORS_NO_STORE_HEADERS } from "@/lib/http-headers"
+import { CORS_NO_STORE_HEADERS } from "@/lib/http/headers"
 import { captureInboundRequest } from "@/lib/webhooks/inbound-capture"
 
 export const runtime = "nodejs"

@@ -1,6 +1,6 @@
 import "server-only"
 
-import { publishRequest } from "@/lib/webhooks/events"
+import { publishRequest } from "@/lib/webhooks/inbox-event-stream"
 import { saveCapturedRequest } from "@/lib/webhooks/repository"
 import type {
   CapturedRequest,

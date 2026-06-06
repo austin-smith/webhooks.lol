@@ -4,7 +4,7 @@ import {
   openInboxEventStream,
   publishInboxCleared,
   publishRequest,
-} from "@/lib/webhooks/events"
+} from "@/lib/webhooks/inbox-event-stream"
 import type { CapturedRequest } from "@/lib/webhooks/types"
 
 const decoder = new TextDecoder()

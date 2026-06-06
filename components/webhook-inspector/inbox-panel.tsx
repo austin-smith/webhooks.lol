@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import type { CapturedRequest } from "@/lib/webhooks/types"
 import { cn } from "@/lib/utils"
 
-import { InspectorIconButton } from "./inspector-header"
+import { InspectorIconButton } from "./inspector-icon-button"
 import { formatRequestTime, getMethodBadgeVariant } from "./request-formatters"
 
 type InboxPanelProps = {
