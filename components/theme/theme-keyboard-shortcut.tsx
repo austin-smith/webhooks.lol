@@ -1,15 +1,12 @@
 "use client"
 
 import * as React from "react"
-
-import { THEME_STORAGE_KEY } from "@/lib/theme/constants"
-
-type ThemePreference = "dark" | "light"
+import { useTheme } from "next-themes"
 
 export function ThemeKeyboardShortcut() {
-  React.useEffect(() => {
-    applyStoredTheme()
+  const { resolvedTheme, setTheme } = useTheme()
 
+  React.useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (
         event.defaultPrevented ||
@@ -24,16 +21,16 @@ export function ThemeKeyboardShortcut() {
         return
       }
 
-      const nextTheme = document.documentElement.classList.contains("dark")
-        ? "light"
-        : "dark"
+      const currentTheme =
+        resolvedTheme === "dark" || resolvedTheme === "light"
+          ? resolvedTheme
+          : document.documentElement.classList.contains("dark")
+            ? "dark"
+            : "light"
 
-      applyTheme(nextTheme)
-      try {
-        window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme)
-      } catch {
-        // Theme still changes for the current page even if persistence is blocked.
-      }
+      const nextTheme = currentTheme === "dark" ? "light" : "dark"
+
+      setTheme(nextTheme)
     }
 
     window.addEventListener("keydown", onKeyDown)
@@ -41,36 +38,9 @@ export function ThemeKeyboardShortcut() {
     return () => {
       window.removeEventListener("keydown", onKeyDown)
     }
-  }, [])
+  }, [resolvedTheme, setTheme])
 
   return null
-}
-
-function applyStoredTheme() {
-  let storedTheme: string | null = null
-
-  try {
-    storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY)
-  } catch {
-    storedTheme = null
-  }
-
-  if (storedTheme === "dark" || storedTheme === "light") {
-    applyTheme(storedTheme)
-    return
-  }
-
-  applyTheme(getSystemTheme())
-}
-
-function applyTheme(theme: ThemePreference) {
-  document.documentElement.classList.toggle("dark", theme === "dark")
-}
-
-function getSystemTheme(): ThemePreference {
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light"
 }
 
 function isTextEntryTarget(target: EventTarget | null) {

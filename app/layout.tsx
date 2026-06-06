@@ -1,28 +1,14 @@
 import type { Metadata } from "next"
-import Script from "next/script"
 
 import "./globals.css"
 import { ThemeKeyboardShortcut } from "@/components/theme/theme-keyboard-shortcut"
+import { ThemeProvider } from "@/components/theme/theme-provider"
 import { TooltipProvider } from "@/components/ui/tooltip"
-import { THEME_STORAGE_KEY } from "@/lib/theme/constants"
 
 export const metadata: Metadata = {
   title: "webhooks.lol",
   description: "A simple webhook inbox for receiving and inspecting requests.",
 }
-
-const themeInitScript = `
-(() => {
-  try {
-    const storedTheme = window.localStorage.getItem("${THEME_STORAGE_KEY}")
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches
-    const useDarkTheme = storedTheme === "dark" || (storedTheme !== "light" && prefersDark)
-
-    document.documentElement.classList.toggle("dark", useDarkTheme)
-  } catch {
-  }
-})()
-`
 
 export default function RootLayout({
   children,
@@ -32,11 +18,16 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className="font-mono antialiased">
       <body>
-        <Script id="webhooks-lol-theme-init" strategy="beforeInteractive">
-          {themeInitScript}
-        </Script>
-        <ThemeKeyboardShortcut />
-        <TooltipProvider>{children}</TooltipProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+          storageKey="webhooks.lol:theme"
+        >
+          <ThemeKeyboardShortcut />
+          <TooltipProvider>{children}</TooltipProvider>
+        </ThemeProvider>
       </body>
     </html>
   )
