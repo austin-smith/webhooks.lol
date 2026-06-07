@@ -3,11 +3,9 @@ import { describe, expect, it } from "vitest"
 import {
   mergeCapturedRequestPage,
   mergeCapturedRequest,
-  normalizeEndpointNames,
   normalizeEndpointIds,
   reconcileLoadedRequests,
   rememberEndpointId,
-  renameEndpoint,
   selectRequest,
   selectRequestId,
 } from "@/components/webhook-inspector/endpoint-session/state"
@@ -113,41 +111,5 @@ describe("endpoint session state", () => {
     ).toEqual(["a", "b", "c", "d", "e", "f", "g", "h"])
 
     expect(rememberEndpointId("new", ["old", "new"])).toEqual(["new", "old"])
-  })
-
-  it("keeps endpoint names only for known webhook endpoint IDs", () => {
-    expect(
-      normalizeEndpointNames(
-        {
-          a: "Alpha",
-          b: "Beta",
-          c: "",
-          d: 42,
-        },
-        new Set(["a", "c", "d"])
-      )
-    ).toEqual({ a: "Alpha" })
-  })
-
-  it("renames and clears the active endpoint name", () => {
-    const currentNames = { active: "Old", other: "Other" }
-
-    expect(
-      renameEndpoint({
-        currentNames,
-        name: "New",
-        recentEndpointIds: ["other"],
-        endpointId: "active",
-      })
-    ).toEqual({ active: "New", other: "Other" })
-
-    expect(
-      renameEndpoint({
-        currentNames,
-        name: " ",
-        recentEndpointIds: ["other"],
-        endpointId: "active",
-      })
-    ).toEqual({ other: "Other" })
   })
 })

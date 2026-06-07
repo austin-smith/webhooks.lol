@@ -1,9 +1,6 @@
 import type { CapturedRequest } from "@/lib/webhooks/types"
 
-import type { EndpointNames } from "../types"
-
 const MAX_RECENT_ENDPOINTS = 8
-const MAX_ENDPOINT_NAME_LENGTH = 32
 
 export function selectRequest(
   requests: CapturedRequest[],
@@ -73,54 +70,6 @@ export function rememberEndpointId(
   recentEndpointIds: string[]
 ) {
   return normalizeEndpointIds([endpointId, ...recentEndpointIds])
-}
-
-export function renameEndpoint({
-  currentNames,
-  name,
-  recentEndpointIds,
-  endpointId,
-}: {
-  currentNames: EndpointNames
-  name: string
-  recentEndpointIds: string[]
-  endpointId: string
-}) {
-  const nextName = name.slice(0, MAX_ENDPOINT_NAME_LENGTH)
-  const knownEndpointIds = normalizeEndpointIds([
-    endpointId,
-    ...recentEndpointIds,
-  ])
-  const nextNames = { ...currentNames }
-
-  if (nextName.trim()) {
-    nextNames[endpointId] = nextName
-  } else {
-    delete nextNames[endpointId]
-  }
-
-  return normalizeEndpointNames(nextNames, new Set(knownEndpointIds))
-}
-
-export function normalizeEndpointNames(
-  names: Record<string, unknown>,
-  endpointIds: Set<string>
-) {
-  const nextNames: EndpointNames = {}
-
-  for (const [endpointId, name] of Object.entries(names)) {
-    if (
-      !endpointIds.has(endpointId) ||
-      typeof name !== "string" ||
-      !name.trim()
-    ) {
-      continue
-    }
-
-    nextNames[endpointId] = name.slice(0, MAX_ENDPOINT_NAME_LENGTH)
-  }
-
-  return nextNames
 }
 
 export function normalizeEndpointIds(endpointIds: unknown[]) {

@@ -19,8 +19,14 @@ import type {
 } from "@/lib/webhooks/types"
 
 const MAX_REQUESTS_PER_ENDPOINT = 500
+export const MAX_ENDPOINT_NAME_LENGTH = 32
 export const DEFAULT_REQUEST_PAGE_SIZE = 50
 export const MAX_REQUEST_PAGE_SIZE = 100
+
+export type EndpointMetadata = {
+  endpointId: string
+  name: string | null
+}
 
 export type RequestPageCursor = {
   id: string
@@ -35,7 +41,10 @@ export type RequestPageOptions = {
 export async function createEndpoint() {
   const endpointId = crypto.randomUUID()
   await ensureEndpoint(endpointId)
-  return endpointId
+  return {
+    endpointId,
+    name: null,
+  } satisfies EndpointMetadata
 }
 
 export async function ensureEndpoint(endpointId: string) {
@@ -46,6 +55,50 @@ export async function ensureEndpoint(endpointId: string) {
       createdAt: new Date(),
     })
     .onConflictDoNothing({ target: endpoints.id })
+}
+
+export async function getEndpoint(endpointId: string) {
+  await ensureEndpoint(endpointId)
+
+  const [row] = await getDatabase()
+    .select({
+      id: endpoints.id,
+      name: endpoints.name,
+    })
+    .from(endpoints)
+    .where(eq(endpoints.id, endpointId))
+    .limit(1)
+
+  if (!row) {
+    throw new Error("Endpoint could not be loaded after creation.")
+  }
+
+  return mapEndpointRow(row)
+}
+
+export async function updateEndpointName({
+  endpointId,
+  name,
+}: {
+  endpointId: string
+  name: string | null
+}) {
+  await ensureEndpoint(endpointId)
+
+  const [row] = await getDatabase()
+    .update(endpoints)
+    .set({ name })
+    .where(eq(endpoints.id, endpointId))
+    .returning({
+      id: endpoints.id,
+      name: endpoints.name,
+    })
+
+  if (!row) {
+    throw new Error("Endpoint could not be updated.")
+  }
+
+  return mapEndpointRow(row)
 }
 
 export async function saveCapturedRequest(input: CapturedRequestInput) {
@@ -239,6 +292,13 @@ function mapCapturedRequestRow(row: typeof capturedRequests.$inferSelect) {
     receivedAt: row.receivedAt.toISOString(),
     ip: row.ip,
   } satisfies CapturedRequest
+}
+
+function mapEndpointRow(row: { id: string; name: string | null }) {
+  return {
+    endpointId: row.id,
+    name: row.name,
+  } satisfies EndpointMetadata
 }
 
 function mapEndpointResponseRow(row: typeof endpointResponses.$inferSelect) {

@@ -21,7 +21,6 @@ import {
   mergeCapturedRequest,
   rememberEndpointId,
   reconcileLoadedRequests,
-  renameEndpoint,
   selectRequest,
   selectRequestId,
 } from "./state"
@@ -29,7 +28,13 @@ import { createBrowserEndpointSessionStorage } from "./storage"
 import {
   type CapturedRequestPage,
   createFetchEndpointTransport,
+  type EndpointMetadata,
 } from "./transport"
+
+type EndpointRenameSaveState = {
+  isSaving: boolean
+  pendingName: string | null
+}
 
 export function useBrowserEndpointSession(): Endpoint {
   const storage = React.useMemo(() => createBrowserEndpointSessionStorage(), [])
@@ -41,6 +46,9 @@ export function useBrowserEndpointSession(): Endpoint {
   const hasLoadedStorage = React.useRef(false)
   const activeEndpointIdRef = React.useRef<string | null>(null)
   const clearVersion = React.useRef(0)
+  const renameSaveStatesByEndpoint = React.useRef(
+    new Map<string, EndpointRenameSaveState>()
+  )
   const [endpointId, setEndpointId] = React.useState<string | null>(null)
   const [endpointNames, setEndpointNames] = React.useState<EndpointNames>({})
   const [recentEndpointIds, setRecentEndpointIds] = React.useState<string[]>([])
@@ -115,11 +123,50 @@ export function useBrowserEndpointSession(): Endpoint {
     []
   )
 
+  const applyEndpointMetadata = React.useCallback(
+    (metadata: EndpointMetadata) => {
+      setEndpointNames((currentNames) => {
+        const nextNames = { ...currentNames }
+
+        if (metadata.name?.trim()) {
+          nextNames[metadata.endpointId] = metadata.name
+        } else {
+          delete nextNames[metadata.endpointId]
+        }
+
+        return nextNames
+      })
+    },
+    []
+  )
+
+  const applyEndpointMetadataList = React.useCallback(
+    (metadataList: EndpointMetadata[]) => {
+      setEndpointNames((currentNames) => {
+        const nextNames = { ...currentNames }
+
+        for (const metadata of metadataList) {
+          if (metadata.name?.trim()) {
+            nextNames[metadata.endpointId] = metadata.name
+          } else {
+            delete nextNames[metadata.endpointId]
+          }
+        }
+
+        return nextNames
+      })
+    },
+    []
+  )
+
   const applyNewEndpoint = React.useCallback(
-    (nextEndpointId: string) => {
+    (metadata: EndpointMetadata) => {
+      const nextEndpointId = metadata.endpointId
+
       hasLoadedStorage.current = true
       rememberActiveEndpointId(nextEndpointId)
       updateEndpointId(nextEndpointId)
+      applyEndpointMetadata(metadata)
       setRequestState({
         hasMoreRequests: false,
         nextCursor: null,
@@ -132,13 +179,13 @@ export function useBrowserEndpointSession(): Endpoint {
       setIsLoadingOlderRequests(false)
       setIsLoading(false)
     },
-    [rememberActiveEndpointId, updateEndpointId]
+    [applyEndpointMetadata, rememberActiveEndpointId, updateEndpointId]
   )
 
   const createEndpoint = React.useCallback(async () => {
-    const nextEndpointId = await transport.createEndpoint()
+    const metadata = await transport.createEndpoint()
 
-    applyNewEndpoint(nextEndpointId)
+    applyNewEndpoint(metadata)
   }, [applyNewEndpoint, transport])
 
   React.useEffect(() => {
@@ -153,7 +200,6 @@ export function useBrowserEndpointSession(): Endpoint {
       const activeEndpointId = storedSession.activeEndpointId
 
       hasLoadedStorage.current = true
-      setEndpointNames(storedSession.endpointNames)
       setRecentEndpointIds(storedSession.recentEndpointIds)
 
       if (activeEndpointId) {
@@ -166,15 +212,25 @@ export function useBrowserEndpointSession(): Endpoint {
 
         void (async () => {
           try {
-            const [nextRequestPage, nextResponseConfig] = await Promise.all([
-              transport.loadRequests(activeEndpointId),
-              transport.loadEndpointResponseConfig(activeEndpointId),
-            ])
+            const [nextRequestPage, nextResponseConfig, metadataResults] =
+              await Promise.all([
+                transport.loadRequests(activeEndpointId),
+                transport.loadEndpointResponseConfig(activeEndpointId),
+                Promise.allSettled(
+                  storedSession.recentEndpointIds.map((recentEndpointId) =>
+                    transport.loadEndpoint(recentEndpointId)
+                  )
+                ),
+              ])
+            const restoredEndpointMetadata = metadataResults.flatMap(
+              (result) => (result.status === "fulfilled" ? [result.value] : [])
+            )
 
             if (!isActive || activeEndpointIdRef.current !== activeEndpointId) {
               return
             }
 
+            applyEndpointMetadataList(restoredEndpointMetadata)
             applyLoadedRequests({
               clearVersionAtLoadStart,
               page: nextRequestPage,
@@ -198,10 +254,10 @@ export function useBrowserEndpointSession(): Endpoint {
 
       void (async () => {
         try {
-          const nextEndpointId = await transport.createEndpoint()
+          const metadata = await transport.createEndpoint()
 
           if (isActive) {
-            applyNewEndpoint(nextEndpointId)
+            applyNewEndpoint(metadata)
           }
         } catch (error: unknown) {
           if (isActive) {
@@ -216,6 +272,7 @@ export function useBrowserEndpointSession(): Endpoint {
       isActive = false
     }
   }, [
+    applyEndpointMetadataList,
     applyLoadedRequests,
     applyNewEndpoint,
     storage,
@@ -238,14 +295,6 @@ export function useBrowserEndpointSession(): Endpoint {
 
     storage.writeRecentEndpointIds(recentEndpointIds)
   }, [recentEndpointIds, storage])
-
-  React.useEffect(() => {
-    if (!hasLoadedStorage.current) {
-      return
-    }
-
-    storage.writeEndpointNames(endpointNames, recentEndpointIds)
-  }, [endpointNames, recentEndpointIds, storage])
 
   React.useEffect(() => {
     if (!endpointId) {
@@ -398,22 +447,78 @@ export function useBrowserEndpointSession(): Endpoint {
     }
   }, [createEndpoint, isLoading])
 
+  const processEndpointRenameQueue = React.useCallback(
+    (renamingEndpointId: string) => {
+      const saveState =
+        renameSaveStatesByEndpoint.current.get(renamingEndpointId)
+
+      if (!saveState || saveState.isSaving) {
+        return
+      }
+
+      saveState.isSaving = true
+
+      void (async () => {
+        try {
+          while (saveState.pendingName !== null) {
+            const name = saveState.pendingName
+            saveState.pendingName = null
+
+            try {
+              const metadata = await transport.updateEndpointMetadata(
+                renamingEndpointId,
+                {
+                  name,
+                }
+              )
+
+              if (saveState.pendingName === null) {
+                applyEndpointMetadata(metadata)
+
+                if (activeEndpointIdRef.current === renamingEndpointId) {
+                  setErrorMessage(null)
+                }
+              }
+            } catch (error) {
+              if (
+                saveState.pendingName === null &&
+                activeEndpointIdRef.current === renamingEndpointId
+              ) {
+                setErrorMessage(readErrorMessage(error))
+              }
+            }
+          }
+        } finally {
+          saveState.isSaving = false
+
+          if (saveState.pendingName === null) {
+            renameSaveStatesByEndpoint.current.delete(renamingEndpointId)
+          }
+        }
+      })()
+    },
+    [applyEndpointMetadata, transport]
+  )
+
   const renameCurrentEndpoint = React.useCallback(
     (name: string) => {
       if (!endpointId) {
         return
       }
 
-      setEndpointNames((currentNames) =>
-        renameEndpoint({
-          currentNames,
-          name,
-          recentEndpointIds,
-          endpointId,
-        })
-      )
+      const renamingEndpointId = endpointId
+      const saveState = renameSaveStatesByEndpoint.current.get(
+        renamingEndpointId
+      ) ?? {
+        isSaving: false,
+        pendingName: null,
+      }
+
+      saveState.pendingName = name
+      renameSaveStatesByEndpoint.current.set(renamingEndpointId, saveState)
+      processEndpointRenameQueue(renamingEndpointId)
     },
-    [recentEndpointIds, endpointId]
+    [endpointId, processEndpointRenameQueue]
   )
 
   const switchEndpoint = React.useCallback(
@@ -438,15 +543,18 @@ export function useBrowserEndpointSession(): Endpoint {
 
       void (async () => {
         try {
-          const [nextRequestPage, nextResponseConfig] = await Promise.all([
-            transport.loadRequests(nextEndpointId),
-            transport.loadEndpointResponseConfig(nextEndpointId),
-          ])
+          const [nextRequestPage, nextResponseConfig, metadata] =
+            await Promise.all([
+              transport.loadRequests(nextEndpointId),
+              transport.loadEndpointResponseConfig(nextEndpointId),
+              transport.loadEndpoint(nextEndpointId),
+            ])
 
           if (activeEndpointIdRef.current !== nextEndpointId) {
             return
           }
 
+          applyEndpointMetadata(metadata)
           applyLoadedRequests({
             clearVersionAtLoadStart,
             page: nextRequestPage,
@@ -465,7 +573,14 @@ export function useBrowserEndpointSession(): Endpoint {
         }
       })()
     },
-    [applyLoadedRequests, isLoading, endpointId, transport, updateEndpointId]
+    [
+      applyEndpointMetadata,
+      applyLoadedRequests,
+      isLoading,
+      endpointId,
+      transport,
+      updateEndpointId,
+    ]
   )
 
   const saveResponseOverride = React.useCallback(

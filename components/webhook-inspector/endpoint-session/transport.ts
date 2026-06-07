@@ -1,8 +1,10 @@
 import type { CapturedRequest } from "@/lib/webhooks/types"
 import type {
   CreateEndpointResponse,
+  EndpointMetadataResponse,
   EndpointResponseConfigResponse,
   RequestsResponse,
+  UpdateEndpointMetadataRequest,
   UpdateEndpointResponseOverrideRequest,
 } from "@/lib/webhooks/api-contracts"
 import type { EndpointResponseConfig } from "@/lib/webhooks/endpoint-response"
@@ -18,7 +20,8 @@ export type EndpointTransport = {
     endpointId: string
   ) => Promise<EndpointResponseConfig>
   clearEndpoint: (endpointId: string) => Promise<void>
-  createEndpoint: () => Promise<string>
+  createEndpoint: () => Promise<EndpointMetadata>
+  loadEndpoint: (endpointId: string) => Promise<EndpointMetadata>
   loadEndpointResponseConfig: (
     endpointId: string
   ) => Promise<EndpointResponseConfig>
@@ -32,6 +35,15 @@ export type EndpointTransport = {
     endpointId: string,
     override: UpdateEndpointResponseOverrideRequest
   ) => Promise<EndpointResponseConfig>
+  updateEndpointMetadata: (
+    endpointId: string,
+    metadata: UpdateEndpointMetadataRequest
+  ) => Promise<EndpointMetadata>
+}
+
+export type EndpointMetadata = {
+  endpointId: string
+  name: string | null
 }
 
 type Fetcher = (
@@ -76,7 +88,20 @@ export function createFetchEndpointTransport(
 
       const data = (await response.json()) as CreateEndpointResponse
 
-      return data.endpointId
+      return mapEndpointMetadata(data)
+    },
+    async loadEndpoint(endpointId) {
+      const response = await fetcher(`/api/endpoints/${endpointId}`, {
+        cache: "no-store",
+      })
+
+      if (!response.ok) {
+        throw new Error("Could not load endpoint.")
+      }
+
+      const data = (await response.json()) as EndpointMetadataResponse
+
+      return mapEndpointMetadata(data)
     },
     async loadEndpointResponseConfig(endpointId) {
       const response = await fetcher(`/api/endpoints/${endpointId}/response`, {
@@ -135,5 +160,31 @@ export function createFetchEndpointTransport(
 
       return data.response
     },
+    async updateEndpointMetadata(endpointId, metadata) {
+      const response = await fetcher(`/api/endpoints/${endpointId}`, {
+        body: JSON.stringify(metadata),
+        headers: {
+          "content-type": "application/json",
+        },
+        method: "PATCH",
+      })
+
+      if (!response.ok) {
+        throw new Error("Could not save endpoint.")
+      }
+
+      const data = (await response.json()) as EndpointMetadataResponse
+
+      return mapEndpointMetadata(data)
+    },
+  }
+}
+
+function mapEndpointMetadata(
+  data: CreateEndpointResponse | EndpointMetadataResponse
+): EndpointMetadata {
+  return {
+    endpointId: data.endpointId,
+    name: data.name,
   }
 }

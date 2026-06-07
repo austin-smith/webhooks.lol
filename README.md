@@ -52,7 +52,7 @@ Captured requests appear live in the endpoint. Select a request to inspect the p
 - The app keeps the latest 500 requests per endpoint.
 - Request bodies are capped at 1 MiB. Larger payloads return `413`.
 - Browser preflight requests return CORS headers and are not saved as webhook traffic.
-- The browser remembers recent webhook endpoint IDs and optional endpoint names for the current user.
+- Endpoint names help identify webhook endpoints in the endpoint switcher.
 
 ## Scripts
 

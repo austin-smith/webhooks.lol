@@ -15,7 +15,7 @@ class MemoryStorage {
 }
 
 describe("endpoint session storage", () => {
-  it("reads active webhook endpoint ID, recent webhook endpoint IDs, and names as one session", () => {
+  it("reads active webhook endpoint ID and recent webhook endpoint IDs as one session", () => {
     const memoryStorage = new MemoryStorage()
     const storage = createEndpointSessionStorageAdapter(() => memoryStorage)
 
@@ -24,21 +24,9 @@ describe("endpoint session storage", () => {
       "webhooks.lol:recent-endpoint-ids",
       JSON.stringify(["old"])
     )
-    memoryStorage.setItem(
-      "webhooks.lol:endpoint-names",
-      JSON.stringify({
-        active: "Active endpoint",
-        old: "Old endpoint",
-        unknown: "Ignored",
-      })
-    )
 
     expect(storage.read()).toEqual({
       activeEndpointId: "active",
-      endpointNames: {
-        active: "Active endpoint",
-        old: "Old endpoint",
-      },
       recentEndpointIds: ["active", "old"],
     })
   })
@@ -54,7 +42,6 @@ describe("endpoint session storage", () => {
 
     expect(storage.read()).toEqual({
       activeEndpointId: "first",
-      endpointNames: {},
       recentEndpointIds: ["first", "second"],
     })
   })
@@ -65,20 +52,10 @@ describe("endpoint session storage", () => {
 
     storage.writeActiveEndpointId("active")
     storage.writeRecentEndpointIds(["active", "active", "other"])
-    storage.writeEndpointNames(
-      {
-        active: "Active endpoint",
-        missing: "Ignored",
-      },
-      ["active"]
-    )
 
     expect(memoryStorage.getItem("webhooks.lol:endpoint-id")).toBe("active")
     expect(memoryStorage.getItem("webhooks.lol:recent-endpoint-ids")).toBe(
       JSON.stringify(["active", "other"])
-    )
-    expect(memoryStorage.getItem("webhooks.lol:endpoint-names")).toBe(
-      JSON.stringify({ active: "Active endpoint" })
     )
   })
 })

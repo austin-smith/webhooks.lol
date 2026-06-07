@@ -29,6 +29,13 @@
       "when": 1780787390242,
       "tag": "0003_exotic_micromacro",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1780805822514,
+      "tag": "0004_chilly_starjammers",
+      "breakpoints": true
     }
   ]
 }

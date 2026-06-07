@@ -12,6 +12,7 @@ import { sql } from "drizzle-orm"
 
 export const endpoints = pgTable("endpoints", {
   id: text("id").primaryKey(),
+  name: text("name"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

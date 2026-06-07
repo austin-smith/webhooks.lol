@@ -6,6 +6,16 @@ import type {
 
 export type CreateEndpointResponse = {
   endpointId: string
+  name: string | null
+}
+
+export type EndpointMetadataResponse = {
+  endpointId: string
+  name: string | null
+}
+
+export type UpdateEndpointMetadataRequest = {
+  name: string | null
 }
 
 export type RequestsResponse = {

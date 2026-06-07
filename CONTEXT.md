@@ -16,4 +16,4 @@ The live server-sent event stream for one endpoint. It sends readiness, captured
 
 ### Browser endpoint session
 
-The client-side inspector flow that chooses the active endpoint, remembers recent webhook endpoints and endpoint names, loads captured requests, subscribes to the endpoint event stream, and exposes stable endpoint actions to UI modules.
+The client-side inspector flow that chooses the active endpoint, remembers recent webhook endpoint IDs, loads endpoint metadata and captured requests, subscribes to the endpoint event stream, and exposes stable endpoint actions to UI modules.

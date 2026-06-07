@@ -55,7 +55,12 @@ describe("endpoint transport", () => {
     }
     const fetcher = vi
       .fn()
-      .mockResolvedValueOnce(createResponse({ endpointId: "new-endpoint" }))
+      .mockResolvedValueOnce(
+        createResponse({ endpointId: "new-endpoint", name: null })
+      )
+      .mockResolvedValueOnce(
+        createResponse({ endpointId: "endpoint", name: "Stripe" })
+      )
       .mockResolvedValueOnce(
         createResponse(
           createRequestsResponse([createRequest()], {
@@ -83,6 +88,12 @@ describe("endpoint transport", () => {
           response: DEFAULT_ENDPOINT_RESPONSE_CONFIG,
         })
       )
+      .mockResolvedValueOnce(
+        createResponse({
+          endpointId: "endpoint",
+          name: "Payments",
+        })
+      )
     const transport = createFetchEndpointTransport(fetcher)
     const override = {
       status: 201,
@@ -90,7 +101,14 @@ describe("endpoint transport", () => {
       body: '{"ok":true}',
     }
 
-    await expect(transport.createEndpoint()).resolves.toBe("new-endpoint")
+    await expect(transport.createEndpoint()).resolves.toEqual({
+      endpointId: "new-endpoint",
+      name: null,
+    })
+    await expect(transport.loadEndpoint("endpoint")).resolves.toEqual({
+      endpointId: "endpoint",
+      name: "Stripe",
+    })
     await expect(transport.loadRequests("endpoint")).resolves.toEqual({
       hasMore: true,
       nextCursor: "cursor-1",
@@ -106,33 +124,42 @@ describe("endpoint transport", () => {
     await expect(
       transport.clearEndpointResponseOverride("endpoint")
     ).resolves.toEqual(DEFAULT_ENDPOINT_RESPONSE_CONFIG)
+    await expect(
+      transport.updateEndpointMetadata("endpoint", { name: "Payments" })
+    ).resolves.toEqual({
+      endpointId: "endpoint",
+      name: "Payments",
+    })
 
     expect(fetcher).toHaveBeenNthCalledWith(1, "/api/endpoints", {
       method: "POST",
     })
+    expect(fetcher).toHaveBeenNthCalledWith(2, "/api/endpoints/endpoint", {
+      cache: "no-store",
+    })
     expect(fetcher).toHaveBeenNthCalledWith(
-      2,
+      3,
       "/api/endpoints/endpoint/requests",
       {
         cache: "no-store",
       }
     )
     expect(fetcher).toHaveBeenNthCalledWith(
-      3,
+      4,
       "/api/endpoints/endpoint/requests",
       {
         method: "DELETE",
       }
     )
     expect(fetcher).toHaveBeenNthCalledWith(
-      4,
+      5,
       "/api/endpoints/endpoint/response",
       {
         cache: "no-store",
       }
     )
     expect(fetcher).toHaveBeenNthCalledWith(
-      5,
+      6,
       "/api/endpoints/endpoint/response",
       {
         body: JSON.stringify(override),
@@ -143,12 +170,19 @@ describe("endpoint transport", () => {
       }
     )
     expect(fetcher).toHaveBeenNthCalledWith(
-      6,
+      7,
       "/api/endpoints/endpoint/response",
       {
         method: "DELETE",
       }
     )
+    expect(fetcher).toHaveBeenNthCalledWith(8, "/api/endpoints/endpoint", {
+      body: JSON.stringify({ name: "Payments" }),
+      headers: {
+        "content-type": "application/json",
+      },
+      method: "PATCH",
+    })
   })
 
   it("loads older request pages with an encoded cursor", async () => {
@@ -177,6 +211,9 @@ describe("endpoint transport", () => {
     await expect(transport.createEndpoint()).rejects.toThrow(
       "Could not create endpoint."
     )
+    await expect(transport.loadEndpoint("endpoint")).rejects.toThrow(
+      "Could not load endpoint."
+    )
     await expect(transport.loadRequests("endpoint")).rejects.toThrow(
       "Could not load requests."
     )
@@ -196,5 +233,8 @@ describe("endpoint transport", () => {
     await expect(
       transport.clearEndpointResponseOverride("endpoint")
     ).rejects.toThrow("Could not reset response override.")
+    await expect(
+      transport.updateEndpointMetadata("endpoint", { name: null })
+    ).rejects.toThrow("Could not save endpoint.")
   })
 })
