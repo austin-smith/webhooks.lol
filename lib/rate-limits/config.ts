@@ -31,5 +31,9 @@ export function readRedisUrl() {
 export function readTrustedClientIpHeader() {
   const headerName = process.env.TRUSTED_CLIENT_IP_HEADER?.trim().toLowerCase()
 
-  return headerName || null
+  if (!headerName) {
+    throw new Error("TRUSTED_CLIENT_IP_HEADER is required for rate limiting.")
+  }
+
+  return headerName
 }
