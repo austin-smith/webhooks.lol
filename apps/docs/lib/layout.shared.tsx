@@ -1,4 +1,5 @@
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared"
+import { ExternalLink } from "lucide-react"
 
 export function baseOptions(): BaseLayoutProps {
   return {
@@ -8,7 +9,12 @@ export function baseOptions(): BaseLayoutProps {
     },
     links: [
       {
-        text: "App",
+        text: (
+          <>
+            App
+            <ExternalLink />
+          </>
+        ),
         url: "https://webhooks.lol",
         active: "none",
       },
