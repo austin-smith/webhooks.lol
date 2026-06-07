@@ -528,6 +528,7 @@ export function useBrowserEndpointSession(): Endpoint {
       }
 
       setIsLoading(true)
+      rememberActiveEndpointId(nextEndpointId)
       updateEndpointId(nextEndpointId)
       setRequestState({
         hasMoreRequests: false,
@@ -578,6 +579,7 @@ export function useBrowserEndpointSession(): Endpoint {
       applyLoadedRequests,
       isLoading,
       endpointId,
+      rememberActiveEndpointId,
       transport,
       updateEndpointId,
     ]

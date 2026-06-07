@@ -1,7 +1,7 @@
 import { parseEndpointId } from "@/lib/webhooks/endpoint-id"
 import type { CapturedRequest } from "@/lib/webhooks/types"
 
-const MAX_RECENT_ENDPOINTS = 8
+export const MAX_RECENT_ENDPOINTS = 50
 
 export function selectRequest(
   requests: CapturedRequest[],
