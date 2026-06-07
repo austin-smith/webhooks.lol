@@ -4,6 +4,9 @@ import { createFetchEndpointTransport } from "@/components/webhook-inspector/end
 import { DEFAULT_ENDPOINT_RESPONSE_CONFIG } from "@/lib/webhooks/endpoint-response"
 import type { CapturedRequest } from "@/lib/webhooks/types"
 
+const ENDPOINT_ID = "11111111-1111-4111-8111-111111111111"
+const NEW_ENDPOINT_ID = "22222222-2222-4222-8222-222222222222"
+
 function createResponse(body: unknown, init: ResponseInit = {}) {
   return new Response(JSON.stringify(body), {
     headers: { "content-type": "application/json" },
@@ -14,7 +17,7 @@ function createResponse(body: unknown, init: ResponseInit = {}) {
 function createRequest(): CapturedRequest {
   return {
     id: "captured-1",
-    endpointId: "endpoint",
+    endpointId: ENDPOINT_ID,
     method: "POST",
     url: "/orders",
     path: "/orders",
@@ -56,10 +59,10 @@ describe("endpoint transport", () => {
     const fetcher = vi
       .fn()
       .mockResolvedValueOnce(
-        createResponse({ endpointId: "new-endpoint", name: null })
+        createResponse({ endpointId: NEW_ENDPOINT_ID, name: null })
       )
       .mockResolvedValueOnce(
-        createResponse({ endpointId: "endpoint", name: "Stripe" })
+        createResponse({ endpointId: ENDPOINT_ID, name: "Stripe" })
       )
       .mockResolvedValueOnce(
         createResponse(
@@ -72,25 +75,25 @@ describe("endpoint transport", () => {
       .mockResolvedValueOnce(createResponse(createRequestsResponse([])))
       .mockResolvedValueOnce(
         createResponse({
-          endpointId: "endpoint",
+          endpointId: ENDPOINT_ID,
           response: DEFAULT_ENDPOINT_RESPONSE_CONFIG,
         })
       )
       .mockResolvedValueOnce(
         createResponse({
-          endpointId: "endpoint",
+          endpointId: ENDPOINT_ID,
           response: customResponse,
         })
       )
       .mockResolvedValueOnce(
         createResponse({
-          endpointId: "endpoint",
+          endpointId: ENDPOINT_ID,
           response: DEFAULT_ENDPOINT_RESPONSE_CONFIG,
         })
       )
       .mockResolvedValueOnce(
         createResponse({
-          endpointId: "endpoint",
+          endpointId: ENDPOINT_ID,
           name: "Payments",
         })
       )
@@ -102,65 +105,69 @@ describe("endpoint transport", () => {
     }
 
     await expect(transport.createEndpoint()).resolves.toEqual({
-      endpointId: "new-endpoint",
+      endpointId: NEW_ENDPOINT_ID,
       name: null,
     })
-    await expect(transport.loadEndpoint("endpoint")).resolves.toEqual({
-      endpointId: "endpoint",
+    await expect(transport.loadEndpoint(ENDPOINT_ID)).resolves.toEqual({
+      endpointId: ENDPOINT_ID,
       name: "Stripe",
     })
-    await expect(transport.loadRequests("endpoint")).resolves.toEqual({
+    await expect(transport.loadRequests(ENDPOINT_ID)).resolves.toEqual({
       hasMore: true,
       nextCursor: "cursor-1",
       requests: [createRequest()],
     })
-    await expect(transport.clearEndpoint("endpoint")).resolves.toBeUndefined()
+    await expect(transport.clearEndpoint(ENDPOINT_ID)).resolves.toBeUndefined()
     await expect(
-      transport.loadEndpointResponseConfig("endpoint")
+      transport.loadEndpointResponseConfig(ENDPOINT_ID)
     ).resolves.toEqual(DEFAULT_ENDPOINT_RESPONSE_CONFIG)
     await expect(
-      transport.saveEndpointResponseOverride("endpoint", override)
+      transport.saveEndpointResponseOverride(ENDPOINT_ID, override)
     ).resolves.toEqual(customResponse)
     await expect(
-      transport.clearEndpointResponseOverride("endpoint")
+      transport.clearEndpointResponseOverride(ENDPOINT_ID)
     ).resolves.toEqual(DEFAULT_ENDPOINT_RESPONSE_CONFIG)
     await expect(
-      transport.updateEndpointMetadata("endpoint", { name: "Payments" })
+      transport.updateEndpointMetadata(ENDPOINT_ID, { name: "Payments" })
     ).resolves.toEqual({
-      endpointId: "endpoint",
+      endpointId: ENDPOINT_ID,
       name: "Payments",
     })
 
     expect(fetcher).toHaveBeenNthCalledWith(1, "/api/endpoints", {
       method: "POST",
     })
-    expect(fetcher).toHaveBeenNthCalledWith(2, "/api/endpoints/endpoint", {
-      cache: "no-store",
-    })
+    expect(fetcher).toHaveBeenNthCalledWith(
+      2,
+      `/api/endpoints/${ENDPOINT_ID}`,
+      {
+        cache: "no-store",
+      }
+    )
     expect(fetcher).toHaveBeenNthCalledWith(
       3,
-      "/api/endpoints/endpoint/requests",
+      `/api/endpoints/${ENDPOINT_ID}/requests`,
       {
         cache: "no-store",
       }
     )
     expect(fetcher).toHaveBeenNthCalledWith(
       4,
-      "/api/endpoints/endpoint/requests",
+      `/api/endpoints/${ENDPOINT_ID}/requests`,
       {
         method: "DELETE",
       }
     )
     expect(fetcher).toHaveBeenNthCalledWith(
       5,
-      "/api/endpoints/endpoint/response",
+      `/api/endpoints/${ENDPOINT_ID}/response`,
       {
         cache: "no-store",
       }
     )
     expect(fetcher).toHaveBeenNthCalledWith(
       6,
-      "/api/endpoints/endpoint/response",
+      `/api/endpoints/${ENDPOINT_ID}/response`,
       {
         body: JSON.stringify(override),
         headers: {
@@ -171,18 +178,22 @@ describe("endpoint transport", () => {
     )
     expect(fetcher).toHaveBeenNthCalledWith(
       7,
-      "/api/endpoints/endpoint/response",
+      `/api/endpoints/${ENDPOINT_ID}/response`,
       {
         method: "DELETE",
       }
     )
-    expect(fetcher).toHaveBeenNthCalledWith(8, "/api/endpoints/endpoint", {
-      body: JSON.stringify({ name: "Payments" }),
-      headers: {
-        "content-type": "application/json",
-      },
-      method: "PATCH",
-    })
+    expect(fetcher).toHaveBeenNthCalledWith(
+      8,
+      `/api/endpoints/${ENDPOINT_ID}`,
+      {
+        body: JSON.stringify({ name: "Payments" }),
+        headers: {
+          "content-type": "application/json",
+        },
+        method: "PATCH",
+      }
+    )
   })
 
   it("loads older request pages with an encoded cursor", async () => {
@@ -191,12 +202,12 @@ describe("endpoint transport", () => {
       .mockResolvedValueOnce(createResponse(createRequestsResponse([])))
     const transport = createFetchEndpointTransport(fetcher)
 
-    await transport.loadRequests("endpoint", {
+    await transport.loadRequests(ENDPOINT_ID, {
       cursor: "2026-06-05T00:00:00.000Z|captured-1",
     })
 
     expect(fetcher).toHaveBeenCalledWith(
-      "/api/endpoints/endpoint/requests?cursor=2026-06-05T00%3A00%3A00.000Z%7Ccaptured-1",
+      `/api/endpoints/${ENDPOINT_ID}/requests?cursor=2026-06-05T00%3A00%3A00.000Z%7Ccaptured-1`,
       {
         cache: "no-store",
       }
@@ -211,30 +222,30 @@ describe("endpoint transport", () => {
     await expect(transport.createEndpoint()).rejects.toThrow(
       "Could not create endpoint."
     )
-    await expect(transport.loadEndpoint("endpoint")).rejects.toThrow(
+    await expect(transport.loadEndpoint(ENDPOINT_ID)).rejects.toThrow(
       "Could not load endpoint."
     )
-    await expect(transport.loadRequests("endpoint")).rejects.toThrow(
+    await expect(transport.loadRequests(ENDPOINT_ID)).rejects.toThrow(
       "Could not load requests."
     )
-    await expect(transport.clearEndpoint("endpoint")).rejects.toThrow(
+    await expect(transport.clearEndpoint(ENDPOINT_ID)).rejects.toThrow(
       "Could not clear endpoint."
     )
     await expect(
-      transport.loadEndpointResponseConfig("endpoint")
+      transport.loadEndpointResponseConfig(ENDPOINT_ID)
     ).rejects.toThrow("Could not load response override.")
     await expect(
-      transport.saveEndpointResponseOverride("endpoint", {
+      transport.saveEndpointResponseOverride(ENDPOINT_ID, {
         status: 200,
         contentType: "text/plain",
         body: "",
       })
     ).rejects.toThrow("Could not save response override.")
     await expect(
-      transport.clearEndpointResponseOverride("endpoint")
+      transport.clearEndpointResponseOverride(ENDPOINT_ID)
     ).rejects.toThrow("Could not reset response override.")
     await expect(
-      transport.updateEndpointMetadata("endpoint", { name: null })
+      transport.updateEndpointMetadata(ENDPOINT_ID, { name: null })
     ).rejects.toThrow("Could not save endpoint.")
   })
 })

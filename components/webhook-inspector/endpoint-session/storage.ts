@@ -1,4 +1,5 @@
 import { normalizeEndpointIds } from "./state"
+import { parseEndpointId } from "@/lib/webhooks/endpoint-id"
 
 const ACTIVE_ENDPOINT_ID_STORAGE_KEY = "webhooks.lol:endpoint-id"
 const RECENT_ENDPOINT_IDS_STORAGE_KEY = "webhooks.lol:recent-endpoint-ids"
@@ -26,7 +27,10 @@ export function createEndpointSessionStorageAdapter(
       const storage = getStorage()
       const storedEndpointId = storage.getItem(ACTIVE_ENDPOINT_ID_STORAGE_KEY)
       const storedEndpointIds = readRecentEndpointIds(storage)
-      const activeEndpointId = storedEndpointId ?? storedEndpointIds[0] ?? null
+      const activeEndpointId =
+        (storedEndpointId ? parseEndpointId(storedEndpointId) : null) ??
+        storedEndpointIds[0] ??
+        null
       const recentEndpointIds =
         activeEndpointId && !storedEndpointIds.includes(activeEndpointId)
           ? normalizeEndpointIds([activeEndpointId, ...storedEndpointIds])

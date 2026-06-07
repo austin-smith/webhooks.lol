@@ -8,6 +8,7 @@ import type {
   UpdateEndpointResponseOverrideRequest,
 } from "@/lib/webhooks/api-contracts"
 import type { EndpointResponseConfig } from "@/lib/webhooks/endpoint-response"
+import { encodeEndpointId } from "@/lib/webhooks/endpoint-id"
 
 export type CapturedRequestPage = {
   hasMore: boolean
@@ -56,9 +57,13 @@ export function createFetchEndpointTransport(
 ): EndpointTransport {
   return {
     async clearEndpointResponseOverride(endpointId) {
-      const response = await fetcher(`/api/endpoints/${endpointId}/response`, {
-        method: "DELETE",
-      })
+      const encodedEndpointId = encodeEndpointId(endpointId)
+      const response = await fetcher(
+        `/api/endpoints/${encodedEndpointId}/response`,
+        {
+          method: "DELETE",
+        }
+      )
 
       if (!response.ok) {
         throw new Error("Could not reset response override.")
@@ -69,9 +74,13 @@ export function createFetchEndpointTransport(
       return data.response
     },
     async clearEndpoint(endpointId) {
-      const response = await fetcher(`/api/endpoints/${endpointId}/requests`, {
-        method: "DELETE",
-      })
+      const encodedEndpointId = encodeEndpointId(endpointId)
+      const response = await fetcher(
+        `/api/endpoints/${encodedEndpointId}/requests`,
+        {
+          method: "DELETE",
+        }
+      )
 
       if (!response.ok) {
         throw new Error("Could not clear endpoint.")
@@ -91,7 +100,8 @@ export function createFetchEndpointTransport(
       return mapEndpointMetadata(data)
     },
     async loadEndpoint(endpointId) {
-      const response = await fetcher(`/api/endpoints/${endpointId}`, {
+      const encodedEndpointId = encodeEndpointId(endpointId)
+      const response = await fetcher(`/api/endpoints/${encodedEndpointId}`, {
         cache: "no-store",
       })
 
@@ -104,9 +114,13 @@ export function createFetchEndpointTransport(
       return mapEndpointMetadata(data)
     },
     async loadEndpointResponseConfig(endpointId) {
-      const response = await fetcher(`/api/endpoints/${endpointId}/response`, {
-        cache: "no-store",
-      })
+      const encodedEndpointId = encodeEndpointId(endpointId)
+      const response = await fetcher(
+        `/api/endpoints/${encodedEndpointId}/response`,
+        {
+          cache: "no-store",
+        }
+      )
 
       if (!response.ok) {
         throw new Error("Could not load response override.")
@@ -117,6 +131,7 @@ export function createFetchEndpointTransport(
       return data.response
     },
     async loadRequests(endpointId, options = {}) {
+      const encodedEndpointId = encodeEndpointId(endpointId)
       const searchParams = new URLSearchParams()
 
       if (options.cursor) {
@@ -125,7 +140,7 @@ export function createFetchEndpointTransport(
 
       const query = searchParams.toString()
       const response = await fetcher(
-        `/api/endpoints/${endpointId}/requests${query ? `?${query}` : ""}`,
+        `/api/endpoints/${encodedEndpointId}/requests${query ? `?${query}` : ""}`,
         {
           cache: "no-store",
         }
@@ -144,13 +159,17 @@ export function createFetchEndpointTransport(
       }
     },
     async saveEndpointResponseOverride(endpointId, override) {
-      const response = await fetcher(`/api/endpoints/${endpointId}/response`, {
-        body: JSON.stringify(override),
-        headers: {
-          "content-type": "application/json",
-        },
-        method: "PUT",
-      })
+      const encodedEndpointId = encodeEndpointId(endpointId)
+      const response = await fetcher(
+        `/api/endpoints/${encodedEndpointId}/response`,
+        {
+          body: JSON.stringify(override),
+          headers: {
+            "content-type": "application/json",
+          },
+          method: "PUT",
+        }
+      )
 
       if (!response.ok) {
         throw new Error("Could not save response override.")
@@ -161,7 +180,8 @@ export function createFetchEndpointTransport(
       return data.response
     },
     async updateEndpointMetadata(endpointId, metadata) {
-      const response = await fetcher(`/api/endpoints/${endpointId}`, {
+      const encodedEndpointId = encodeEndpointId(endpointId)
+      const response = await fetcher(`/api/endpoints/${encodedEndpointId}`, {
         body: JSON.stringify(metadata),
         headers: {
           "content-type": "application/json",

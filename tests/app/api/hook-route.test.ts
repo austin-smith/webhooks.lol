@@ -1,7 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-const { captureInboundRequest } = vi.hoisted(() => ({
-  captureInboundRequest: vi.fn(),
+const { captureInboundRequest, checkWebhookCaptureAdmission } = vi.hoisted(
+  () => ({
+    captureInboundRequest: vi.fn(),
+    checkWebhookCaptureAdmission: vi.fn(),
+  })
+)
+
+vi.mock("@/lib/webhooks/admission-control", () => ({
+  checkWebhookCaptureAdmission,
 }))
 
 vi.mock("@/lib/webhooks/inbound-capture", () => ({ captureInboundRequest }))
@@ -11,9 +18,37 @@ import {
   OPTIONS,
   POST,
 } from "@/app/api/hook/[endpointId]/[[...path]]/route"
+import { MissingClientIdentityHeaderError } from "@/lib/rate-limits/client-identity"
 import { DEFAULT_ENDPOINT_RESPONSE_CONFIG } from "@/lib/webhooks/endpoint-response"
 
-function createContext(endpointId = "endpoint-id") {
+const ENDPOINT_ID = "11111111-1111-4111-8111-111111111111"
+
+function createAllowedAdmission() {
+  return {
+    kind: "allowed" as const,
+    clientIdentity: {
+      key: "client:test",
+      keyHash: null,
+      source: "global" as const,
+    },
+  }
+}
+
+function createDeniedAdmission() {
+  return {
+    kind: "denied" as const,
+    rateLimit: {
+      limit: 1,
+      policyId: "webhook-capture-client",
+      remaining: 0,
+      resetSeconds: 60,
+      retryAfterSeconds: 60,
+      windowSeconds: 60,
+    },
+  }
+}
+
+function createContext(endpointId = ENDPOINT_ID) {
   return {
     params: Promise.resolve({ endpointId }),
   } as RouteContext<"/api/hook/[endpointId]/[[...path]]">
@@ -22,11 +57,13 @@ function createContext(endpointId = "endpoint-id") {
 describe("hook route OPTIONS", () => {
   beforeEach(() => {
     captureInboundRequest.mockReset()
+    checkWebhookCaptureAdmission.mockReset()
+    checkWebhookCaptureAdmission.mockResolvedValue(createAllowedAdmission())
   })
 
   it("returns CORS preflight responses without capturing", async () => {
     const response = await OPTIONS(
-      new Request("https://hooks.example.com/api/hook/endpoint-id", {
+      new Request(`https://hooks.example.com/api/hook/${ENDPOINT_ID}`, {
         method: "OPTIONS",
         headers: {
           "access-control-request-method": "POST",
@@ -40,6 +77,7 @@ describe("hook route OPTIONS", () => {
     expect(response.headers.get("Access-Control-Allow-Methods")).toContain(
       "OPTIONS"
     )
+    expect(checkWebhookCaptureAdmission).not.toHaveBeenCalled()
     expect(captureInboundRequest).not.toHaveBeenCalled()
   })
 
@@ -48,11 +86,11 @@ describe("hook route OPTIONS", () => {
       kind: "captured",
       id: "captured-1",
       response: DEFAULT_ENDPOINT_RESPONSE_CONFIG,
-      endpointId: "endpoint-id",
+      endpointId: ENDPOINT_ID,
     })
 
     const request = new Request(
-      "https://hooks.example.com/api/hook/endpoint-id/probe",
+      `https://hooks.example.com/api/hook/${ENDPOINT_ID}/probe`,
       {
         method: "OPTIONS",
       }
@@ -62,11 +100,11 @@ describe("hook route OPTIONS", () => {
     await expect(response.json()).resolves.toEqual({
       ok: true,
       id: "captured-1",
-      endpointId: "endpoint-id",
+      endpointId: ENDPOINT_ID,
     })
     expect(captureInboundRequest).toHaveBeenCalledWith({
       request,
-      endpointId: "endpoint-id",
+      endpointId: ENDPOINT_ID,
     })
   })
 })
@@ -74,6 +112,8 @@ describe("hook route OPTIONS", () => {
 describe("hook route responses", () => {
   beforeEach(() => {
     captureInboundRequest.mockReset()
+    checkWebhookCaptureAdmission.mockReset()
+    checkWebhookCaptureAdmission.mockResolvedValue(createAllowedAdmission())
   })
 
   it("preserves default success responses when no override exists", async () => {
@@ -81,11 +121,11 @@ describe("hook route responses", () => {
       kind: "captured",
       id: "captured-1",
       response: DEFAULT_ENDPOINT_RESPONSE_CONFIG,
-      endpointId: "endpoint-id",
+      endpointId: ENDPOINT_ID,
     })
 
     const response = await POST(
-      new Request("https://hooks.example.com/api/hook/endpoint-id", {
+      new Request(`https://hooks.example.com/api/hook/${ENDPOINT_ID}`, {
         method: "POST",
       }),
       createContext()
@@ -96,8 +136,50 @@ describe("hook route responses", () => {
     await expect(response.json()).resolves.toEqual({
       ok: true,
       id: "captured-1",
-      endpointId: "endpoint-id",
+      endpointId: ENDPOINT_ID,
     })
+  })
+
+  it("rejects captures when the request-rate policy is exhausted", async () => {
+    checkWebhookCaptureAdmission.mockResolvedValueOnce(createDeniedAdmission())
+
+    const response = await POST(
+      new Request(`https://hooks.example.com/api/hook/${ENDPOINT_ID}`, {
+        method: "POST",
+      }),
+      createContext()
+    )
+
+    expect(response.status).toBe(429)
+    expect(response.headers.get("access-control-allow-origin")).toBe("*")
+    expect(response.headers.get("retry-after")).toBe("60")
+    await expect(response.json()).resolves.toEqual({
+      ok: false,
+      error: "Rate limit exceeded.",
+      retryAfterSeconds: 60,
+    })
+    expect(captureInboundRequest).not.toHaveBeenCalled()
+  })
+
+  it("rejects captures when the client identity header is missing", async () => {
+    checkWebhookCaptureAdmission.mockRejectedValueOnce(
+      new MissingClientIdentityHeaderError("x-forwarded-for")
+    )
+
+    const response = await POST(
+      new Request(`https://hooks.example.com/api/hook/${ENDPOINT_ID}`, {
+        method: "POST",
+      }),
+      createContext()
+    )
+
+    expect(response.status).toBe(400)
+    expect(response.headers.get("access-control-allow-origin")).toBe("*")
+    await expect(response.json()).resolves.toEqual({
+      ok: false,
+      error: 'Required client identity header "x-forwarded-for" is missing.',
+    })
+    expect(captureInboundRequest).not.toHaveBeenCalled()
   })
 
   it("returns custom response overrides after capture", async () => {
@@ -110,11 +192,11 @@ describe("hook route responses", () => {
         contentType: "application/json",
         body: '{"accepted":true}',
       },
-      endpointId: "endpoint-id",
+      endpointId: ENDPOINT_ID,
     })
 
     const response = await POST(
-      new Request("https://hooks.example.com/api/hook/endpoint-id", {
+      new Request(`https://hooks.example.com/api/hook/${ENDPOINT_ID}`, {
         method: "POST",
       }),
       createContext()
@@ -136,11 +218,11 @@ describe("hook route responses", () => {
         contentType: "application/json",
         body: '{"id":"{{request.id}}","endpointId":"{{endpoint.id}}"}',
       },
-      endpointId: "endpoint-id",
+      endpointId: ENDPOINT_ID,
     })
 
     const response = await POST(
-      new Request("https://hooks.example.com/api/hook/endpoint-id", {
+      new Request(`https://hooks.example.com/api/hook/${ENDPOINT_ID}`, {
         method: "POST",
       }),
       createContext()
@@ -148,7 +230,7 @@ describe("hook route responses", () => {
 
     expect(response.status).toBe(202)
     await expect(response.text()).resolves.toBe(
-      '{"id":"captured-1","endpointId":"endpoint-id"}'
+      `{"id":"captured-1","endpointId":"${ENDPOINT_ID}"}`
     )
   })
 
@@ -162,11 +244,11 @@ describe("hook route responses", () => {
         contentType: "text/plain",
         body: "accepted",
       },
-      endpointId: "endpoint-id",
+      endpointId: ENDPOINT_ID,
     })
 
     const response = await HEAD(
-      new Request("https://hooks.example.com/api/hook/endpoint-id", {
+      new Request(`https://hooks.example.com/api/hook/${ENDPOINT_ID}`, {
         method: "HEAD",
       }),
       createContext()
@@ -183,7 +265,7 @@ describe("hook route responses", () => {
     })
 
     const response = await POST(
-      new Request("https://hooks.example.com/api/hook/endpoint-id", {
+      new Request(`https://hooks.example.com/api/hook/${ENDPOINT_ID}`, {
         method: "POST",
       }),
       createContext()

@@ -2,9 +2,14 @@ import "server-only"
 
 import { publishRequest } from "@/lib/webhooks/endpoint-event-stream"
 import {
+  checkWebhookCaptureBodyAdmission,
+  type AdmissionDecision,
+} from "@/lib/webhooks/admission-control"
+import {
   getEndpointResponseConfig,
   saveCapturedRequest,
 } from "@/lib/webhooks/repository"
+import type { RateLimitHeadersInput } from "@/lib/rate-limits/http"
 import type { EndpointResponseConfig } from "@/lib/webhooks/endpoint-response"
 import type {
   CapturedRequest,
@@ -27,6 +32,11 @@ type CapturedBody = {
 }
 
 type InboundCaptureDeps = {
+  checkWebhookCaptureBodyAdmission?: (input: {
+    bodySize: number
+    endpointId: string
+    request: Request
+  }) => Promise<AdmissionDecision>
   getEndpointResponseConfig: (
     endpointId: string
   ) => Promise<EndpointResponseConfig>
@@ -45,8 +55,13 @@ export type InboundCaptureOutcome =
       kind: "body-too-large"
       maxBodyBytes: number
     }
+  | {
+      kind: "rate-limited"
+      rateLimit: RateLimitHeadersInput
+    }
 
 export function createInboundCapture({
+  checkWebhookCaptureBodyAdmission = allowWebhookCaptureBodyAdmission,
   getEndpointResponseConfig,
   publishRequest,
   saveCapturedRequest,
@@ -76,6 +91,19 @@ export function createInboundCapture({
       throw error
     }
 
+    const bodyAdmission = await checkWebhookCaptureBodyAdmission({
+      bodySize: body.size,
+      endpointId,
+      request,
+    })
+
+    if (bodyAdmission.kind === "denied") {
+      return {
+        kind: "rate-limited",
+        rateLimit: bodyAdmission.rateLimit,
+      }
+    }
+
     const capturedRequest = await saveCapturedRequest({
       endpointId,
       method: request.method,
@@ -102,10 +130,22 @@ export function createInboundCapture({
 }
 
 export const captureInboundRequest = createInboundCapture({
+  checkWebhookCaptureBodyAdmission,
   getEndpointResponseConfig,
   publishRequest,
   saveCapturedRequest,
 })
+
+async function allowWebhookCaptureBodyAdmission(): Promise<AdmissionDecision> {
+  return {
+    kind: "allowed",
+    clientIdentity: {
+      key: "client:test",
+      keyHash: null,
+      source: "global",
+    },
+  }
+}
 
 async function readBody(request: Request): Promise<CapturedBody> {
   if (request.method === "GET" || request.method === "HEAD") {

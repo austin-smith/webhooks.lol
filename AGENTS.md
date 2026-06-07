@@ -33,13 +33,11 @@ code quality are expected for new code and touched code.
 
 - Install dependencies: `pnpm install`
 - Start local PostgreSQL: `pnpm db:local:start`
+- Start local Redis: `pnpm redis:local:start`
 - Apply migrations: `pnpm db:migrate`
 - Start the dev server: `pnpm dev`
 
 The dev server runs on `http://localhost:4665`.
-
-For non-local environments, set `DATABASE_URL` to the target PostgreSQL database
-and run `pnpm db:migrate` before starting the app.
 
 ## Development Workflow
 
@@ -186,6 +184,13 @@ handlers when they belong in domain modules.
 
 ## Webhook Behavior
 
+- Redis-backed admission control protects endpoint creation, webhook capture
+  request counts, captured body bytes, and live event-stream connection leases.
+  Keep admission checks before expensive work such as body reads when possible.
+- Policies live in `lib/webhooks/policies.ts`, admission in
+  `lib/webhooks/admission-control.ts`, and Redis primitives in
+  `lib/rate-limits/*`.
+- Event streams use Redis leases; renew with heartbeats and release on cleanup.
 - Preserve CORS and no-store response behavior for capture endpoints.
 - Browser preflight requests should not be saved as webhook traffic.
 - Publish live request events only after persistence succeeds.

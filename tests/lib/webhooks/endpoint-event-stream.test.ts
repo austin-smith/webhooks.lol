@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
 import {
   openEndpointEventStream,
@@ -85,6 +85,30 @@ describe("openEndpointEventStream", () => {
       )
     } finally {
       controller.abort()
+      reader.releaseLock()
+    }
+  })
+
+  it("releases connection leases when streams close", async () => {
+    const controller = new AbortController()
+    const lease = {
+      release: vi.fn(async () => undefined),
+      renew: vi.fn(async () => undefined),
+    }
+    const stream = openEndpointEventStream({
+      endpointId: "leased-endpoint-id",
+      lease,
+      signal: controller.signal,
+    })
+    const reader = stream.getReader()
+
+    try {
+      await readEvent(reader)
+      controller.abort()
+      await Promise.resolve()
+
+      expect(lease.release).toHaveBeenCalledTimes(1)
+    } finally {
       reader.releaseLock()
     }
   })

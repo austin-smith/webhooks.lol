@@ -36,6 +36,13 @@
       "when": 1780805822514,
       "tag": "0004_chilly_starjammers",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1780824604805,
+      "tag": "0005_purple_midnight",
+      "breakpoints": true
     }
   ]
 }

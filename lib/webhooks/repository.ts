@@ -23,6 +23,13 @@ export const MAX_ENDPOINT_NAME_LENGTH = 32
 export const DEFAULT_REQUEST_PAGE_SIZE = 50
 export const MAX_REQUEST_PAGE_SIZE = 100
 
+export class EndpointNotFoundError extends Error {
+  constructor(endpointId: string) {
+    super(`Endpoint ${endpointId} was not found.`)
+    this.name = "EndpointNotFoundError"
+  }
+}
+
 export type EndpointMetadata = {
   endpointId: string
   name: string | null
@@ -38,28 +45,30 @@ export type RequestPageOptions = {
   limit?: number
 }
 
-export async function createEndpoint() {
+export type CreateEndpointOptions = {
+  creatorKeyHash?: string | null
+  now?: Date
+}
+
+export async function createEndpoint(options: CreateEndpointOptions = {}) {
   const endpointId = crypto.randomUUID()
-  await ensureEndpoint(endpointId)
+  const now = options.now ?? new Date()
+  await getDatabase()
+    .insert(endpoints)
+    .values({
+      id: endpointId,
+      creatorKeyHash: options.creatorKeyHash ?? null,
+      createdAt: now,
+      lastActivityAt: now,
+    })
+
   return {
     endpointId,
     name: null,
   } satisfies EndpointMetadata
 }
 
-export async function ensureEndpoint(endpointId: string) {
-  await getDatabase()
-    .insert(endpoints)
-    .values({
-      id: endpointId,
-      createdAt: new Date(),
-    })
-    .onConflictDoNothing({ target: endpoints.id })
-}
-
 export async function getEndpoint(endpointId: string) {
-  await ensureEndpoint(endpointId)
-
   const [row] = await getDatabase()
     .select({
       id: endpoints.id,
@@ -69,9 +78,7 @@ export async function getEndpoint(endpointId: string) {
     .where(eq(endpoints.id, endpointId))
     .limit(1)
 
-  if (!row) {
-    throw new Error("Endpoint could not be loaded after creation.")
-  }
+  assertEndpointRowIsActive(endpointId, row)
 
   return mapEndpointRow(row)
 }
@@ -83,11 +90,14 @@ export async function updateEndpointName({
   endpointId: string
   name: string | null
 }) {
-  await ensureEndpoint(endpointId)
-
+  const now = new Date()
+  await assertEndpointExists(endpointId)
   const [row] = await getDatabase()
     .update(endpoints)
-    .set({ name })
+    .set({
+      name,
+      lastActivityAt: now,
+    })
     .where(eq(endpoints.id, endpointId))
     .returning({
       id: endpoints.id,
@@ -95,7 +105,7 @@ export async function updateEndpointName({
     })
 
   if (!row) {
-    throw new Error("Endpoint could not be updated.")
+    throw new EndpointNotFoundError(endpointId)
   }
 
   return mapEndpointRow(row)
@@ -112,17 +122,16 @@ export async function saveCapturedRequest(input: CapturedRequestInput) {
   const db = getDatabase()
 
   await db.transaction(async (transaction) => {
-    await transaction
-      .insert(endpoints)
-      .values({
-        id: request.endpointId,
-        createdAt: new Date(),
-      })
-      .onConflictDoNothing({ target: endpoints.id })
-
     await transaction.execute(
       sql`select 1 from ${endpoints} where ${endpoints.id} = ${request.endpointId} for update`
     )
+    const [endpoint] = await transaction
+      .select({ id: endpoints.id })
+      .from(endpoints)
+      .where(eq(endpoints.id, request.endpointId))
+      .limit(1)
+
+    assertEndpointRowIsActive(request.endpointId, endpoint)
 
     await transaction.insert(capturedRequests).values({
       id: request.id,
@@ -155,6 +164,13 @@ export async function saveCapturedRequest(input: CapturedRequestInput) {
           notInArray(capturedRequests.id, retainedRequestIds)
         )
       )
+
+    await transaction
+      .update(endpoints)
+      .set({
+        lastActivityAt: receivedAt,
+      })
+      .where(eq(endpoints.id, request.endpointId))
   })
 
   return request
@@ -164,7 +180,7 @@ export async function listRequests(
   endpointId: string,
   options: RequestPageOptions = {}
 ) {
-  await ensureEndpoint(endpointId)
+  await assertEndpointExists(endpointId)
 
   const limit = normalizeRequestPageLimit(options.limit)
   const rowsLimit = limit + 1
@@ -206,17 +222,26 @@ export async function listRequests(
 }
 
 export async function clearRequests(endpointId: string) {
-  await ensureEndpoint(endpointId)
+  const now = new Date()
+  await assertEndpointExists(endpointId)
 
-  await getDatabase()
-    .delete(capturedRequests)
-    .where(eq(capturedRequests.endpointId, endpointId))
+  await getDatabase().transaction(async (transaction) => {
+    await transaction
+      .delete(capturedRequests)
+      .where(eq(capturedRequests.endpointId, endpointId))
+    await transaction
+      .update(endpoints)
+      .set({
+        lastActivityAt: now,
+      })
+      .where(eq(endpoints.id, endpointId))
+  })
 }
 
 export async function getEndpointResponseConfig(
   endpointId: string
 ): Promise<EndpointResponseConfig> {
-  await ensureEndpoint(endpointId)
+  await assertEndpointExists(endpointId)
 
   const rows = await getDatabase()
     .select()
@@ -240,25 +265,35 @@ export async function setEndpointResponseOverride({
   endpointId: string
   override: EndpointResponseOverrideInput
 }) {
-  await ensureEndpoint(endpointId)
+  const now = new Date()
+  await assertEndpointExists(endpointId)
 
-  await getDatabase()
-    .insert(endpointResponses)
-    .values({
-      endpointId,
-      status: override.status,
-      contentType: override.contentType,
-      body: override.body,
-    })
-    .onConflictDoUpdate({
-      target: endpointResponses.endpointId,
-      set: {
+  await getDatabase().transaction(async (transaction) => {
+    await transaction
+      .insert(endpointResponses)
+      .values({
+        endpointId,
         status: override.status,
         contentType: override.contentType,
         body: override.body,
-        updatedAt: new Date(),
-      },
-    })
+      })
+      .onConflictDoUpdate({
+        target: endpointResponses.endpointId,
+        set: {
+          status: override.status,
+          contentType: override.contentType,
+          body: override.body,
+          updatedAt: now,
+        },
+      })
+
+    await transaction
+      .update(endpoints)
+      .set({
+        lastActivityAt: now,
+      })
+      .where(eq(endpoints.id, endpointId))
+  })
 
   return {
     mode: "custom",
@@ -267,11 +302,20 @@ export async function setEndpointResponseOverride({
 }
 
 export async function clearEndpointResponseOverride(endpointId: string) {
-  await ensureEndpoint(endpointId)
+  const now = new Date()
+  await assertEndpointExists(endpointId)
 
-  await getDatabase()
-    .delete(endpointResponses)
-    .where(eq(endpointResponses.endpointId, endpointId))
+  await getDatabase().transaction(async (transaction) => {
+    await transaction
+      .delete(endpointResponses)
+      .where(eq(endpointResponses.endpointId, endpointId))
+    await transaction
+      .update(endpoints)
+      .set({
+        lastActivityAt: now,
+      })
+      .where(eq(endpoints.id, endpointId))
+  })
 
   return DEFAULT_ENDPOINT_RESPONSE_CONFIG
 }
@@ -308,6 +352,29 @@ function mapEndpointResponseRow(row: typeof endpointResponses.$inferSelect) {
     contentType: row.contentType,
     body: row.body,
   } satisfies EndpointResponseConfig
+}
+
+export function isEndpointUnavailableError(error: unknown) {
+  return error instanceof EndpointNotFoundError
+}
+
+async function assertEndpointExists(endpointId: string) {
+  const [row] = await getDatabase()
+    .select({ id: endpoints.id })
+    .from(endpoints)
+    .where(eq(endpoints.id, endpointId))
+    .limit(1)
+
+  assertEndpointRowIsActive(endpointId, row)
+}
+
+function assertEndpointRowIsActive(
+  endpointId: string,
+  row: { id?: string } | undefined
+) {
+  if (!row) {
+    throw new EndpointNotFoundError(endpointId)
+  }
 }
 
 function normalizeRequestPageLimit(limit = DEFAULT_REQUEST_PAGE_SIZE) {

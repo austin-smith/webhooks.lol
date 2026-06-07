@@ -15,7 +15,8 @@ const {
   setEndpointResponseOverride: vi.fn(),
 }))
 
-vi.mock("@/lib/webhooks/repository", () => ({
+vi.mock("@/lib/webhooks/repository", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/webhooks/repository")>()),
   clearEndpointResponseOverride,
   getEndpointResponseConfig,
   setEndpointResponseOverride,
@@ -27,7 +28,9 @@ import {
   PUT,
 } from "@/app/api/endpoints/[endpointId]/response/route"
 
-function createContext(endpointId = "endpoint-id") {
+const ENDPOINT_ID = "11111111-1111-4111-8111-111111111111"
+
+function createContext(endpointId = ENDPOINT_ID) {
   return {
     params: Promise.resolve({ endpointId }),
   } as RouteContext<"/api/endpoints/[endpointId]/response">
@@ -47,17 +50,17 @@ describe("endpoint response route", () => {
 
     const response = await GET(
       new Request(
-        "https://hooks.example.com/api/endpoints/endpoint-id/response"
+        `https://hooks.example.com/api/endpoints/${ENDPOINT_ID}/response`
       ),
       createContext()
     )
 
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toEqual({
-      endpointId: "endpoint-id",
+      endpointId: ENDPOINT_ID,
       response: DEFAULT_ENDPOINT_RESPONSE_CONFIG,
     })
-    expect(getEndpointResponseConfig).toHaveBeenCalledWith("endpoint-id")
+    expect(getEndpointResponseConfig).toHaveBeenCalledWith(ENDPOINT_ID)
   })
 
   it("validates and stores a custom response override", async () => {
@@ -73,7 +76,7 @@ describe("endpoint response route", () => {
 
     const response = await PUT(
       new Request(
-        "https://hooks.example.com/api/endpoints/endpoint-id/response",
+        `https://hooks.example.com/api/endpoints/${ENDPOINT_ID}/response`,
         {
           method: "PUT",
           body: JSON.stringify(override),
@@ -84,14 +87,14 @@ describe("endpoint response route", () => {
 
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toEqual({
-      endpointId: "endpoint-id",
+      endpointId: ENDPOINT_ID,
       response: {
         mode: "custom",
         ...override,
       },
     })
     expect(setEndpointResponseOverride).toHaveBeenCalledWith({
-      endpointId: "endpoint-id",
+      endpointId: ENDPOINT_ID,
       override,
     })
   })
@@ -99,7 +102,7 @@ describe("endpoint response route", () => {
   it("rejects invalid override input", async () => {
     const response = await PUT(
       new Request(
-        "https://hooks.example.com/api/endpoints/endpoint-id/response",
+        `https://hooks.example.com/api/endpoints/${ENDPOINT_ID}/response`,
         {
           method: "PUT",
           body: JSON.stringify({
@@ -125,7 +128,7 @@ describe("endpoint response route", () => {
   it("rejects malformed JSON", async () => {
     const response = await PUT(
       new Request(
-        "https://hooks.example.com/api/endpoints/endpoint-id/response",
+        `https://hooks.example.com/api/endpoints/${ENDPOINT_ID}/response`,
         {
           method: "PUT",
           body: "{",
@@ -144,7 +147,7 @@ describe("endpoint response route", () => {
   it("rejects oversized override requests before storing", async () => {
     const response = await PUT(
       new Request(
-        "https://hooks.example.com/api/endpoints/endpoint-id/response",
+        `https://hooks.example.com/api/endpoints/${ENDPOINT_ID}/response`,
         {
           method: "PUT",
           body: "x".repeat(MAX_RESPONSE_OVERRIDE_REQUEST_BYTES + 1),
@@ -169,7 +172,7 @@ describe("endpoint response route", () => {
 
     const response = await DELETE(
       new Request(
-        "https://hooks.example.com/api/endpoints/endpoint-id/response",
+        `https://hooks.example.com/api/endpoints/${ENDPOINT_ID}/response`,
         {
           method: "DELETE",
         }
@@ -179,9 +182,9 @@ describe("endpoint response route", () => {
 
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toEqual({
-      endpointId: "endpoint-id",
+      endpointId: ENDPOINT_ID,
       response: DEFAULT_ENDPOINT_RESPONSE_CONFIG,
     })
-    expect(clearEndpointResponseOverride).toHaveBeenCalledWith("endpoint-id")
+    expect(clearEndpointResponseOverride).toHaveBeenCalledWith(ENDPOINT_ID)
   })
 })

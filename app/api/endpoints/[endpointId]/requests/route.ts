@@ -1,11 +1,17 @@
 import { NO_STORE_HEADERS } from "@/lib/http/headers"
 import type { RequestsResponse } from "@/lib/webhooks/api-contracts"
+import { parseEndpointId } from "@/lib/webhooks/endpoint-id"
 import { publishEndpointCleared } from "@/lib/webhooks/endpoint-event-stream"
 import {
   clearRequests,
+  isEndpointUnavailableError,
   listRequests,
   type RequestPageCursor,
 } from "@/lib/webhooks/repository"
+import {
+  createEndpointNotFoundResponse,
+  createInvalidEndpointResponse,
+} from "@/lib/webhooks/endpoint-route-responses"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -14,7 +20,13 @@ export async function GET(
   request: Request,
   context: RouteContext<"/api/endpoints/[endpointId]/requests">
 ) {
-  const { endpointId } = await context.params
+  const { endpointId: rawEndpointId } = await context.params
+  const endpointId = parseEndpointId(rawEndpointId)
+
+  if (!endpointId) {
+    return createInvalidEndpointResponse()
+  }
+
   const url = new URL(request.url)
   const cursor = readRequestPageCursor(url.searchParams)
 
@@ -28,10 +40,20 @@ export async function GET(
     )
   }
 
-  const page = await listRequests(endpointId, {
-    cursor: cursor.value,
-    limit: readRequestPageLimit(url.searchParams),
-  })
+  let page: Awaited<ReturnType<typeof listRequests>>
+
+  try {
+    page = await listRequests(endpointId, {
+      cursor: cursor.value,
+      limit: readRequestPageLimit(url.searchParams),
+    })
+  } catch (error) {
+    if (isEndpointUnavailableError(error)) {
+      return createEndpointNotFoundResponse()
+    }
+
+    throw error
+  }
   const response = {
     endpointId,
     page: {
@@ -47,12 +69,26 @@ export async function GET(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   context: RouteContext<"/api/endpoints/[endpointId]/requests">
 ) {
-  const { endpointId } = await context.params
+  const { endpointId: rawEndpointId } = await context.params
+  const endpointId = parseEndpointId(rawEndpointId)
 
-  await clearRequests(endpointId)
+  if (!endpointId) {
+    return createInvalidEndpointResponse()
+  }
+
+  try {
+    await clearRequests(endpointId)
+  } catch (error) {
+    if (isEndpointUnavailableError(error)) {
+      return createEndpointNotFoundResponse()
+    }
+
+    throw error
+  }
+
   publishEndpointCleared(endpointId)
   const response = {
     endpointId,
