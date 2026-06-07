@@ -2,13 +2,13 @@
 
 ## Project Overview
 
-`webhooks.lol` is a small webhook inbox built with Next.js App Router,
+`webhooks.lol` is a small webhook endpoint inspector built with Next.js App Router,
 React, TypeScript, Tailwind CSS, shadcn/Radix UI, Drizzle ORM, PostgreSQL, and
-Vitest. It creates private inbox URLs, captures inbound HTTP requests, stores
+Vitest. It creates private endpoint URLs, captures inbound HTTP requests, stores
 them in PostgreSQL, and streams live updates into a compact browser inspector.
 
 Important domain terms are defined in `CONTEXT.md`. Read it before changing
-webhook capture, persistence, event streaming, or browser inbox-session code.
+webhook capture, persistence, event streaming, or browser endpoint-session code.
 
 ## Standard
 
@@ -147,11 +147,11 @@ internals.
 - `lib/webhooks/inbound-capture.ts` owns inbound request capture rules, body
   limits, body parsing, captured-path/query/header extraction, and publication
   after persistence succeeds.
-- `lib/webhooks/repository.ts` owns inbox and captured-request persistence.
-- `lib/webhooks/inbox-event-stream.ts` owns live inbox event-stream behavior.
+- `lib/webhooks/repository.ts` owns endpoint and captured-request persistence.
+- `lib/webhooks/endpoint-event-stream.ts` owns live endpoint event-stream behavior.
 - `lib/webhooks/api-contracts.ts` owns shared API response shapes used across
   routes and client transport code.
-- `components/webhook-inspector/inbox-session/*` owns browser-side inbox session
+- `components/webhook-inspector/endpoint-session/*` owns browser-side endpoint session
   state, storage, transport, and event-stream handling.
 - `components/ui/*` contains shadcn/Radix-derived primitives. Extend them
   consistently instead of inventing incompatible UI primitives.
