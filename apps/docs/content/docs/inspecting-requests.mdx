@@ -1,0 +1,47 @@
+---
+title: Inspecting Requests
+description: Read captured requests live, and manage the request list.
+---
+
+The inspector has two panes: a list of captured requests on the left and a
+detail view on the right. Requests arrive newest-first and update live while the
+endpoint is open.
+
+## Live updates
+
+A connection indicator in the header shows the live stream status:
+
+- **Live**: Connected. New requests appear the moment they are captured.
+- **Sync**: Connecting or reconnecting to the stream.
+- **Retry**: The connection dropped and is reconnecting automatically. Refresh
+  if anything looks stale.
+
+## The request list
+
+Each row shows the method, the request path, and when it arrived. Select a row
+to open it in the detail pane. The list controls let you:
+
+- **Refresh**: Reload the latest requests.
+- **Clear**: Permanently delete every captured request for the endpoint. This
+  cannot be undone.
+- **Load older**: Page back through older requests beyond the most recent ones
+  already shown.
+
+## Request detail
+
+Selecting a request shows a summary line (method, path, source IP when
+available, and time) and a set of metrics: content type, body size, and the
+number of query parameters and headers.
+
+Below that are two tabs:
+
+- **Detail**: The query string and headers as key/value tables, plus the body.
+- **Raw**: The reconstructed raw HTTP request, useful for copying or comparing
+  against what a client claims to have sent.
+
+## Bodies
+
+Text bodies (JSON, XML, HTML, form-encoded, YAML, and other text types) are
+shown as-is, and JSON is pretty-printed for readability.
+
+Non-text bodies are shown as base64.

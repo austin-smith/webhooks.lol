@@ -1,4 +1,11 @@
 {
   "title": "webhooks.lol",
-  "pages": ["index"]
+  "pages": [
+    "index",
+    "endpoints",
+    "inspecting-requests",
+    "custom-responses",
+    "limits-and-retention",
+    "production-configuration"
+  ]
 }

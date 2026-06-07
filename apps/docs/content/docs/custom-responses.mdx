@@ -1,0 +1,62 @@
+---
+title: Custom Responses
+description: Control the status, content type, and body your endpoint returns to callers.
+---
+
+By default, every captured request gets a simple JSON acknowledgement:
+
+```json
+{
+  "ok": true,
+  "id": "<request-id>",
+  "endpointId": "<endpoint-id>"
+}
+```
+
+The response status is `200`, except for `HEAD` requests, which return `204` with
+no body. This is enough for most senders that only check for a `2xx`.
+
+Sometimes you need the endpoint to reply differently, for example to satisfy a
+webhook provider that expects a specific status or payload, or to reproduce how
+a real API would answer. The response override lets you set exactly that.
+
+## Setting a custom response
+
+Open the response control in the header and switch from **Default** to
+**Custom**. You can set:
+
+- **Status**: Any code from `200` through `599`.
+- **Content-Type**: The response content type, for example `application/json`
+  or `text/plain`.
+- **Body**: The response body (up to 64 KiB).
+
+Save, and from then on every request to the endpoint receives your custom
+response. Switch back to **Default** at any time to restore the standard
+acknowledgement.
+
+<Callout type="info">
+The custom response applies to all callers of the endpoint and persists until
+you change it. Bodies are sent verbatim for statuses that allow one (`204`,
+`205`, and `304` never include a body).
+</Callout>
+
+## Template variables
+
+The body supports two placeholders, replaced per request when the response is
+sent:
+
+| Variable           | Replaced with               |
+| ------------------ | --------------------------- |
+| `{{request.id}}`   | The captured request's ID   |
+| `{{endpoint.id}}`  | The endpoint's ID           |
+
+For example, this body:
+
+```json
+{ "received": "{{request.id}}" }
+```
+
+returns the ID of each individual request that hits the endpoint. Use the
+**Variables** picker next to the body field to insert them.
+
+Custom response headers beyond `Content-Type` are not yet supported.

@@ -1,6 +1,43 @@
 ---
-title: webhooks.lol docs
-description: Documentation for webhooks.lol.
+title: Introduction
+description: Create a private URL, send requests to it, and inspect them live.
 ---
 
-Coming soon :)
+webhooks.lol gives you a private URL that captures every HTTP request sent to
+it. Point a webhook, script, or service at the URL and watch each request appear
+live, then inspect its method, headers, query string, and body.
+
+It is built for testing and debugging webhooks and any other HTTP request you
+want to see exactly as it was sent.
+
+## How it works
+
+- **Endpoint**: A private place that captures requests. Open the app and one is
+  created for you. Its address, the receive URL you send traffic to, is shaped
+  like `https://webhooks.lol/api/hook/<endpoint-id>`.
+- **Captured request**: A request that arrived at the endpoint, stored so you
+  can inspect it.
+- **Inspector**: Where you read captured requests: a live request list on the
+  left and a detail view on the right.
+
+No account is required. Anyone who opens the app gets a working endpoint
+immediately.
+
+## Quickstart
+
+1. **Open the app.** A fresh endpoint is created automatically.
+2. **Copy the receive URL** from the bar at the top of the inspector.
+3. **Send a request** to it from your service, or from a terminal:
+
+```bash
+curl -X POST https://webhooks.lol/api/hook/<endpoint-id> \
+  -H "content-type: application/json" \
+  -d '{"hello":"world"}'
+```
+
+4. **Watch it land.** The request appears in the list instantly. Select it to
+   see the parsed body, headers, query string, and the raw HTTP request.
+
+That is the whole loop. The rest of these docs cover working with endpoints,
+reading captured requests, customizing the response your endpoint returns, and
+the limits that apply.

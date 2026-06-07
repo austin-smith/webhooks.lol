@@ -1,0 +1,64 @@
+---
+title: Endpoints
+description: Receive URLs, the paths and methods they accept, naming, and switching between them.
+---
+
+An endpoint is a private receive URL that captures the requests sent to it.
+Opening the app creates one for you, and you can create more at any time.
+
+## The receive URL
+
+Each endpoint has a receive URL shaped like:
+
+```text
+https://webhooks.lol/api/hook/<endpoint-id>
+```
+
+The endpoint ID is a random UUID. It is the only thing that identifies the
+endpoint, so treat the URL as a secret: anyone who has the ID can send requests
+to it and read everything it has captured.
+
+Use the copy button next to the URL in the inspector to grab it.
+
+## Paths and query strings
+
+You can send to the receive URL directly or to any path beneath it. The path is
+captured and shown with each request, so a sender can use whatever path it
+normally would:
+
+```bash
+curl https://webhooks.lol/api/hook/<endpoint-id>/any/path?key=value
+```
+
+Query strings are captured and parsed too, including repeated keys.
+
+## Methods
+
+Endpoints accept `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, and `HEAD`. The method
+is recorded with every captured request.
+
+Browser CORS preflight (`OPTIONS`) requests are answered automatically and are
+**not** saved, so requests sent from a browser do not clutter the list.
+
+## Naming an endpoint
+
+New endpoints are identified by a shortened form of their ID. Give an endpoint a
+name to recognize it later: open the endpoint switcher, click the pencil on the
+selected endpoint, type a label (up to 32 characters), and save. The name is
+only a local label and does not change the receive URL.
+
+## Switching between endpoints
+
+The switcher at the top left lists endpoints you have used in this browser, most
+recent first. From it you can:
+
+- **Search** by name or ID.
+- **Switch** to a previously used endpoint.
+- **Create a new endpoint** with its own URL.
+
+<Callout type="warn">
+The switcher remembers your 50 most recently used endpoints, stored locally in
+the browser you opened the app in. The list is not tied to an account and does
+not sync across devices, and once you go past 50 endpoints the oldest ones are
+removed from it.
+</Callout>

@@ -1,0 +1,47 @@
+---
+title: Limits & Retention
+description: How long requests are kept, payload size caps, rate limits, and CORS.
+---
+
+webhooks.lol is a tool for testing and debugging, not durable storage. A few
+limits keep it fast and fair to share.
+
+## Retention
+
+Each endpoint keeps its **latest 500 requests**. New requests keep arriving past
+that point, but the oldest are dropped to stay within the cap. You can also
+delete an endpoint's captured requests yourself with the **Clear** button in the
+inspector.
+
+If you need to keep a request, copy its body or raw form from the detail pane
+before it rotates out.
+
+## Payload size
+
+Request bodies are capped at **1 MiB**. A larger body is rejected with a `413`
+and is not stored:
+
+```json
+{ "ok": false, "error": "Request body too large.", "maxBodyBytes": 1048576 }
+```
+
+## Rate limits
+
+Requests are rate limited to keep one caller from overwhelming the service. When
+a limit is exceeded, the request is rejected with a `429` and a `Retry-After`
+header. The main limits:
+
+- **Creating endpoints**: up to 100 per hour from one client.
+- **Capturing requests**: up to 600 per minute per endpoint, and 1,200 per
+  minute per client across all endpoints.
+- **Captured volume**: up to 1 GiB of request bodies per endpoint per day.
+- **Live streams**: up to 3 concurrent live connections per endpoint (so an
+  endpoint can be open in a few tabs at once).
+
+These ceilings are well above normal testing and debugging use.
+
+## CORS
+
+Capture endpoints return permissive CORS headers, so you can send requests to a
+receive URL from browser JavaScript. Preflight `OPTIONS` requests are answered
+automatically and are not recorded as captured traffic.
