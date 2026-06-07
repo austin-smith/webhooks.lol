@@ -83,23 +83,29 @@ function RequestSummaryHeader({ request }: { request: CapturedRequest }) {
   const path = formatRequestListPath(request)
 
   return (
-    <header className="grid h-14 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b bg-muted/20 px-4">
-      <div className="min-w-0">
-        <div className="flex min-w-0 items-center gap-2 text-sm font-medium">
-          <RequestMethodBadge method={request.method} />
-          <span className="min-w-0 truncate text-xs text-foreground">
-            {path}
-          </span>
-        </div>
-        <p className="truncate text-xs text-muted-foreground">
+    <header className="flex h-14 items-center gap-3 border-b bg-muted/20 px-4">
+      <RequestMethodBadge method={request.method} />
+      <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+        {path}
+      </span>
+      <div className="flex shrink-0 items-center gap-2 text-[0.68rem] text-muted-foreground">
+        {request.ip ? (
+          <>
+            <span className="hidden truncate sm:inline" title={request.ip}>
+              {request.ip}
+            </span>
+            <span
+              className="hidden text-muted-foreground/40 sm:inline"
+              aria-hidden="true"
+            >
+              ·
+            </span>
+          </>
+        ) : null}
+        <span className="whitespace-nowrap">
           {formatRequestDateTime(request.receivedAt)}
-        </p>
-      </div>
-      {request.ip ? (
-        <span className="hidden max-w-40 truncate text-[0.68rem] text-muted-foreground md:inline-flex">
-          {request.ip}
         </span>
-      ) : null}
+      </div>
     </header>
   )
 }
