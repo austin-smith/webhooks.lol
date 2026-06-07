@@ -1,7 +1,7 @@
 "use client"
 
 import Image from "next/image"
-import { CheckIcon, CopyIcon } from "lucide-react"
+import { CheckIcon, CopyIcon, ExternalLinkIcon } from "lucide-react"
 
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -21,6 +21,7 @@ type InspectorHeaderProps = {
   connectionState: ConnectionState
   copied: boolean
   copyMessage: string
+  docsUrl: string | null
   endpointNames: Record<string, string>
   isLoading: boolean
   isSavingResponse: boolean
@@ -42,6 +43,7 @@ export function InspectorHeader({
   connectionState,
   copied,
   copyMessage,
+  docsUrl,
   endpointNames,
   isLoading,
   isSavingResponse,
@@ -77,7 +79,20 @@ export function InspectorHeader({
             WEBHOOKS.LOL
           </h1>
         </div>
-        <ConnectionStatus state={connectionState} />
+        <div className="flex shrink-0 items-center gap-3">
+          {docsUrl ? (
+            <a
+              href={docsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-6 items-center gap-1 rounded-sm text-[0.68rem] font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+            >
+              DOCS
+              <ExternalLinkIcon className="size-3" aria-hidden="true" />
+            </a>
+          ) : null}
+          <ConnectionStatus state={connectionState} />
+        </div>
       </div>
 
       <div className="grid min-w-0 grid-cols-[minmax(6.75rem,8.5rem)_minmax(0,1fr)_auto] overflow-hidden rounded-md border bg-card sm:grid-cols-[minmax(7.5rem,12rem)_minmax(0,1fr)_auto]">

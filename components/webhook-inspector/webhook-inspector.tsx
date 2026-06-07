@@ -11,7 +11,11 @@ import { InspectorHeader } from "./inspector-header"
 import { RequestDetail } from "./request-detail"
 import { useBrowserOrigin } from "./use-browser-origin"
 
-export function WebhookInspector() {
+type WebhookInspectorProps = {
+  docsUrl: string | null
+}
+
+export function WebhookInspector({ docsUrl }: WebhookInspectorProps) {
   const origin = useBrowserOrigin()
   const endpoint = useBrowserEndpointSession()
   const webhookUrl =
@@ -60,6 +64,7 @@ export function WebhookInspector() {
       <InspectorHeader
         connectionState={endpoint.connectionState}
         copied={copied}
+        docsUrl={docsUrl}
         copyMessage={copyMessage}
         endpointNames={endpoint.endpointNames}
         isLoading={endpoint.isLoading}
