@@ -26,7 +26,12 @@ const LOADING_INDICATOR_DELAY_MS = 150
 
 import { InspectorIconButton } from "./inspector-icon-button"
 import { RequestMethodBadge } from "./request-method-badge"
-import { formatRequestListPath, formatRequestTime } from "./request-formatters"
+import {
+  formatRequestDate,
+  formatRequestDateTime,
+  formatRequestListPath,
+  formatRequestTime,
+} from "./request-formatters"
 
 type EndpointPanelProps = {
   canRefresh: boolean
@@ -167,15 +172,18 @@ function RequestListItem({
   onSelect: () => void
 }) {
   const path = formatRequestListPath(request)
+  const receivedDate = formatRequestDate(request.receivedAt)
+  const receivedAt = formatRequestDateTime(request.receivedAt)
+  const receivedTime = formatRequestTime(request.receivedAt)
 
   return (
     <button
       type="button"
       onClick={onSelect}
       aria-current={selected ? "true" : undefined}
-      aria-label={`${request.method} ${path} received at ${formatRequestTime(request.receivedAt)}`}
+      aria-label={`${request.method} ${path} received at ${receivedAt}`}
       className={cn(
-        "grid h-11 w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 overflow-hidden rounded-md border bg-background px-3 text-left transition-colors hover:border-foreground/20 hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-ring/35 focus-visible:outline-none aria-current:border-foreground/35 aria-current:bg-muted/35",
+        "grid h-12 w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 overflow-hidden rounded-md border bg-background px-3 text-left transition-colors hover:border-foreground/20 hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-ring/35 focus-visible:outline-none aria-current:border-foreground/35 aria-current:bg-muted/35",
         selected && "border-foreground/35 bg-muted/35"
       )}
     >
@@ -185,9 +193,16 @@ function RequestListItem({
           {path}
         </span>
       </span>
-      <span className="shrink-0 text-[0.68rem] text-muted-foreground">
-        {formatRequestTime(request.receivedAt)}
-      </span>
+      <time
+        dateTime={request.receivedAt}
+        title={receivedAt}
+        className="flex shrink-0 flex-col items-end gap-0.5 text-[0.65rem] leading-none whitespace-nowrap text-muted-foreground"
+      >
+        <span>{receivedDate}</span>
+        <span className="text-muted-foreground/80 tabular-nums">
+          {receivedTime}
+        </span>
+      </time>
     </button>
   )
 }

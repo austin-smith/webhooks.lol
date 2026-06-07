@@ -125,6 +125,12 @@ export function formatConnectionState(state: ConnectionState) {
   return "RETRY"
 }
 
+export function formatRequestDate(value: string) {
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+  }).format(new Date(value))
+}
+
 export function formatRequestTime(value: string) {
   return new Intl.DateTimeFormat(undefined, {
     hour: "2-digit",
