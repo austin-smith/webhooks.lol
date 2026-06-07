@@ -1,6 +1,7 @@
 {
   "name": "webhooks-lol",
   "version": "0.0.1",
+  "license": "MIT",
   "type": "module",
   "private": true,
   "packageManager": "pnpm@11.5.1",
