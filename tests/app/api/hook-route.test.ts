@@ -18,6 +18,7 @@ import {
   OPTIONS,
   POST,
 } from "@/app/api/hook/[endpointId]/[[...path]]/route"
+import { MissingClientIdentityHeaderError } from "@/lib/rate-limits/client-identity"
 import { DEFAULT_ENDPOINT_RESPONSE_CONFIG } from "@/lib/webhooks/endpoint-response"
 
 const ENDPOINT_ID = "11111111-1111-4111-8111-111111111111"
@@ -156,6 +157,27 @@ describe("hook route responses", () => {
       ok: false,
       error: "Rate limit exceeded.",
       retryAfterSeconds: 60,
+    })
+    expect(captureInboundRequest).not.toHaveBeenCalled()
+  })
+
+  it("rejects captures when the client identity header is missing", async () => {
+    checkWebhookCaptureAdmission.mockRejectedValueOnce(
+      new MissingClientIdentityHeaderError("x-forwarded-for")
+    )
+
+    const response = await POST(
+      new Request(`https://hooks.example.com/api/hook/${ENDPOINT_ID}`, {
+        method: "POST",
+      }),
+      createContext()
+    )
+
+    expect(response.status).toBe(400)
+    expect(response.headers.get("access-control-allow-origin")).toBe("*")
+    await expect(response.json()).resolves.toEqual({
+      ok: false,
+      error: 'Required client identity header "x-forwarded-for" is missing.',
     })
     expect(captureInboundRequest).not.toHaveBeenCalled()
   })

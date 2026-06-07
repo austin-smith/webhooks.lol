@@ -2,7 +2,11 @@ import {
   CORS_NO_STORE_HEADERS,
   WEBHOOK_RESPONSE_SECURITY_HEADERS,
 } from "@/lib/http/headers"
-import { createRateLimitedResponse } from "@/lib/rate-limits/http"
+import {
+  createMissingClientIdentityHeaderResponse,
+  createRateLimitedResponse,
+  isMissingClientIdentityHeaderError,
+} from "@/lib/rate-limits/http"
 import { checkWebhookCaptureAdmission } from "@/lib/webhooks/admission-control"
 import { parseEndpointId } from "@/lib/webhooks/endpoint-id"
 import { captureInboundRequest } from "@/lib/webhooks/inbound-capture"
@@ -30,7 +34,20 @@ async function capture(
     return createInvalidEndpointResponse(CORS_NO_STORE_HEADERS)
   }
 
-  const admission = await checkWebhookCaptureAdmission({ endpointId, request })
+  let admission: Awaited<ReturnType<typeof checkWebhookCaptureAdmission>>
+
+  try {
+    admission = await checkWebhookCaptureAdmission({ endpointId, request })
+  } catch (error) {
+    if (isMissingClientIdentityHeaderError(error)) {
+      return createMissingClientIdentityHeaderResponse({
+        error,
+        headers: CORS_NO_STORE_HEADERS,
+      })
+    }
+
+    throw error
+  }
 
   if (admission.kind === "denied") {
     return createRateLimitedResponse({

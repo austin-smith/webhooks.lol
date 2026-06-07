@@ -1,13 +1,30 @@
 import { NO_STORE_HEADERS } from "@/lib/http/headers"
+import {
+  createMissingClientIdentityHeaderResponse,
+  createRateLimitedResponse,
+  isMissingClientIdentityHeaderError,
+} from "@/lib/rate-limits/http"
 import { checkEndpointCreateAdmission } from "@/lib/webhooks/admission-control"
 import { createEndpoint } from "@/lib/webhooks/repository"
-import { createRateLimitedResponse } from "@/lib/rate-limits/http"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
 export async function POST(request: Request) {
-  const admission = await checkEndpointCreateAdmission(request)
+  let admission: Awaited<ReturnType<typeof checkEndpointCreateAdmission>>
+
+  try {
+    admission = await checkEndpointCreateAdmission(request)
+  } catch (error) {
+    if (isMissingClientIdentityHeaderError(error)) {
+      return createMissingClientIdentityHeaderResponse({
+        error,
+        headers: NO_STORE_HEADERS,
+      })
+    }
+
+    throw error
+  }
 
   if (admission.kind === "denied") {
     return createRateLimitedResponse({

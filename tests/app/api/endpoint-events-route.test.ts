@@ -24,6 +24,7 @@ vi.mock("@/lib/webhooks/repository", async (importOriginal) => ({
 }))
 
 import { GET } from "@/app/api/endpoints/[endpointId]/events/route"
+import { MissingClientIdentityHeaderError } from "@/lib/rate-limits/client-identity"
 import { EndpointNotFoundError } from "@/lib/webhooks/repository"
 
 const ENDPOINT_ID = "11111111-1111-4111-8111-111111111111"
@@ -131,6 +132,27 @@ describe("endpoint events route", () => {
       error: "Rate limit exceeded.",
       retryAfterSeconds: 60,
     })
+    expect(openEndpointEventStream).not.toHaveBeenCalled()
+  })
+
+  it("rejects event streams when the client identity header is missing", async () => {
+    acquireEndpointEventStreamAdmission.mockRejectedValueOnce(
+      new MissingClientIdentityHeaderError("x-forwarded-for")
+    )
+
+    const response = await GET(
+      new Request(
+        `https://hooks.example.com/api/endpoints/${ENDPOINT_ID}/events`
+      ),
+      createContext()
+    )
+
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toEqual({
+      ok: false,
+      error: 'Required client identity header "x-forwarded-for" is missing.',
+    })
+    expect(getEndpoint).not.toHaveBeenCalled()
     expect(openEndpointEventStream).not.toHaveBeenCalled()
   })
 

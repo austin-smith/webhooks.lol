@@ -29,6 +29,7 @@ import {
   MAX_ENDPOINT_METADATA_REQUEST_BYTES,
   PATCH,
 } from "@/app/api/endpoints/[endpointId]/route"
+import { MissingClientIdentityHeaderError } from "@/lib/rate-limits/client-identity"
 
 const ENDPOINT_ID = "11111111-1111-4111-8111-111111111111"
 const NEW_ENDPOINT_ID = "22222222-2222-4222-8222-222222222222"
@@ -110,6 +111,25 @@ describe("endpoint route", () => {
       ok: false,
       error: "Rate limit exceeded.",
       retryAfterSeconds: 60,
+    })
+    expect(createEndpoint).not.toHaveBeenCalled()
+  })
+
+  it("rejects endpoint creation when the client identity header is missing", async () => {
+    checkEndpointCreateAdmission.mockRejectedValueOnce(
+      new MissingClientIdentityHeaderError("x-forwarded-for")
+    )
+
+    const response = await POST(
+      new Request("https://hooks.example.com/api/endpoints", {
+        method: "POST",
+      })
+    )
+
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toEqual({
+      ok: false,
+      error: 'Required client identity header "x-forwarded-for" is missing.',
     })
     expect(createEndpoint).not.toHaveBeenCalled()
   })

@@ -1,5 +1,9 @@
 import { EVENT_STREAM_HEADERS, NO_STORE_HEADERS } from "@/lib/http/headers"
-import { createRateLimitedResponse } from "@/lib/rate-limits/http"
+import {
+  createMissingClientIdentityHeaderResponse,
+  createRateLimitedResponse,
+  isMissingClientIdentityHeaderError,
+} from "@/lib/rate-limits/http"
 import { acquireEndpointEventStreamAdmission } from "@/lib/webhooks/admission-control"
 import { parseEndpointId } from "@/lib/webhooks/endpoint-id"
 import { openEndpointEventStream } from "@/lib/webhooks/endpoint-event-stream"
@@ -26,10 +30,25 @@ export async function GET(
     return createInvalidEndpointResponse()
   }
 
-  const admission = await acquireEndpointEventStreamAdmission({
-    endpointId,
-    request,
-  })
+  let admission: Awaited<
+    ReturnType<typeof acquireEndpointEventStreamAdmission>
+  >
+
+  try {
+    admission = await acquireEndpointEventStreamAdmission({
+      endpointId,
+      request,
+    })
+  } catch (error) {
+    if (isMissingClientIdentityHeaderError(error)) {
+      return createMissingClientIdentityHeaderResponse({
+        error,
+        headers: NO_STORE_HEADERS,
+      })
+    }
+
+    throw error
+  }
 
   if (admission.kind === "denied") {
     return createRateLimitedResponse({

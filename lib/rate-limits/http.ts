@@ -1,3 +1,8 @@
+import {
+  isMissingClientIdentityHeaderError,
+  type MissingClientIdentityHeaderError,
+} from "@/lib/rate-limits/client-identity"
+
 export type RateLimitHeadersInput = {
   limit: number
   policyId: string
@@ -32,6 +37,27 @@ export function createRateLimitedResponse({
     }
   )
 }
+
+export function createMissingClientIdentityHeaderResponse({
+  error,
+  headers,
+}: {
+  error: MissingClientIdentityHeaderError
+  headers?: HeadersInit
+}) {
+  return Response.json(
+    {
+      ok: false,
+      error: error.message,
+    },
+    {
+      headers,
+      status: 400,
+    }
+  )
+}
+
+export { isMissingClientIdentityHeaderError }
 
 export function createRateLimitHeaders({
   limit,

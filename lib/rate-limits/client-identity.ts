@@ -10,28 +10,27 @@ export type ClientIdentity = {
   source: "global" | "trusted-header"
 }
 
-const GLOBAL_CLIENT_KEY = "client:global"
+export class MissingClientIdentityHeaderError extends Error {
+  constructor(readonly headerName: string) {
+    super(`Required client identity header "${headerName}" is missing.`)
+    this.name = "MissingClientIdentityHeaderError"
+  }
+}
+
+export function isMissingClientIdentityHeaderError(
+  error: unknown
+): error is MissingClientIdentityHeaderError {
+  return error instanceof MissingClientIdentityHeaderError
+}
 
 export function readClientIdentity(request: Request): ClientIdentity {
   const trustedHeader = readTrustedClientIpHeader()
-
-  if (!trustedHeader) {
-    return {
-      key: GLOBAL_CLIENT_KEY,
-      keyHash: null,
-      source: "global",
-    }
-  }
 
   const rawValue = request.headers.get(trustedHeader)
   const clientValue = rawValue ? readFirstHeaderValue(rawValue) : null
 
   if (!clientValue) {
-    return {
-      key: GLOBAL_CLIENT_KEY,
-      keyHash: null,
-      source: "global",
-    }
+    throw new MissingClientIdentityHeaderError(trustedHeader)
   }
 
   const keyHash = hashClientKey(`${trustedHeader}:${clientValue}`)
