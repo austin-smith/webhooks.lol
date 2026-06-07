@@ -1,0 +1,34 @@
+{
+  "name": "@webhooks-lol/docs",
+  "version": "0.0.1",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "pnpm source && next build",
+    "dev": "next dev -p 4666",
+    "lint": "eslint",
+    "source": "fumadocs-mdx",
+    "start": "next start",
+    "typecheck": "pnpm source && tsc --noEmit",
+    "verify": "pnpm typecheck && pnpm lint && pnpm build"
+  },
+  "dependencies": {
+    "fumadocs-core": "16.9.3",
+    "fumadocs-mdx": "15.0.10",
+    "fumadocs-ui": "16.9.3",
+    "next": "16.2.6",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/mdx": "2.0.13",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.6",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

@@ -1,4 +1,5 @@
-packages: []
+packages:
+  - "apps/*"
 
 minimumReleaseAge: 4320 # 3 days
 blockExoticSubdeps: true

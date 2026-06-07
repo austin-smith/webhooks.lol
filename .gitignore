@@ -14,7 +14,12 @@
 
 # next.js
 /.next/
+/apps/*/.next/
 /out/
+/apps/*/out/
+
+# fumadocs
+/apps/*/.source/
 
 # production
 /build

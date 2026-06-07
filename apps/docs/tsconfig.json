@@ -19,17 +19,20 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "collections/*": ["./.source/*"]
     }
   },
   "include": [
     "next-env.d.ts",
-    "next.config.ts",
+    "next.config.mjs",
+    "source.config.ts",
     "**/*.ts",
     "**/*.tsx",
     "**/*.mts",
+    ".source/**/*.ts",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
-  "exclude": ["node_modules", "apps/**"]
+  "exclude": ["node_modules"]
 }
