@@ -49,10 +49,6 @@ export function parseEndpointResponseOverrideInput(
   let parsedContentType: string | null = null
   let parsedBody: string | null = null
 
-  if ("headers" in value) {
-    issues.push("Custom response headers are not supported.")
-  }
-
   if (
     typeof status !== "number" ||
     !Number.isInteger(status) ||

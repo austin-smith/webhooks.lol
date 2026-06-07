@@ -34,19 +34,6 @@ describe("endpoint response overrides", () => {
     ).toThrow(EndpointResponseValidationError)
   })
 
-  it("rejects custom headers", () => {
-    expect(() =>
-      parseEndpointResponseOverrideInput({
-        status: 200,
-        contentType: "text/plain",
-        body: "",
-        headers: {
-          "X-Test": "custom",
-        },
-      })
-    ).toThrow(/not supported/)
-  })
-
   it("rejects content types that cannot be serialized by Fetch", () => {
     expect(() =>
       parseEndpointResponseOverrideInput({
@@ -57,12 +44,15 @@ describe("endpoint response overrides", () => {
     ).toThrow(/invalid in headers/)
   })
 
-  it("accepts override input without headers", () => {
+  it("ignores fields outside the supported override shape", () => {
     expect(
       parseEndpointResponseOverrideInput({
         status: 204,
         contentType: "text/plain",
         body: "",
+        headers: {
+          "X-Test": "custom",
+        },
       })
     ).toEqual({
       status: 204,
