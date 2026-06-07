@@ -7,11 +7,17 @@ import type {
   EndpointMetadataResponse,
   UpdateEndpointMetadataRequest,
 } from "@/lib/webhooks/api-contracts"
+import { parseEndpointId } from "@/lib/webhooks/endpoint-id"
 import {
   getEndpoint,
+  isEndpointUnavailableError,
   MAX_ENDPOINT_NAME_LENGTH,
   updateEndpointName,
 } from "@/lib/webhooks/repository"
+import {
+  createEndpointNotFoundResponse,
+  createInvalidEndpointResponse,
+} from "@/lib/webhooks/endpoint-route-responses"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -22,8 +28,24 @@ export async function GET(
   _request: Request,
   context: RouteContext<"/api/endpoints/[endpointId]">
 ) {
-  const { endpointId } = await context.params
-  const response = await getEndpoint(endpointId)
+  const { endpointId: rawEndpointId } = await context.params
+  const endpointId = parseEndpointId(rawEndpointId)
+
+  if (!endpointId) {
+    return createInvalidEndpointResponse()
+  }
+
+  let response: Awaited<ReturnType<typeof getEndpoint>>
+
+  try {
+    response = await getEndpoint(endpointId)
+  } catch (error) {
+    if (isEndpointUnavailableError(error)) {
+      return createEndpointNotFoundResponse()
+    }
+
+    throw error
+  }
 
   return Response.json(response satisfies EndpointMetadataResponse, {
     headers: NO_STORE_HEADERS,
@@ -34,7 +56,13 @@ export async function PATCH(
   request: Request,
   context: RouteContext<"/api/endpoints/[endpointId]">
 ) {
-  const { endpointId } = await context.params
+  const { endpointId: rawEndpointId } = await context.params
+  const endpointId = parseEndpointId(rawEndpointId)
+
+  if (!endpointId) {
+    return createInvalidEndpointResponse()
+  }
+
   let body: unknown
 
   try {
@@ -74,10 +102,20 @@ export async function PATCH(
     )
   }
 
-  const response = await updateEndpointName({
-    endpointId,
-    name: parsed.name,
-  })
+  let response: Awaited<ReturnType<typeof updateEndpointName>>
+
+  try {
+    response = await updateEndpointName({
+      endpointId,
+      name: parsed.name,
+    })
+  } catch (error) {
+    if (isEndpointUnavailableError(error)) {
+      return createEndpointNotFoundResponse()
+    }
+
+    throw error
+  }
 
   return Response.json(response satisfies EndpointMetadataResponse, {
     headers: NO_STORE_HEADERS,

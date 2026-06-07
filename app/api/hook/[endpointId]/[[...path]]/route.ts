@@ -2,11 +2,19 @@ import {
   CORS_NO_STORE_HEADERS,
   WEBHOOK_RESPONSE_SECURITY_HEADERS,
 } from "@/lib/http/headers"
+import { createRateLimitedResponse } from "@/lib/rate-limits/http"
+import { checkWebhookCaptureAdmission } from "@/lib/webhooks/admission-control"
+import { parseEndpointId } from "@/lib/webhooks/endpoint-id"
 import { captureInboundRequest } from "@/lib/webhooks/inbound-capture"
 import {
   renderEndpointResponseBodyTemplate,
   type EndpointResponseConfig,
 } from "@/lib/webhooks/endpoint-response"
+import { isEndpointUnavailableError } from "@/lib/webhooks/repository"
+import {
+  createEndpointNotFoundResponse,
+  createInvalidEndpointResponse,
+} from "@/lib/webhooks/endpoint-route-responses"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -15,8 +23,33 @@ async function capture(
   request: Request,
   context: RouteContext<"/api/hook/[endpointId]/[[...path]]">
 ) {
-  const { endpointId } = await context.params
-  const outcome = await captureInboundRequest({ request, endpointId })
+  const { endpointId: rawEndpointId } = await context.params
+  const endpointId = parseEndpointId(rawEndpointId)
+
+  if (!endpointId) {
+    return createInvalidEndpointResponse(CORS_NO_STORE_HEADERS)
+  }
+
+  const admission = await checkWebhookCaptureAdmission({ endpointId, request })
+
+  if (admission.kind === "denied") {
+    return createRateLimitedResponse({
+      headers: CORS_NO_STORE_HEADERS,
+      rateLimit: admission.rateLimit,
+    })
+  }
+
+  let outcome: Awaited<ReturnType<typeof captureInboundRequest>>
+
+  try {
+    outcome = await captureInboundRequest({ request, endpointId })
+  } catch (error) {
+    if (isEndpointUnavailableError(error)) {
+      return createEndpointNotFoundResponse(CORS_NO_STORE_HEADERS)
+    }
+
+    throw error
+  }
 
   if (outcome.kind === "body-too-large") {
     return Response.json(
@@ -27,6 +60,13 @@ async function capture(
       },
       { headers: CORS_NO_STORE_HEADERS, status: 413 }
     )
+  }
+
+  if (outcome.kind === "rate-limited") {
+    return createRateLimitedResponse({
+      headers: CORS_NO_STORE_HEADERS,
+      rateLimit: outcome.rateLimit,
+    })
   }
 
   return createCapturedResponse({

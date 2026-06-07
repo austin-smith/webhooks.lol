@@ -2,6 +2,7 @@ import "server-only"
 
 import { EventEmitter } from "node:events"
 
+import type { EventStreamLease } from "@/lib/webhooks/admission-control"
 import type { CapturedRequest } from "@/lib/webhooks/types"
 
 const REQUEST_EVENT = "request"
@@ -35,9 +36,11 @@ export function publishEndpointCleared(endpointId: string) {
 }
 
 export function openEndpointEventStream({
+  lease,
   signal,
   endpointId,
 }: {
+  lease?: EventStreamLease
   signal: AbortSignal
   endpointId: string
 }) {
@@ -86,6 +89,9 @@ export function openEndpointEventStream({
           return
         }
 
+        void lease?.renew().catch(() => {
+          // Lease expiry is enforced by Redis; renewal failures should not crash the stream.
+        })
         enqueue(": keepalive\n\n")
       }, HEARTBEAT_INTERVAL_MS)
 
@@ -99,6 +105,9 @@ export function openEndpointEventStream({
         events.off(REQUEST_EVENT, onRequest)
         events.off(CLEAR_EVENT, onClear)
         signal.removeEventListener("abort", cleanup)
+        void lease?.release().catch(() => {
+          // Expiring leases provide a fallback if explicit cleanup cannot reach Redis.
+        })
 
         try {
           controller.close()

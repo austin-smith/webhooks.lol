@@ -28,7 +28,19 @@ describe("createInboundCapture", () => {
       calls.push("response")
       return DEFAULT_ENDPOINT_RESPONSE_CONFIG
     })
+    const checkWebhookCaptureBodyAdmission = vi.fn(async () => {
+      calls.push("admission")
+      return {
+        kind: "allowed" as const,
+        clientIdentity: {
+          key: "client:test",
+          keyHash: null,
+          source: "global" as const,
+        },
+      }
+    })
     const captureInboundRequest = createInboundCapture({
+      checkWebhookCaptureBodyAdmission,
       getEndpointResponseConfig,
       publishRequest,
       saveCapturedRequest,
@@ -71,6 +83,11 @@ describe("createInboundCapture", () => {
       contentType: "application/json",
       ip: "203.0.113.7",
     })
+    expect(checkWebhookCaptureBodyAdmission).toHaveBeenCalledWith({
+      bodySize: 39,
+      endpointId: "endpoint-id",
+      request: expect.any(Request),
+    })
     expect(publishRequest).toHaveBeenCalledWith(
       expect.objectContaining({
         id: "captured-1",
@@ -78,7 +95,7 @@ describe("createInboundCapture", () => {
       })
     )
     expect(getEndpointResponseConfig).toHaveBeenCalledWith("endpoint-id")
-    expect(calls).toEqual(["save", "publish", "response"])
+    expect(calls).toEqual(["admission", "save", "publish", "response"])
   })
 
   it("returns body-too-large without saving or publishing", async () => {
@@ -147,5 +164,54 @@ describe("createInboundCapture", () => {
         contentType: "application/octet-stream",
       })
     )
+  })
+
+  it("returns rate-limited without saving or publishing", async () => {
+    const saveCapturedRequest = vi.fn(async (input) =>
+      createCapturedRequest(input)
+    )
+    const publishRequest = vi.fn()
+    const getEndpointResponseConfig = vi.fn(
+      async () => DEFAULT_ENDPOINT_RESPONSE_CONFIG
+    )
+    const captureInboundRequest = createInboundCapture({
+      checkWebhookCaptureBodyAdmission: vi.fn(async () => ({
+        kind: "denied" as const,
+        rateLimit: {
+          limit: 1,
+          policyId: "webhook-capture-bytes-endpoint",
+          remaining: 0,
+          resetSeconds: 60,
+          retryAfterSeconds: 60,
+          windowSeconds: 60,
+        },
+      })),
+      getEndpointResponseConfig,
+      publishRequest,
+      saveCapturedRequest,
+    })
+
+    const outcome = await captureInboundRequest({
+      endpointId: "endpoint-id",
+      request: new Request("https://hooks.example.com/api/hook/endpoint-id", {
+        method: "POST",
+        body: "too many bytes today",
+      }),
+    })
+
+    expect(outcome).toEqual({
+      kind: "rate-limited",
+      rateLimit: {
+        limit: 1,
+        policyId: "webhook-capture-bytes-endpoint",
+        remaining: 0,
+        resetSeconds: 60,
+        retryAfterSeconds: 60,
+        windowSeconds: 60,
+      },
+    })
+    expect(saveCapturedRequest).not.toHaveBeenCalled()
+    expect(publishRequest).not.toHaveBeenCalled()
+    expect(getEndpointResponseConfig).not.toHaveBeenCalled()
   })
 })

@@ -1,4 +1,5 @@
 import type { CapturedRequest } from "@/lib/webhooks/types"
+import { encodeEndpointId } from "@/lib/webhooks/endpoint-id"
 
 export type EndpointEventStream = {
   subscribe: (endpointId: string, handlers: EndpointEventHandlers) => () => void
@@ -18,7 +19,9 @@ export function createBrowserEndpointEventStream(
 ): EndpointEventStream {
   return {
     subscribe(endpointId, handlers) {
-      const events = createSource(`/api/endpoints/${endpointId}/events`)
+      const events = createSource(
+        `/api/endpoints/${encodeEndpointId(endpointId)}/events`
+      )
 
       const onReady = (event: Event) => {
         if (readEndpointIdEvent(event) === endpointId) {

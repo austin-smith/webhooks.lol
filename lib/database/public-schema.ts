@@ -11,9 +11,13 @@ import {
 import { sql } from "drizzle-orm"
 
 export const endpoints = pgTable("endpoints", {
-  id: text("id").primaryKey(),
+  id: uuid("id").primaryKey(),
   name: text("name"),
+  creatorKeyHash: text("creator_key_hash"),
   createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  lastActivityAt: timestamp("last_activity_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
 })
@@ -22,7 +26,7 @@ export const capturedRequests = pgTable(
   "requests",
   {
     id: uuid("id").primaryKey(),
-    endpointId: text("endpoint_id")
+    endpointId: uuid("endpoint_id")
       .notNull()
       .references(() => endpoints.id, { onDelete: "cascade" }),
     method: text("method").notNull(),
@@ -50,7 +54,7 @@ export const capturedRequests = pgTable(
 export const endpointResponses = pgTable(
   "endpoint_responses",
   {
-    endpointId: text("endpoint_id")
+    endpointId: uuid("endpoint_id")
       .primaryKey()
       .references(() => endpoints.id, { onDelete: "cascade" }),
     status: integer("status").notNull(),

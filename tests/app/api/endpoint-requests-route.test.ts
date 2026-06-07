@@ -19,7 +19,9 @@ vi.mock("@/lib/webhooks/endpoint-event-stream", () => ({
 
 import { DELETE, GET } from "@/app/api/endpoints/[endpointId]/requests/route"
 
-function createContext(endpointId = "endpoint-id") {
+const ENDPOINT_ID = "11111111-1111-4111-8111-111111111111"
+
+function createContext(endpointId = ENDPOINT_ID) {
   return {
     params: Promise.resolve({ endpointId }),
   } as RouteContext<"/api/endpoints/[endpointId]/requests">
@@ -45,14 +47,14 @@ describe("endpoint requests route", () => {
 
     const response = await GET(
       new Request(
-        "https://hooks.example.com/api/endpoints/endpoint-id/requests?limit=25&cursor=2026-06-06T00%3A00%3A00.000Z%7C22222222-2222-4222-8222-222222222222"
+        `https://hooks.example.com/api/endpoints/${ENDPOINT_ID}/requests?limit=25&cursor=2026-06-06T00%3A00%3A00.000Z%7C22222222-2222-4222-8222-222222222222`
       ),
       createContext()
     )
 
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toEqual({
-      endpointId: "endpoint-id",
+      endpointId: ENDPOINT_ID,
       page: {
         hasMore: true,
         nextCursor:
@@ -60,7 +62,7 @@ describe("endpoint requests route", () => {
       },
       requests: [],
     })
-    expect(listRequests).toHaveBeenCalledWith("endpoint-id", {
+    expect(listRequests).toHaveBeenCalledWith(ENDPOINT_ID, {
       cursor: {
         id: "22222222-2222-4222-8222-222222222222",
         receivedAt: new Date("2026-06-06T00:00:00.000Z"),
@@ -72,7 +74,7 @@ describe("endpoint requests route", () => {
   it("rejects malformed cursors before querying", async () => {
     const response = await GET(
       new Request(
-        "https://hooks.example.com/api/endpoints/endpoint-id/requests?cursor=bad"
+        `https://hooks.example.com/api/endpoints/${ENDPOINT_ID}/requests?cursor=bad`
       ),
       createContext()
     )
@@ -88,7 +90,7 @@ describe("endpoint requests route", () => {
   it("rejects cursors with non-UUID request IDs before querying", async () => {
     const response = await GET(
       new Request(
-        "https://hooks.example.com/api/endpoints/endpoint-id/requests?cursor=2026-06-06T00%3A00%3A00.000Z%7Cnot-a-uuid"
+        `https://hooks.example.com/api/endpoints/${ENDPOINT_ID}/requests?cursor=2026-06-06T00%3A00%3A00.000Z%7Cnot-a-uuid`
       ),
       createContext()
     )
@@ -104,7 +106,7 @@ describe("endpoint requests route", () => {
   it("clears captured requests and returns an empty page", async () => {
     const response = await DELETE(
       new Request(
-        "https://hooks.example.com/api/endpoints/endpoint-id/requests",
+        `https://hooks.example.com/api/endpoints/${ENDPOINT_ID}/requests`,
         {
           method: "DELETE",
         }
@@ -114,14 +116,14 @@ describe("endpoint requests route", () => {
 
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toEqual({
-      endpointId: "endpoint-id",
+      endpointId: ENDPOINT_ID,
       page: {
         hasMore: false,
         nextCursor: null,
       },
       requests: [],
     })
-    expect(clearRequests).toHaveBeenCalledWith("endpoint-id")
-    expect(publishEndpointCleared).toHaveBeenCalledWith("endpoint-id")
+    expect(clearRequests).toHaveBeenCalledWith(ENDPOINT_ID)
+    expect(publishEndpointCleared).toHaveBeenCalledWith(ENDPOINT_ID)
   })
 })

@@ -4,6 +4,7 @@ import {
   RequestBodyTooLargeError,
 } from "@/lib/http/request-body"
 import type { EndpointResponseConfigResponse } from "@/lib/webhooks/api-contracts"
+import { parseEndpointId } from "@/lib/webhooks/endpoint-id"
 import {
   EndpointResponseValidationError,
   MAX_RESPONSE_OVERRIDE_REQUEST_BYTES,
@@ -12,8 +13,13 @@ import {
 import {
   clearEndpointResponseOverride,
   getEndpointResponseConfig,
+  isEndpointUnavailableError,
   setEndpointResponseOverride,
 } from "@/lib/webhooks/repository"
+import {
+  createEndpointNotFoundResponse,
+  createInvalidEndpointResponse,
+} from "@/lib/webhooks/endpoint-route-responses"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -22,11 +28,27 @@ export async function GET(
   _request: Request,
   context: RouteContext<"/api/endpoints/[endpointId]/response">
 ) {
-  const { endpointId } = await context.params
-  const response = {
-    endpointId,
-    response: await getEndpointResponseConfig(endpointId),
-  } satisfies EndpointResponseConfigResponse
+  const { endpointId: rawEndpointId } = await context.params
+  const endpointId = parseEndpointId(rawEndpointId)
+
+  if (!endpointId) {
+    return createInvalidEndpointResponse()
+  }
+
+  let response: EndpointResponseConfigResponse
+
+  try {
+    response = {
+      endpointId,
+      response: await getEndpointResponseConfig(endpointId),
+    } satisfies EndpointResponseConfigResponse
+  } catch (error) {
+    if (isEndpointUnavailableError(error)) {
+      return createEndpointNotFoundResponse()
+    }
+
+    throw error
+  }
 
   return Response.json(response, { headers: NO_STORE_HEADERS })
 }
@@ -35,7 +57,12 @@ export async function PUT(
   request: Request,
   context: RouteContext<"/api/endpoints/[endpointId]/response">
 ) {
-  const { endpointId } = await context.params
+  const { endpointId: rawEndpointId } = await context.params
+  const endpointId = parseEndpointId(rawEndpointId)
+
+  if (!endpointId) {
+    return createInvalidEndpointResponse()
+  }
 
   let body: unknown
 
@@ -76,6 +103,10 @@ export async function PUT(
 
     return Response.json(response, { headers: NO_STORE_HEADERS })
   } catch (error) {
+    if (isEndpointUnavailableError(error)) {
+      return createEndpointNotFoundResponse()
+    }
+
     if (error instanceof EndpointResponseValidationError) {
       return Response.json(
         {
@@ -92,14 +123,30 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   context: RouteContext<"/api/endpoints/[endpointId]/response">
 ) {
-  const { endpointId } = await context.params
-  const response = {
-    endpointId,
-    response: await clearEndpointResponseOverride(endpointId),
-  } satisfies EndpointResponseConfigResponse
+  const { endpointId: rawEndpointId } = await context.params
+  const endpointId = parseEndpointId(rawEndpointId)
+
+  if (!endpointId) {
+    return createInvalidEndpointResponse()
+  }
+
+  let response: EndpointResponseConfigResponse
+
+  try {
+    response = {
+      endpointId,
+      response: await clearEndpointResponseOverride(endpointId),
+    } satisfies EndpointResponseConfigResponse
+  } catch (error) {
+    if (isEndpointUnavailableError(error)) {
+      return createEndpointNotFoundResponse()
+    }
+
+    throw error
+  }
 
   return Response.json(response, { headers: NO_STORE_HEADERS })
 }

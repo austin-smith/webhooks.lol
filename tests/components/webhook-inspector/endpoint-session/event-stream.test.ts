@@ -7,6 +7,9 @@ import {
 } from "@/components/webhook-inspector/endpoint-session/event-stream"
 import type { CapturedRequest } from "@/lib/webhooks/types"
 
+const ENDPOINT_ID = "11111111-1111-4111-8111-111111111111"
+const OTHER_ENDPOINT_ID = "22222222-2222-4222-8222-222222222222"
+
 class FakeEventSource extends EventTarget {
   onerror: ((event: Event) => void) | null = null
   url: string
@@ -52,22 +55,24 @@ describe("endpoint event stream", () => {
   it("reads webhook endpoint ID and captured request message events", () => {
     expect(
       readEndpointIdEvent(
-        new MessageEvent("ready", { data: '{"endpointId":"endpoint"}' })
-      )
-    ).toBe("endpoint")
-
-    expect(
-      readCapturedRequestEvent(
-        new MessageEvent("request", {
-          data: JSON.stringify(createRequest("endpoint")),
+        new MessageEvent("ready", {
+          data: JSON.stringify({ endpointId: ENDPOINT_ID }),
         })
       )
-    ).toEqual(createRequest("endpoint"))
+    ).toBe(ENDPOINT_ID)
 
     expect(
       readCapturedRequestEvent(
         new MessageEvent("request", {
-          data: JSON.stringify({ endpointId: "endpoint" }),
+          data: JSON.stringify(createRequest(ENDPOINT_ID)),
+        })
+      )
+    ).toEqual(createRequest(ENDPOINT_ID))
+
+    expect(
+      readCapturedRequestEvent(
+        new MessageEvent("request", {
+          data: JSON.stringify({ endpointId: ENDPOINT_ID }),
         })
       )
     ).toBeNull()
@@ -89,21 +94,21 @@ describe("endpoint event stream", () => {
       onRequest: vi.fn(),
     }
 
-    const unsubscribe = stream.subscribe("endpoint", handlers)
+    const unsubscribe = stream.subscribe(ENDPOINT_ID, handlers)
     const source = sources[0]
 
-    expect(source.url).toBe("/api/endpoints/endpoint/events")
+    expect(source.url).toBe(`/api/endpoints/${ENDPOINT_ID}/events`)
 
-    source.emit("ready", { endpointId: "other" })
-    source.emit("ready", { endpointId: "endpoint" })
-    source.emit("request", createRequest("other"))
-    source.emit("request", createRequest("endpoint"))
-    source.emit("clear", { endpointId: "other" })
-    source.emit("clear", { endpointId: "endpoint" })
+    source.emit("ready", { endpointId: OTHER_ENDPOINT_ID })
+    source.emit("ready", { endpointId: ENDPOINT_ID })
+    source.emit("request", createRequest(OTHER_ENDPOINT_ID))
+    source.emit("request", createRequest(ENDPOINT_ID))
+    source.emit("clear", { endpointId: OTHER_ENDPOINT_ID })
+    source.emit("clear", { endpointId: ENDPOINT_ID })
     source.fail()
 
     expect(handlers.onReady).toHaveBeenCalledTimes(1)
-    expect(handlers.onRequest).toHaveBeenCalledWith(createRequest("endpoint"))
+    expect(handlers.onRequest).toHaveBeenCalledWith(createRequest(ENDPOINT_ID))
     expect(handlers.onClear).toHaveBeenCalledTimes(1)
     expect(handlers.onError).toHaveBeenCalledTimes(1)
 

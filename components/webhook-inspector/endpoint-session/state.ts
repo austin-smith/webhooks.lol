@@ -1,3 +1,4 @@
+import { parseEndpointId } from "@/lib/webhooks/endpoint-id"
 import type { CapturedRequest } from "@/lib/webhooks/types"
 
 const MAX_RECENT_ENDPOINTS = 8
@@ -76,8 +77,12 @@ export function normalizeEndpointIds(endpointIds: unknown[]) {
   const uniqueEndpointIds = new Set<string>()
 
   for (const endpointId of endpointIds) {
-    if (typeof endpointId === "string" && endpointId) {
-      uniqueEndpointIds.add(endpointId)
+    if (typeof endpointId === "string") {
+      const parsedEndpointId = parseEndpointId(endpointId)
+
+      if (parsedEndpointId) {
+        uniqueEndpointIds.add(parsedEndpointId)
+      }
     }
   }
 

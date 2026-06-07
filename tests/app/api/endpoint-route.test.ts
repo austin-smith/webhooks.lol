@@ -1,9 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-const { createEndpoint, getEndpoint, updateEndpointName } = vi.hoisted(() => ({
+const {
+  checkEndpointCreateAdmission,
+  createEndpoint,
+  getEndpoint,
+  updateEndpointName,
+} = vi.hoisted(() => ({
+  checkEndpointCreateAdmission: vi.fn(),
   createEndpoint: vi.fn(),
   getEndpoint: vi.fn(),
   updateEndpointName: vi.fn(),
+}))
+
+vi.mock("@/lib/webhooks/admission-control", () => ({
+  checkEndpointCreateAdmission,
 }))
 
 vi.mock("@/lib/webhooks/repository", async (importOriginal) => ({
@@ -20,7 +30,35 @@ import {
   PATCH,
 } from "@/app/api/endpoints/[endpointId]/route"
 
-function createContext(endpointId = "endpoint-id") {
+const ENDPOINT_ID = "11111111-1111-4111-8111-111111111111"
+const NEW_ENDPOINT_ID = "22222222-2222-4222-8222-222222222222"
+
+function createAllowedAdmission() {
+  return {
+    kind: "allowed" as const,
+    clientIdentity: {
+      key: "client:test",
+      keyHash: "client-hash",
+      source: "trusted-header" as const,
+    },
+  }
+}
+
+function createDeniedAdmission() {
+  return {
+    kind: "denied" as const,
+    rateLimit: {
+      limit: 1,
+      policyId: "endpoint-create-client",
+      remaining: 0,
+      resetSeconds: 60,
+      retryAfterSeconds: 60,
+      windowSeconds: 60,
+    },
+  }
+}
+
+function createContext(endpointId = ENDPOINT_ID) {
   return {
     params: Promise.resolve({ endpointId }),
   } as RouteContext<"/api/endpoints/[endpointId]">
@@ -28,6 +66,8 @@ function createContext(endpointId = "endpoint-id") {
 
 describe("endpoint route", () => {
   beforeEach(() => {
+    checkEndpointCreateAdmission.mockReset()
+    checkEndpointCreateAdmission.mockResolvedValue(createAllowedAdmission())
     createEndpoint.mockReset()
     getEndpoint.mockReset()
     updateEndpointName.mockReset()
@@ -35,46 +75,86 @@ describe("endpoint route", () => {
 
   it("creates an endpoint with persisted metadata shape", async () => {
     createEndpoint.mockResolvedValueOnce({
-      endpointId: "new-endpoint",
+      endpointId: NEW_ENDPOINT_ID,
       name: null,
     })
 
-    const response = await POST()
+    const response = await POST(
+      new Request("https://hooks.example.com/api/endpoints", {
+        method: "POST",
+      })
+    )
 
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toEqual({
-      endpointId: "new-endpoint",
+      endpointId: NEW_ENDPOINT_ID,
       name: null,
     })
+    expect(createEndpoint).toHaveBeenCalledWith({
+      creatorKeyHash: "client-hash",
+    })
+  })
+
+  it("rejects endpoint creation when the create policy is exhausted", async () => {
+    checkEndpointCreateAdmission.mockResolvedValueOnce(createDeniedAdmission())
+
+    const response = await POST(
+      new Request("https://hooks.example.com/api/endpoints", {
+        method: "POST",
+      })
+    )
+
+    expect(response.status).toBe(429)
+    expect(response.headers.get("retry-after")).toBe("60")
+    await expect(response.json()).resolves.toEqual({
+      ok: false,
+      error: "Rate limit exceeded.",
+      retryAfterSeconds: 60,
+    })
+    expect(createEndpoint).not.toHaveBeenCalled()
   })
 
   it("returns endpoint metadata", async () => {
     getEndpoint.mockResolvedValueOnce({
-      endpointId: "endpoint-id",
+      endpointId: ENDPOINT_ID,
       name: "Stripe",
     })
 
     const response = await GET(
-      new Request("https://hooks.example.com/api/endpoints/endpoint-id"),
+      new Request(`https://hooks.example.com/api/endpoints/${ENDPOINT_ID}`),
       createContext()
     )
 
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toEqual({
-      endpointId: "endpoint-id",
+      endpointId: ENDPOINT_ID,
       name: "Stripe",
     })
-    expect(getEndpoint).toHaveBeenCalledWith("endpoint-id")
+    expect(getEndpoint).toHaveBeenCalledWith(ENDPOINT_ID)
+  })
+
+  it("rejects malformed endpoint IDs before querying", async () => {
+    const response = await GET(
+      new Request("https://hooks.example.com/api/endpoints/not-an-id"),
+      createContext("not-an-id")
+    )
+
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toEqual({
+      ok: false,
+      error: "Invalid endpoint ID.",
+    })
+    expect(getEndpoint).not.toHaveBeenCalled()
   })
 
   it("updates endpoint names", async () => {
     updateEndpointName.mockResolvedValueOnce({
-      endpointId: "endpoint-id",
+      endpointId: ENDPOINT_ID,
       name: "Payments",
     })
 
     const response = await PATCH(
-      new Request("https://hooks.example.com/api/endpoints/endpoint-id", {
+      new Request(`https://hooks.example.com/api/endpoints/${ENDPOINT_ID}`, {
         body: JSON.stringify({ name: " Payments " }),
         method: "PATCH",
       }),
@@ -83,23 +163,23 @@ describe("endpoint route", () => {
 
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toEqual({
-      endpointId: "endpoint-id",
+      endpointId: ENDPOINT_ID,
       name: "Payments",
     })
     expect(updateEndpointName).toHaveBeenCalledWith({
-      endpointId: "endpoint-id",
+      endpointId: ENDPOINT_ID,
       name: "Payments",
     })
   })
 
   it("clears blank endpoint names", async () => {
     updateEndpointName.mockResolvedValueOnce({
-      endpointId: "endpoint-id",
+      endpointId: ENDPOINT_ID,
       name: null,
     })
 
     const response = await PATCH(
-      new Request("https://hooks.example.com/api/endpoints/endpoint-id", {
+      new Request(`https://hooks.example.com/api/endpoints/${ENDPOINT_ID}`, {
         body: JSON.stringify({ name: " " }),
         method: "PATCH",
       }),
@@ -108,14 +188,14 @@ describe("endpoint route", () => {
 
     expect(response.status).toBe(200)
     expect(updateEndpointName).toHaveBeenCalledWith({
-      endpointId: "endpoint-id",
+      endpointId: ENDPOINT_ID,
       name: null,
     })
   })
 
   it("rejects invalid endpoint names", async () => {
     const response = await PATCH(
-      new Request("https://hooks.example.com/api/endpoints/endpoint-id", {
+      new Request(`https://hooks.example.com/api/endpoints/${ENDPOINT_ID}`, {
         body: JSON.stringify({ name: "x".repeat(33) }),
         method: "PATCH",
       }),
@@ -132,7 +212,7 @@ describe("endpoint route", () => {
 
   it("rejects oversized metadata requests before storing", async () => {
     const response = await PATCH(
-      new Request("https://hooks.example.com/api/endpoints/endpoint-id", {
+      new Request(`https://hooks.example.com/api/endpoints/${ENDPOINT_ID}`, {
         body: "x".repeat(MAX_ENDPOINT_METADATA_REQUEST_BYTES + 1),
         method: "PATCH",
       }),
