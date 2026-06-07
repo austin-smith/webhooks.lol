@@ -62,7 +62,7 @@ export function EndpointPanel({
 
   return (
     <section className="flex h-[min(42svh,28rem)] min-h-[220px] min-w-0 flex-col overflow-hidden border-b bg-card sm:h-auto sm:min-h-0 sm:border-r sm:border-b-0">
-      <header className="grid h-16 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b bg-muted/20 px-4">
+      <header className="grid h-14 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b bg-muted/20 px-4">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold">REQUESTS</h2>
           <div className="min-h-4 text-[0.68rem] text-muted-foreground">
