@@ -201,22 +201,25 @@ function RequestPayloadTabs({ request }: { request: CapturedRequest }) {
         <PayloadSection title="HEADERS">
           <KeyValueTable values={request.headers} />
         </PayloadSection>
-        <PayloadSection
-          title="BODY"
-          actions={
-            <>
-              <WrapToggle active={wrap} onToggle={toggleWrap} />
-              <CopyButton
-                copied={bodyCopy.copied}
-                copiedLabel="Copied body"
-                disabled={!body.value}
-                label="Copy body"
-                onCopy={bodyCopy.copy}
-              />
-            </>
-          }
-        >
+        <PayloadSection title="BODY">
           <CodePanel
+            actions={
+              <div className="flex items-center gap-1">
+                <WrapToggle
+                  active={wrap}
+                  onToggle={toggleWrap}
+                  variant="outline"
+                />
+                <CopyButton
+                  copied={bodyCopy.copied}
+                  copiedLabel="Copied body"
+                  disabled={!body.value}
+                  label="Copy body"
+                  onCopy={bodyCopy.copy}
+                  variant="outline"
+                />
+              </div>
+            }
             className="min-h-[12rem]"
             language={body.language}
             value={body.value || "No body"}
@@ -253,23 +256,18 @@ function RequestPayloadTabs({ request }: { request: CapturedRequest }) {
 }
 
 function PayloadSection({
-  actions,
   children,
   title,
 }: {
-  actions?: React.ReactNode
   children: React.ReactNode
   title: string
 }) {
   return (
     <section className="flex min-w-0 flex-col gap-1">
-      <header className="flex h-6 items-center justify-between gap-2">
+      <header className="flex h-6 items-center">
         <span className="text-[0.68rem] tracking-wide text-muted-foreground">
           {title}
         </span>
-        {actions ? (
-          <div className="flex items-center gap-1">{actions}</div>
-        ) : null}
       </header>
       {children}
     </section>
