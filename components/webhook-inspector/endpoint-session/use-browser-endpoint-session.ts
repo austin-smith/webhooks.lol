@@ -29,6 +29,7 @@ import {
   type CapturedRequestPage,
   createFetchEndpointTransport,
   type EndpointMetadata,
+  type EndpointStats,
 } from "./transport"
 
 type EndpointRenameSaveState = {
@@ -432,6 +433,21 @@ export function useBrowserEndpointSession(): Endpoint {
     }
   }, [isClearing, endpointId, transport])
 
+  const loadEndpointStats = React.useCallback(async () => {
+    if (!endpointId) {
+      return null
+    }
+
+    const loadingEndpointId = endpointId
+    const stats = await transport.loadEndpointStats(loadingEndpointId)
+
+    if (activeEndpointIdRef.current !== loadingEndpointId) {
+      return null
+    }
+
+    return stats satisfies EndpointStats
+  }, [endpointId, transport])
+
   const startNewEndpoint = React.useCallback(async () => {
     if (isLoading) {
       return
@@ -657,6 +673,7 @@ export function useBrowserEndpointSession(): Endpoint {
     () => ({
       clearEndpoint,
       clearResponseOverride,
+      loadEndpointStats,
       loadOlderRequests,
       renameEndpoint: renameCurrentEndpoint,
       refreshEndpoint,
@@ -668,6 +685,7 @@ export function useBrowserEndpointSession(): Endpoint {
     [
       clearEndpoint,
       clearResponseOverride,
+      loadEndpointStats,
       loadOlderRequests,
       refreshEndpoint,
       renameCurrentEndpoint,

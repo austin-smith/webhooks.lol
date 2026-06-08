@@ -35,6 +35,14 @@ export type EndpointMetadata = {
   name: string | null
 }
 
+export type EndpointStats = {
+  endpointId: string
+  requestCount: number
+  bodySizeBytes: number
+  createdAt: string
+  lastActivityAt: string
+}
+
 export type RequestPageCursor = {
   id: string
   receivedAt: Date
@@ -81,6 +89,38 @@ export async function getEndpoint(endpointId: string) {
   assertEndpointRowIsActive(endpointId, row)
 
   return mapEndpointRow(row)
+}
+
+export async function getEndpointStats(endpointId: string) {
+  const db = getDatabase()
+  const requestStats = db
+    .select({
+      requestCount: sql<number>`cast(count(*) as integer)`.as("request_count"),
+      bodySizeBytes:
+        sql<number>`cast(coalesce(sum(${capturedRequests.bodySize}), 0) as integer)`.as(
+          "body_size_bytes"
+        ),
+    })
+    .from(capturedRequests)
+    .where(eq(capturedRequests.endpointId, endpoints.id))
+    .as("request_stats")
+
+  const [row] = await db
+    .select({
+      id: endpoints.id,
+      createdAt: endpoints.createdAt,
+      lastActivityAt: endpoints.lastActivityAt,
+      requestCount: requestStats.requestCount,
+      bodySizeBytes: requestStats.bodySizeBytes,
+    })
+    .from(endpoints)
+    .leftJoinLateral(requestStats, sql`true`)
+    .where(eq(endpoints.id, endpointId))
+    .limit(1)
+
+  assertEndpointRowIsActive(endpointId, row)
+
+  return mapEndpointStatsRow(row)
 }
 
 export async function updateEndpointName({
@@ -343,6 +383,22 @@ function mapEndpointRow(row: { id: string; name: string | null }) {
     endpointId: row.id,
     name: row.name,
   } satisfies EndpointMetadata
+}
+
+function mapEndpointStatsRow(row: {
+  id: string
+  requestCount: number
+  bodySizeBytes: number
+  createdAt: Date
+  lastActivityAt: Date
+}) {
+  return {
+    endpointId: row.id,
+    requestCount: row.requestCount,
+    bodySizeBytes: row.bodySizeBytes,
+    createdAt: row.createdAt.toISOString(),
+    lastActivityAt: row.lastActivityAt.toISOString(),
+  } satisfies EndpointStats
 }
 
 function mapEndpointResponseRow(row: typeof endpointResponses.$inferSelect) {

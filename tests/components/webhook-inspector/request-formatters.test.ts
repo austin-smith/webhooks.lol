@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import {
   formatBytes,
+  formatRelativeTime,
   formatRequestBodyDisplay,
   formatRequestListPath,
   getRequestBodyLanguage,
@@ -39,6 +40,20 @@ describe("request formatters", () => {
     [1_610_612_736, "1.5 GB"],
   ])("formats %i bytes as %s", (bytes, expected) => {
     expect(formatBytes(bytes)).toBe(expected)
+  })
+
+  it("suffixes past timestamps with 'ago'", () => {
+    const now = Date.parse("2026-06-07T00:00:00.000Z")
+    const value = new Date(now - 1000 * 60 * 60 * 24 * 3).toISOString()
+
+    expect(formatRelativeTime(value, now)).toBe("3 days ago")
+  })
+
+  it("prefixes future timestamps with 'in'", () => {
+    const now = Date.parse("2026-06-07T00:00:00.000Z")
+    const value = new Date(now + 1000 * 60 * 60 * 2).toISOString()
+
+    expect(formatRelativeTime(value, now)).toBe("in 2 hours")
   })
 
   it.each([

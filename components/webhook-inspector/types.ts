@@ -3,12 +3,14 @@ import type {
   EndpointResponseConfig,
   EndpointResponseOverrideInput,
 } from "@/lib/webhooks/endpoint-response"
+import type { EndpointStats } from "./endpoint-session/transport"
 
 export type ConnectionState = "live" | "connecting" | "offline"
 
 export type EndpointActions = {
   clearEndpoint: () => void
   clearResponseOverride: () => Promise<void>
+  loadEndpointStats: () => Promise<EndpointStats | null>
   loadOlderRequests: () => void
   renameEndpoint: (name: string) => void
   refreshEndpoint: () => void

@@ -70,7 +70,21 @@ export function rememberEndpointId(
   endpointId: string,
   recentEndpointIds: string[]
 ) {
-  return normalizeEndpointIds([endpointId, ...recentEndpointIds])
+  const normalizedRecentEndpointIds = normalizeEndpointIds(recentEndpointIds)
+  const normalizedEndpointId = normalizeEndpointIds([endpointId])[0]
+
+  if (!normalizedEndpointId) {
+    return normalizedRecentEndpointIds
+  }
+
+  if (normalizedRecentEndpointIds.includes(normalizedEndpointId)) {
+    return normalizedRecentEndpointIds
+  }
+
+  return normalizeEndpointIds([
+    normalizedEndpointId,
+    ...normalizedRecentEndpointIds,
+  ])
 }
 
 export function normalizeEndpointIds(endpointIds: unknown[]) {

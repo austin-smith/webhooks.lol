@@ -14,6 +14,14 @@ export type EndpointMetadataResponse = {
   name: string | null
 }
 
+export type EndpointStatsResponse = {
+  endpointId: string
+  requestCount: number
+  bodySizeBytes: number
+  createdAt: string
+  lastActivityAt: string
+}
+
 export type UpdateEndpointMetadataRequest = {
   name: string | null
 }

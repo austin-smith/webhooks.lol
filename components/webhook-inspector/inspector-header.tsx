@@ -14,9 +14,11 @@ import type {
 import { cn } from "@/lib/utils"
 
 import { EndpointSwitcher } from "./endpoint-switcher"
+import { EndpointDetailsPopover } from "./endpoint-details-popover"
 import { InspectorIconButton } from "./inspector-icon-button"
 import { ResponseOverrideControl } from "./response-override-control"
 import type { ConnectionState } from "./types"
+import type { EndpointStats } from "./endpoint-session/transport"
 import { formatConnectionState } from "./request-formatters"
 
 const GITHUB_URL = "https://github.com/austin-smith/webhooks.lol"
@@ -34,6 +36,7 @@ type InspectorHeaderProps = {
   endpointId: string | null
   webhookUrl: string
   onCopyWebhookUrl: () => void
+  onLoadEndpointStats: () => Promise<EndpointStats | null>
   onNewEndpoint: () => void
   onRenameEndpoint: (name: string) => void
   onResetResponseOverride: () => Promise<void>
@@ -58,6 +61,7 @@ export function InspectorHeader({
   endpointId,
   webhookUrl,
   onCopyWebhookUrl,
+  onLoadEndpointStats,
   onNewEndpoint,
   onRenameEndpoint,
   onSwitchEndpoint,
@@ -91,10 +95,7 @@ export function InspectorHeader({
             <HeaderLink href={docsUrl} icon={BookTextIcon} label="DOCS" />
           ) : null}
           <HeaderLink href={GITHUB_URL} icon={GithubIcon} label="GITHUB" />
-          <span
-            aria-hidden="true"
-            className="mx-1 h-3.5 w-px bg-border"
-          />
+          <span aria-hidden="true" className="mx-1 h-3.5 w-px bg-border" />
           <ConnectionStatus state={connectionState} />
         </nav>
       </div>
@@ -146,7 +147,12 @@ export function InspectorHeader({
           </span>
         </div>
 
-        <div className="flex items-center border-l p-1">
+        <div className="flex items-center gap-0.5 border-l p-1">
+          <EndpointDetailsPopover
+            disabled={isLoading || !endpointId}
+            endpointId={endpointId}
+            onLoadEndpointStats={onLoadEndpointStats}
+          />
           <ResponseOverrideControl
             disabled={isLoading || !endpointId}
             isSaving={isSavingResponse}
@@ -196,18 +202,10 @@ function ConnectionStatus({ state }: { state: ConnectionState }) {
       title="Connection state"
       className="inline-flex h-7 shrink-0 items-center gap-1.5 px-1 text-[0.68rem] font-medium tracking-wide text-muted-foreground"
     >
-      <span className="relative flex size-1.5" aria-hidden="true">
-        {state === "live" ? (
-          <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500/60 motion-reduce:hidden dark:bg-emerald-400/60" />
-        ) : null}
-        <span
-          className={cn(
-            "relative inline-flex size-1.5 rounded-full",
-            connectionDotStyles[state],
-            state === "connecting" && "animate-pulse motion-reduce:animate-none"
-          )}
-        />
-      </span>
+      <span
+        className={cn("inline-flex size-1.5 rounded-full", connectionDotStyles[state])}
+        aria-hidden="true"
+      />
       {formatConnectionState(state)}
     </div>
   )

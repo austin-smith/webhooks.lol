@@ -1,3 +1,5 @@
+import { formatDistanceStrict } from "date-fns"
+
 import type { CapturedRequest } from "@/lib/webhooks/types"
 
 import type { ConnectionState } from "./types"
@@ -144,6 +146,17 @@ export function formatRequestDateTime(value: string) {
     dateStyle: "medium",
     timeStyle: "medium",
   }).format(new Date(value))
+}
+
+export function formatEndpointDetailDateTime(value: string) {
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value))
+}
+
+export function formatRelativeTime(value: string, baseDate: number = Date.now()) {
+  return formatDistanceStrict(new Date(value), baseDate, { addSuffix: true })
 }
 
 export function formatShortEndpointId(endpointId: string | null) {

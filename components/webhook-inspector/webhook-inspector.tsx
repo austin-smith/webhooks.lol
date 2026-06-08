@@ -74,6 +74,7 @@ export function WebhookInspector({ docsUrl }: WebhookInspectorProps) {
         endpointId={endpoint.endpointId}
         webhookUrl={webhookUrl}
         onCopyWebhookUrl={copyWebhookUrl}
+        onLoadEndpointStats={endpoint.actions.loadEndpointStats}
         onNewEndpoint={endpoint.actions.startNewEndpoint}
         onRenameEndpoint={endpoint.actions.renameEndpoint}
         onResetResponseOverride={endpoint.actions.clearResponseOverride}

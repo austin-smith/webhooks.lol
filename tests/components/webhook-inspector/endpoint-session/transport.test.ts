@@ -65,6 +65,15 @@ describe("endpoint transport", () => {
         createResponse({ endpointId: ENDPOINT_ID, name: "Stripe" })
       )
       .mockResolvedValueOnce(
+        createResponse({
+          endpointId: ENDPOINT_ID,
+          requestCount: 12,
+          bodySizeBytes: 86220,
+          createdAt: "2026-06-05T00:00:00.000Z",
+          lastActivityAt: "2026-06-05T00:10:00.000Z",
+        })
+      )
+      .mockResolvedValueOnce(
         createResponse(
           createRequestsResponse([createRequest()], {
             hasMore: true,
@@ -112,6 +121,13 @@ describe("endpoint transport", () => {
       endpointId: ENDPOINT_ID,
       name: "Stripe",
     })
+    await expect(transport.loadEndpointStats(ENDPOINT_ID)).resolves.toEqual({
+      endpointId: ENDPOINT_ID,
+      requestCount: 12,
+      bodySizeBytes: 86220,
+      createdAt: "2026-06-05T00:00:00.000Z",
+      lastActivityAt: "2026-06-05T00:10:00.000Z",
+    })
     await expect(transport.loadRequests(ENDPOINT_ID)).resolves.toEqual({
       hasMore: true,
       nextCursor: "cursor-1",
@@ -146,7 +162,7 @@ describe("endpoint transport", () => {
     )
     expect(fetcher).toHaveBeenNthCalledWith(
       3,
-      `/api/endpoints/${ENDPOINT_ID}/requests`,
+      `/api/endpoints/${ENDPOINT_ID}/stats`,
       {
         cache: "no-store",
       }
@@ -155,18 +171,25 @@ describe("endpoint transport", () => {
       4,
       `/api/endpoints/${ENDPOINT_ID}/requests`,
       {
-        method: "DELETE",
+        cache: "no-store",
       }
     )
     expect(fetcher).toHaveBeenNthCalledWith(
       5,
+      `/api/endpoints/${ENDPOINT_ID}/requests`,
+      {
+        method: "DELETE",
+      }
+    )
+    expect(fetcher).toHaveBeenNthCalledWith(
+      6,
       `/api/endpoints/${ENDPOINT_ID}/response`,
       {
         cache: "no-store",
       }
     )
     expect(fetcher).toHaveBeenNthCalledWith(
-      6,
+      7,
       `/api/endpoints/${ENDPOINT_ID}/response`,
       {
         body: JSON.stringify(override),
@@ -177,14 +200,14 @@ describe("endpoint transport", () => {
       }
     )
     expect(fetcher).toHaveBeenNthCalledWith(
-      7,
+      8,
       `/api/endpoints/${ENDPOINT_ID}/response`,
       {
         method: "DELETE",
       }
     )
     expect(fetcher).toHaveBeenNthCalledWith(
-      8,
+      9,
       `/api/endpoints/${ENDPOINT_ID}`,
       {
         body: JSON.stringify({ name: "Payments" }),
@@ -224,6 +247,9 @@ describe("endpoint transport", () => {
     )
     await expect(transport.loadEndpoint(ENDPOINT_ID)).rejects.toThrow(
       "Could not load endpoint."
+    )
+    await expect(transport.loadEndpointStats(ENDPOINT_ID)).rejects.toThrow(
+      "Could not load endpoint details."
     )
     await expect(transport.loadRequests(ENDPOINT_ID)).rejects.toThrow(
       "Could not load requests."

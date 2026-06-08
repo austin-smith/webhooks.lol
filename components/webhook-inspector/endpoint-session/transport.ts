@@ -3,6 +3,7 @@ import type {
   CreateEndpointResponse,
   EndpointMetadataResponse,
   EndpointResponseConfigResponse,
+  EndpointStatsResponse,
   RequestsResponse,
   UpdateEndpointMetadataRequest,
   UpdateEndpointResponseOverrideRequest,
@@ -23,6 +24,7 @@ export type EndpointTransport = {
   clearEndpoint: (endpointId: string) => Promise<void>
   createEndpoint: () => Promise<EndpointMetadata>
   loadEndpoint: (endpointId: string) => Promise<EndpointMetadata>
+  loadEndpointStats: (endpointId: string) => Promise<EndpointStats>
   loadEndpointResponseConfig: (
     endpointId: string
   ) => Promise<EndpointResponseConfig>
@@ -46,6 +48,8 @@ export type EndpointMetadata = {
   endpointId: string
   name: string | null
 }
+
+export type EndpointStats = EndpointStatsResponse
 
 type Fetcher = (
   input: RequestInfo | URL,
@@ -112,6 +116,21 @@ export function createFetchEndpointTransport(
       const data = (await response.json()) as EndpointMetadataResponse
 
       return mapEndpointMetadata(data)
+    },
+    async loadEndpointStats(endpointId) {
+      const encodedEndpointId = encodeEndpointId(endpointId)
+      const response = await fetcher(
+        `/api/endpoints/${encodedEndpointId}/stats`,
+        {
+          cache: "no-store",
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error("Could not load endpoint details.")
+      }
+
+      return (await response.json()) as EndpointStatsResponse
     },
     async loadEndpointResponseConfig(endpointId) {
       const encodedEndpointId = encodeEndpointId(endpointId)

@@ -127,9 +127,10 @@ describe("endpoint session state", () => {
 
     expect(
       rememberEndpointId(secondEndpointId, [firstEndpointId, secondEndpointId])
-    ).toEqual([
-      secondEndpointId,
-      firstEndpointId,
-    ])
+    ).toEqual([firstEndpointId, secondEndpointId])
+
+    expect(
+      rememberEndpointId(secondEndpointId, [firstEndpointId])
+    ).toEqual([secondEndpointId, firstEndpointId])
   })
 })
