@@ -25,15 +25,15 @@ export function isMissingClientIdentityHeaderError(
 
 export function readClientIdentity(request: Request): ClientIdentity {
   const trustedHeader = readTrustedClientIpHeader()
-
-  const rawValue = request.headers.get(trustedHeader)
-  const clientValue = rawValue ? readFirstHeaderValue(rawValue) : null
+  const clientValue = readTrustedClientIp(request, trustedHeader)
 
   if (!clientValue) {
     throw new MissingClientIdentityHeaderError(trustedHeader)
   }
 
-  const keyHash = hashClientKey(`${trustedHeader}:${clientValue}`)
+  const keyHash = hashClientKey(
+    `${trustedHeader}:${clientValue.toLowerCase()}`
+  )
 
   return {
     key: `client:${keyHash}`,
@@ -42,8 +42,17 @@ export function readClientIdentity(request: Request): ClientIdentity {
   }
 }
 
+export function readTrustedClientIp(
+  request: Request,
+  trustedHeader = readTrustedClientIpHeader()
+) {
+  const rawValue = request.headers.get(trustedHeader)
+
+  return rawValue ? readFirstHeaderValue(rawValue) : null
+}
+
 function readFirstHeaderValue(value: string) {
-  return value.split(",")[0]?.trim().toLowerCase()
+  return value.split(",")[0]?.trim() || null
 }
 
 function hashClientKey(value: string) {

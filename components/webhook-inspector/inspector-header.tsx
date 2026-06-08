@@ -1,8 +1,10 @@
 "use client"
 
 import Image from "next/image"
-import { CheckIcon, CopyIcon, ExternalLinkIcon } from "lucide-react"
+import type { ComponentType, SVGProps } from "react"
+import { BookTextIcon, CheckIcon, CopyIcon } from "lucide-react"
 
+import { GithubIcon } from "@/components/icons/github-icon"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import type {
@@ -16,6 +18,8 @@ import { InspectorIconButton } from "./inspector-icon-button"
 import { ResponseOverrideControl } from "./response-override-control"
 import type { ConnectionState } from "./types"
 import { formatConnectionState } from "./request-formatters"
+
+const GITHUB_URL = "https://github.com/austin-smith/webhooks.lol"
 
 type InspectorHeaderProps = {
   connectionState: ConnectionState
@@ -79,20 +83,20 @@ export function InspectorHeader({
             WEBHOOKS.LOL
           </h1>
         </div>
-        <div className="flex shrink-0 items-center gap-3">
+        <nav
+          aria-label="Resources"
+          className="flex shrink-0 items-center gap-0.5"
+        >
           {docsUrl ? (
-            <a
-              href={docsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex h-6 items-center gap-1 rounded-sm text-[0.68rem] font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
-            >
-              DOCS
-              <ExternalLinkIcon className="size-3" aria-hidden="true" />
-            </a>
+            <HeaderLink href={docsUrl} icon={BookTextIcon} label="DOCS" />
           ) : null}
+          <HeaderLink href={GITHUB_URL} icon={GithubIcon} label="GITHUB" />
+          <span
+            aria-hidden="true"
+            className="mx-1 h-3.5 w-px bg-border"
+          />
           <ConnectionStatus state={connectionState} />
-        </div>
+        </nav>
       </div>
 
       <div className="grid min-w-0 grid-cols-[minmax(6.75rem,8.5rem)_minmax(0,1fr)_auto] overflow-hidden rounded-md border bg-card sm:grid-cols-[minmax(7.5rem,12rem)_minmax(0,1fr)_auto]">
@@ -156,21 +160,54 @@ export function InspectorHeader({
   )
 }
 
+function HeaderLink({
+  href,
+  icon: Icon,
+  label,
+}: {
+  href: string
+  icon: ComponentType<SVGProps<SVGSVGElement>>
+  label: string
+}) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-[0.68rem] font-medium tracking-wide text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none dark:hover:bg-muted/50"
+    >
+      <Icon className="size-3.5" aria-hidden="true" />
+      {label}
+    </a>
+  )
+}
+
+const connectionDotStyles: Record<ConnectionState, string> = {
+  live: "bg-emerald-500 dark:bg-emerald-400",
+  connecting: "bg-amber-500 dark:bg-amber-400",
+  offline: "bg-rose-500 dark:bg-rose-400",
+}
+
 function ConnectionStatus({ state }: { state: ConnectionState }) {
   return (
     <div
-      className="inline-flex h-6 shrink-0 items-center gap-1.5 text-[0.68rem] font-medium text-muted-foreground"
+      role="status"
+      aria-label={`Connection ${state}`}
       title="Connection state"
+      className="inline-flex h-7 shrink-0 items-center gap-1.5 px-1 text-[0.68rem] font-medium tracking-wide text-muted-foreground"
     >
-      <span
-        className={cn(
-          "size-1.5 rounded-full transition-colors duration-500 ease-out",
-          state === "live" && "bg-foreground",
-          state === "connecting" && "bg-muted-foreground",
-          state === "offline" && "bg-destructive"
-        )}
-        aria-hidden="true"
-      />
+      <span className="relative flex size-1.5" aria-hidden="true">
+        {state === "live" ? (
+          <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500/60 motion-reduce:hidden dark:bg-emerald-400/60" />
+        ) : null}
+        <span
+          className={cn(
+            "relative inline-flex size-1.5 rounded-full",
+            connectionDotStyles[state],
+            state === "connecting" && "animate-pulse motion-reduce:animate-none"
+          )}
+        />
+      </span>
       {formatConnectionState(state)}
     </div>
   )

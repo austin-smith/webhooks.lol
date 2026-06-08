@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { createInboundCapture } from "@/lib/webhooks/inbound-capture"
 import { DEFAULT_ENDPOINT_RESPONSE_CONFIG } from "@/lib/webhooks/endpoint-response"
@@ -15,6 +15,14 @@ function createCapturedRequest(
 }
 
 describe("createInboundCapture", () => {
+  beforeEach(() => {
+    vi.stubEnv("TRUSTED_CLIENT_IP_HEADER", "x-forwarded-for")
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
   it("captures request data and publishes after saving", async () => {
     const calls: string[] = []
     const saveCapturedRequest = vi.fn(async (input) => {
@@ -96,6 +104,39 @@ describe("createInboundCapture", () => {
     )
     expect(getEndpointResponseConfig).toHaveBeenCalledWith("endpoint-id")
     expect(calls).toEqual(["admission", "save", "publish", "response"])
+  })
+
+  it("captures the IP from the configured trusted client IP header", async () => {
+    vi.stubEnv("TRUSTED_CLIENT_IP_HEADER", "cf-connecting-ip")
+
+    const saveCapturedRequest = vi.fn(async (input) =>
+      createCapturedRequest(input)
+    )
+    const captureInboundRequest = createInboundCapture({
+      getEndpointResponseConfig: vi.fn(
+        async () => DEFAULT_ENDPOINT_RESPONSE_CONFIG
+      ),
+      publishRequest: vi.fn(),
+      saveCapturedRequest,
+    })
+
+    await captureInboundRequest({
+      endpointId: "endpoint-id",
+      request: new Request("https://hooks.example.com/api/hook/endpoint-id", {
+        method: "POST",
+        headers: {
+          "cf-connecting-ip": "198.51.100.9",
+          "x-forwarded-for": "203.0.113.7",
+        },
+        body: "event",
+      }),
+    })
+
+    expect(saveCapturedRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ip: "198.51.100.9",
+      })
+    )
   })
 
   it("returns body-too-large without saving or publishing", async () => {

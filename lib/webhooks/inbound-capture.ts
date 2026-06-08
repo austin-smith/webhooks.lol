@@ -5,6 +5,7 @@ import {
   checkWebhookCaptureBodyAdmission,
   type AdmissionDecision,
 } from "@/lib/webhooks/admission-control"
+import { readTrustedClientIp } from "@/lib/rate-limits/client-identity"
 import {
   getEndpointResponseConfig,
   saveCapturedRequest,
@@ -115,7 +116,7 @@ export function createInboundCapture({
       bodyBase64: body.base64,
       bodySize: body.size,
       contentType: request.headers.get("content-type"),
-      ip: readIp(request),
+      ip: readTrustedClientIp(request),
     })
 
     publishRequest(capturedRequest)
@@ -248,14 +249,4 @@ function readCapturedPath(url: URL, endpointId: string) {
   }
 
   return "/"
-}
-
-function readIp(request: Request) {
-  const forwardedFor = request.headers.get("x-forwarded-for")
-
-  if (forwardedFor) {
-    return forwardedFor.split(",")[0]?.trim() ?? null
-  }
-
-  return request.headers.get("x-real-ip")
 }

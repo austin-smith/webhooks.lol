@@ -74,7 +74,6 @@ export function EndpointPanel({
             {isLoading ? null : (
               <span className="animate-in duration-200 fade-in-0 motion-reduce:animate-none">
                 {requests.length} shown
-                {hasMoreRequests ? " · older available" : ""}
               </span>
             )}
           </div>
