@@ -151,6 +151,7 @@ export function InspectorHeader({
           <EndpointDetailsPopover
             disabled={isLoading || !endpointId}
             endpointId={endpointId}
+            name={endpointName}
             onLoadEndpointStats={onLoadEndpointStats}
           />
           <ResponseOverrideControl

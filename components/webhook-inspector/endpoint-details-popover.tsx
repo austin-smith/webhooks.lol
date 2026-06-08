@@ -21,17 +21,20 @@ import {
   formatBytes,
   formatEndpointDetailDateTime,
   formatRelativeTime,
+  formatShortEndpointId,
 } from "./request-formatters"
 
 type EndpointDetailsPopoverProps = {
   disabled: boolean
   endpointId: string | null
+  name: string
   onLoadEndpointStats: () => Promise<EndpointStats | null>
 }
 
 export function EndpointDetailsPopover({
   disabled,
   endpointId,
+  name,
   onLoadEndpointStats,
 }: EndpointDetailsPopoverProps) {
   const [open, setOpen] = React.useState(false)
@@ -104,6 +107,7 @@ export function EndpointDetailsPopover({
         align="end"
         className="w-[min(18rem,calc(100vw-2rem))] p-0"
       >
+        <EndpointDetailsTitle name={name} endpointId={endpointId} />
         {isLoading ? (
           <EndpointDetailsLoading />
         ) : hasError || !stats ? (
@@ -116,11 +120,44 @@ export function EndpointDetailsPopover({
   )
 }
 
+function EndpointDetailsTitle({
+  name,
+  endpointId,
+}: {
+  name: string
+  endpointId: string | null
+}) {
+  const label = name.trim()
+  const shortId = formatShortEndpointId(endpointId)
+
+  return (
+    <div className="border-b bg-muted/50 px-3 py-2">
+      <div className="text-xs font-semibold">ENDPOINT</div>
+      <div className="truncate text-[0.65rem] text-muted-foreground">
+        {label ? (
+          <>
+            {label}
+            <span className="font-mono"> · {shortId}</span>
+          </>
+        ) : (
+          <span className="font-mono">{shortId}</span>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function EndpointDetails({ stats }: { stats: EndpointStats }) {
   return (
-    <dl className="grid grid-cols-[5.75rem_minmax(0,1fr)] text-[0.65rem]">
-      <EndpointDetail label="Requests" value={stats.requestCount.toString()} />
-      <EndpointDetail label="Size" value={formatBytes(stats.bodySizeBytes)} />
+    <dl className="grid grid-cols-[6.75rem_minmax(0,1fr)] text-[0.65rem]">
+      <EndpointDetail
+        label="Total requests"
+        value={stats.requestCount.toString()}
+      />
+      <EndpointDetail
+        label="Total size"
+        value={formatBytes(stats.bodySizeBytes)}
+      />
       <EndpointDetail
         label="Created"
         value={<TimestampValue value={stats.createdAt} />}
@@ -165,7 +202,7 @@ function EndpointDetail({
 
 function EndpointDetailsLoading() {
   return (
-    <div className="grid grid-cols-[5.75rem_minmax(0,1fr)]">
+    <div className="grid grid-cols-[6.75rem_minmax(0,1fr)]">
       {Array.from({ length: 4 }).map((_, index) => (
         <React.Fragment key={index}>
           <div className="border-b px-3 py-2">
