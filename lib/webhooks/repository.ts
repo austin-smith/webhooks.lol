@@ -1,6 +1,16 @@
 import "server-only"
 
-import { and, desc, eq, lt, notInArray, or, sql } from "drizzle-orm"
+import {
+  and,
+  desc,
+  eq,
+  inArray,
+  lt,
+  notInArray,
+  or,
+  sql,
+  type SQL,
+} from "drizzle-orm"
 
 import { getDatabase } from "@/lib/database/client"
 import {
@@ -17,6 +27,13 @@ import type {
   CapturedRequest,
   CapturedRequestInput,
 } from "@/lib/webhooks/types"
+import {
+  requestSearchIsActive,
+  type AdvancedRequestSearchExpression,
+  type AdvancedRequestSearchScalarField,
+  type RequestSearchCriteria,
+  type RequestSearchField,
+} from "@/lib/webhooks/request-search"
 
 const MAX_REQUESTS_PER_ENDPOINT = 500
 export const MAX_ENDPOINT_NAME_LENGTH = 32
@@ -51,6 +68,7 @@ export type RequestPageCursor = {
 export type RequestPageOptions = {
   cursor?: RequestPageCursor
   limit?: number
+  search?: RequestSearchCriteria
 }
 
 export type CreateEndpointOptions = {
@@ -233,15 +251,17 @@ export async function listRequests(
         )
       )
     : undefined
+  const searchFilter = createRequestSearchFilter(options.search)
+  const filters = [
+    eq(capturedRequests.endpointId, endpointId),
+    cursorFilter,
+    searchFilter,
+  ].filter((filter): filter is SQL => Boolean(filter))
 
   const rows = await getDatabase()
     .select()
     .from(capturedRequests)
-    .where(
-      cursorFilter
-        ? and(eq(capturedRequests.endpointId, endpointId), cursorFilter)
-        : eq(capturedRequests.endpointId, endpointId)
-    )
+    .where(and(...filters))
     .orderBy(desc(capturedRequests.receivedAt), desc(capturedRequests.id))
     .limit(rowsLimit)
 
@@ -439,4 +459,177 @@ function normalizeRequestPageLimit(limit = DEFAULT_REQUEST_PAGE_SIZE) {
   }
 
   return Math.min(Math.max(limit, 1), MAX_REQUEST_PAGE_SIZE)
+}
+
+function createRequestSearchFilter(search: RequestSearchCriteria | undefined) {
+  if (!search || !requestSearchIsActive(search)) {
+    return undefined
+  }
+
+  if (search.mode === "advanced") {
+    return createAdvancedRequestSearchFilter(search.expression)
+  }
+
+  const filters: SQL[] = []
+
+  if (search.methods.length > 0) {
+    filters.push(inArray(capturedRequests.method, search.methods))
+  }
+
+  for (const condition of search.conditions) {
+    filters.push(
+      sql`lower(${createRequestSearchFieldExpression(condition.field)}) like ${createLikePattern(condition.value)} escape '\\'`
+    )
+  }
+
+  return and(...filters)
+}
+
+function createAdvancedRequestSearchFilter(
+  expression: AdvancedRequestSearchExpression
+): SQL {
+  switch (expression.kind) {
+    case "and":
+      return combineAdvancedSearchFilters(
+        "AND",
+        createAdvancedRequestSearchFilter(expression.left),
+        createAdvancedRequestSearchFilter(expression.right)
+      )
+    case "not":
+      return sql`not (${createAdvancedRequestSearchFilter(expression.expression)})`
+    case "or":
+      return combineAdvancedSearchFilters(
+        "OR",
+        createAdvancedRequestSearchFilter(expression.left),
+        createAdvancedRequestSearchFilter(expression.right)
+      )
+    case "term":
+      if (expression.field.kind === "scalar") {
+        if (expression.field.name === "method") {
+          return eq(capturedRequests.method, expression.value.toUpperCase())
+        }
+
+        const jsonbFilter = createAdvancedJsonbSearchFilter(
+          expression.field.name,
+          expression.value
+        )
+
+        if (jsonbFilter) {
+          return jsonbFilter
+        }
+
+        return sql`lower(${createAdvancedRequestSearchScalarExpression(expression.field.name)}) like ${createLikePattern(expression.value)} escape '\\'`
+      }
+
+      if (expression.field.kind === "headers") {
+        return sql`lower(coalesce(${capturedRequests.headers} ->> ${expression.field.key}, '')) like ${createLikePattern(expression.value)} escape '\\'`
+      }
+
+      return sql`exists (
+        select 1
+        from jsonb_array_elements_text(coalesce(${capturedRequests.query} -> ${expression.field.key}, '[]'::jsonb)) as query_value(value)
+        where lower(query_value.value) like ${createLikePattern(expression.value)} escape '\\'
+      )`
+  }
+}
+
+function createAdvancedJsonbSearchFilter(
+  field: AdvancedRequestSearchScalarField,
+  value: string
+) {
+  switch (field) {
+    case "headerName":
+      return sql`exists (
+        select 1
+        from jsonb_object_keys(${capturedRequests.headers}) as header_key(value)
+        where lower(header_key.value) like ${createLikePattern(value)} escape '\\'
+      )`
+    case "headerValue":
+      return sql`exists (
+        select 1
+        from jsonb_each_text(${capturedRequests.headers}) as header_entry(key, value)
+        where lower(header_entry.value) like ${createLikePattern(value)} escape '\\'
+      )`
+    case "queryName":
+      return sql`exists (
+        select 1
+        from jsonb_object_keys(${capturedRequests.query}) as query_key(value)
+        where lower(query_key.value) like ${createLikePattern(value)} escape '\\'
+      )`
+    case "queryValue":
+      return sql`exists (
+        select 1
+        from jsonb_each(${capturedRequests.query}) as query_entry(key, values)
+        cross join jsonb_array_elements_text(query_entry.values) as query_value(value)
+        where lower(query_value.value) like ${createLikePattern(value)} escape '\\'
+      )`
+    default:
+      return undefined
+  }
+}
+
+function combineAdvancedSearchFilters(
+  operator: "AND" | "OR",
+  left: SQL,
+  right: SQL
+) {
+  const combined = operator === "AND" ? and(left, right) : or(left, right)
+
+  if (!combined) {
+    throw new Error("Advanced request search produced an empty SQL predicate.")
+  }
+
+  return combined
+}
+
+function createAdvancedRequestSearchScalarExpression(
+  field: AdvancedRequestSearchScalarField
+) {
+  switch (field) {
+    case "body":
+      return capturedRequests.bodyText
+    case "contentType":
+      return sql`coalesce(${capturedRequests.contentType}, '')`
+    case "headers":
+      return sql`${capturedRequests.headers}::text`
+    case "headerName":
+    case "headerValue":
+      throw new Error("Advanced header key/value search must use JSONB SQL.")
+    case "ip":
+      return sql`coalesce(${capturedRequests.ip}, '')`
+    case "method":
+      return capturedRequests.method
+    case "path":
+      return capturedRequests.path
+    case "query":
+      return sql`${capturedRequests.query}::text`
+    case "queryName":
+    case "queryValue":
+      throw new Error("Advanced query key/value search must use JSONB SQL.")
+    case "url":
+      return capturedRequests.url
+  }
+}
+
+function createRequestSearchFieldExpression(field: RequestSearchField) {
+  switch (field) {
+    case "body":
+      return capturedRequests.bodyText
+    case "contentType":
+      return sql`coalesce(${capturedRequests.contentType}, '')`
+    case "headers":
+      return sql`${capturedRequests.headers}::text`
+    case "ip":
+      return sql`coalesce(${capturedRequests.ip}, '')`
+    case "path":
+      return capturedRequests.path
+    case "query":
+      return sql`${capturedRequests.query}::text`
+    case "url":
+      return capturedRequests.url
+  }
+}
+
+function createLikePattern(value: string) {
+  return `%${value.toLowerCase().replace(/[\\%_]/g, (character) => `\\${character}`)}%`
 }

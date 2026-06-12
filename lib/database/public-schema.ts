@@ -46,7 +46,19 @@ export const capturedRequests = pgTable(
   (table) => [
     index("requests_endpoint_id_received_at_idx").on(
       table.endpointId,
-      table.receivedAt
+      table.receivedAt.desc(),
+      table.id.desc()
+    ),
+    index("requests_field_search_trgm_idx").using(
+      "gin",
+      table.endpointId.op("uuid_ops"),
+      sql`lower(${table.path}) gin_trgm_ops`,
+      sql`lower(${table.url}) gin_trgm_ops`,
+      sql`lower(${table.headers}::text) gin_trgm_ops`,
+      sql`lower(${table.query}::text) gin_trgm_ops`,
+      sql`lower(${table.bodyText}) gin_trgm_ops`,
+      sql`lower(coalesce(${table.contentType}, '')) gin_trgm_ops`,
+      sql`lower(coalesce(${table.ip}, '')) gin_trgm_ops`
     ),
   ]
 )

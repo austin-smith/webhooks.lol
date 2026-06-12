@@ -3,6 +3,7 @@ import type {
   EndpointResponseConfig,
   EndpointResponseOverrideInput,
 } from "@/lib/webhooks/endpoint-response"
+import type { RequestSearchCriteria } from "@/lib/webhooks/request-search"
 import type { EndpointStats } from "./endpoint-session/transport"
 
 export type ConnectionState = "live" | "connecting" | "offline"
@@ -17,6 +18,7 @@ export type EndpointActions = {
   saveResponseOverride: (
     override: EndpointResponseOverrideInput
   ) => Promise<void>
+  searchRequests: (search: RequestSearchCriteria) => void
   selectRequest: (id: string) => void
   startNewEndpoint: () => void
   switchEndpoint: (endpointId: string) => void
@@ -36,6 +38,7 @@ export type EndpointState = {
   hasMoreRequests: boolean
   recentEndpointIds: string[]
   responseConfig: EndpointResponseConfig
+  requestSearch: RequestSearchCriteria
   requests: CapturedRequest[]
   selectedRequest: CapturedRequest | null
   endpointId: string | null

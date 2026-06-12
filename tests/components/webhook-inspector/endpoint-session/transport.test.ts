@@ -2,6 +2,10 @@ import { describe, expect, it, vi } from "vitest"
 
 import { createFetchEndpointTransport } from "@/components/webhook-inspector/endpoint-session/transport"
 import { DEFAULT_ENDPOINT_RESPONSE_CONFIG } from "@/lib/webhooks/endpoint-response"
+import {
+  parseAdvancedRequestSearchQuery,
+  parseRequestSearchCriteria,
+} from "@/lib/webhooks/request-search"
 import type { CapturedRequest } from "@/lib/webhooks/types"
 
 const ENDPOINT_ID = "11111111-1111-4111-8111-111111111111"
@@ -231,6 +235,67 @@ describe("endpoint transport", () => {
 
     expect(fetcher).toHaveBeenCalledWith(
       `/api/endpoints/${ENDPOINT_ID}/requests?cursor=2026-06-05T00%3A00%3A00.000Z%7Ccaptured-1`,
+      {
+        cache: "no-store",
+      }
+    )
+  })
+
+  it("loads filtered request pages with explicit search parameters", async () => {
+    const parsedSearch = parseRequestSearchCriteria({
+      methods: ["POST", "GET"],
+      conditions: [
+        { field: "path", value: "/payments" },
+        { field: "contentType", value: "json" },
+      ],
+    })
+
+    expect(parsedSearch.kind).toBe("valid")
+
+    if (parsedSearch.kind !== "valid") {
+      return
+    }
+
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(createResponse(createRequestsResponse([])))
+    const transport = createFetchEndpointTransport(fetcher)
+
+    await transport.loadRequests(ENDPOINT_ID, {
+      cursor: "2026-06-05T00:00:00.000Z|captured-1",
+      search: parsedSearch.value,
+    })
+
+    expect(fetcher).toHaveBeenCalledWith(
+      `/api/endpoints/${ENDPOINT_ID}/requests?cursor=2026-06-05T00%3A00%3A00.000Z%7Ccaptured-1&method=POST&method=GET&path=%2Fpayments&contentType=json`,
+      {
+        cache: "no-store",
+      }
+    )
+  })
+
+  it("loads advanced filtered request pages with one search parameter", async () => {
+    const parsedSearch = parseAdvancedRequestSearchQuery(
+      "method:POST AND headers.x-source:test"
+    )
+
+    expect(parsedSearch.kind).toBe("valid")
+
+    if (parsedSearch.kind !== "valid") {
+      return
+    }
+
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(createResponse(createRequestsResponse([])))
+    const transport = createFetchEndpointTransport(fetcher)
+
+    await transport.loadRequests(ENDPOINT_ID, {
+      search: parsedSearch.value,
+    })
+
+    expect(fetcher).toHaveBeenCalledWith(
+      `/api/endpoints/${ENDPOINT_ID}/requests?search=method%3APOST+AND+headers.x-source%3Atest`,
       {
         cache: "no-store",
       }

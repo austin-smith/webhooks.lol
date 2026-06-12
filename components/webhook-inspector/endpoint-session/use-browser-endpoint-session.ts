@@ -7,6 +7,11 @@ import {
   type EndpointResponseConfig,
   type EndpointResponseOverrideInput,
 } from "@/lib/webhooks/endpoint-response"
+import {
+  EMPTY_REQUEST_SEARCH,
+  requestMatchesSearch,
+  type RequestSearchCriteria,
+} from "@/lib/webhooks/request-search"
 import type { CapturedRequest } from "@/lib/webhooks/types"
 
 import type {
@@ -46,7 +51,9 @@ export function useBrowserEndpointSession(): Endpoint {
   )
   const hasLoadedStorage = React.useRef(false)
   const activeEndpointIdRef = React.useRef<string | null>(null)
-  const clearVersion = React.useRef(0)
+  const requestListVersion = React.useRef(0)
+  const requestSearchRef =
+    React.useRef<RequestSearchCriteria>(EMPTY_REQUEST_SEARCH)
   const renameSaveStatesByEndpoint = React.useRef(
     new Map<string, EndpointRenameSaveState>()
   )
@@ -64,6 +71,8 @@ export function useBrowserEndpointSession(): Endpoint {
     requests: [],
     selectedId: null,
   })
+  const [requestSearch, setRequestSearch] =
+    React.useState<RequestSearchCriteria>(EMPTY_REQUEST_SEARCH)
   const [responseConfig, setResponseConfig] =
     React.useState<EndpointResponseConfig>(DEFAULT_ENDPOINT_RESPONSE_CONFIG)
   const [isLoading, setIsLoading] = React.useState(true)
@@ -85,16 +94,16 @@ export function useBrowserEndpointSession(): Endpoint {
 
   const applyLoadedRequests = React.useCallback(
     ({
-      clearVersionAtLoadStart,
+      requestListVersionAtLoadStart,
       page,
       requestIdsAtLoadStart,
     }: {
-      clearVersionAtLoadStart: number
+      requestListVersionAtLoadStart: number
       page: CapturedRequestPage
       requestIdsAtLoadStart: Set<string>
     }) => {
       setRequestState((current) => {
-        if (clearVersion.current !== clearVersionAtLoadStart) {
+        if (requestListVersion.current !== requestListVersionAtLoadStart) {
           return current
         }
 
@@ -114,6 +123,11 @@ export function useBrowserEndpointSession(): Endpoint {
     },
     []
   )
+
+  const resetRequestSearch = React.useCallback(() => {
+    requestSearchRef.current = EMPTY_REQUEST_SEARCH
+    setRequestSearch(EMPTY_REQUEST_SEARCH)
+  }, [])
 
   const rememberActiveEndpointId = React.useCallback(
     (nextEndpointId: string) => {
@@ -174,13 +188,20 @@ export function useBrowserEndpointSession(): Endpoint {
         requests: [],
         selectedId: null,
       })
+      requestListVersion.current += 1
+      resetRequestSearch()
       setResponseConfig(DEFAULT_ENDPOINT_RESPONSE_CONFIG)
       setErrorMessage(null)
       setConnectionState("connecting")
       setIsLoadingOlderRequests(false)
       setIsLoading(false)
     },
-    [applyEndpointMetadata, rememberActiveEndpointId, updateEndpointId]
+    [
+      applyEndpointMetadata,
+      rememberActiveEndpointId,
+      resetRequestSearch,
+      updateEndpointId,
+    ]
   )
 
   const createEndpoint = React.useCallback(async () => {
@@ -209,7 +230,7 @@ export function useBrowserEndpointSession(): Endpoint {
         // Only the captured-request list waits on the network.
         updateEndpointId(activeEndpointId)
         const requestIdsAtLoadStart = new Set<string>()
-        const clearVersionAtLoadStart = clearVersion.current
+        const requestListVersionAtLoadStart = requestListVersion.current
 
         void (async () => {
           try {
@@ -233,7 +254,7 @@ export function useBrowserEndpointSession(): Endpoint {
 
             applyEndpointMetadataList(restoredEndpointMetadata)
             applyLoadedRequests({
-              clearVersionAtLoadStart,
+              requestListVersionAtLoadStart,
               page: nextRequestPage,
               requestIdsAtLoadStart,
             })
@@ -304,7 +325,7 @@ export function useBrowserEndpointSession(): Endpoint {
 
     return eventStream.subscribe(endpointId, {
       onClear() {
-        clearVersion.current += 1
+        requestListVersion.current += 1
         setRequestState({
           hasMoreRequests: false,
           nextCursor: null,
@@ -321,6 +342,11 @@ export function useBrowserEndpointSession(): Endpoint {
         setConnectionState("live")
       },
       onRequest(request) {
+        if (!requestMatchesSearch(request, requestSearchRef.current)) {
+          setConnectionState("live")
+          return
+        }
+
         setRequestState((current) => ({
           hasMoreRequests: current.hasMoreRequests,
           nextCursor: current.nextCursor,
@@ -338,18 +364,20 @@ export function useBrowserEndpointSession(): Endpoint {
     }
 
     const requestIdsAtLoadStart = new Set(requests.map((request) => request.id))
-    const clearVersionAtLoadStart = clearVersion.current
+    const requestListVersionAtLoadStart = requestListVersion.current
     const loadingEndpointId = endpointId
 
     try {
-      const nextRequestPage = await transport.loadRequests(loadingEndpointId)
+      const nextRequestPage = await transport.loadRequests(loadingEndpointId, {
+        search: requestSearchRef.current,
+      })
 
       if (activeEndpointIdRef.current !== loadingEndpointId) {
         return
       }
 
       applyLoadedRequests({
-        clearVersionAtLoadStart,
+        requestListVersionAtLoadStart,
         page: nextRequestPage,
         requestIdsAtLoadStart,
       })
@@ -368,13 +396,14 @@ export function useBrowserEndpointSession(): Endpoint {
 
     const loadingEndpointId = endpointId
     const cursorAtLoadStart = nextCursor
-    const clearVersionAtLoadStart = clearVersion.current
+    const requestListVersionAtLoadStart = requestListVersion.current
 
     setIsLoadingOlderRequests(true)
 
     try {
       const nextRequestPage = await transport.loadRequests(loadingEndpointId, {
         cursor: cursorAtLoadStart,
+        search: requestSearchRef.current,
       })
 
       if (activeEndpointIdRef.current !== loadingEndpointId) {
@@ -382,7 +411,7 @@ export function useBrowserEndpointSession(): Endpoint {
       }
 
       setRequestState((current) => {
-        if (clearVersion.current !== clearVersionAtLoadStart) {
+        if (requestListVersion.current !== requestListVersionAtLoadStart) {
           return current
         }
 
@@ -408,6 +437,74 @@ export function useBrowserEndpointSession(): Endpoint {
     }
   }, [endpointId, isLoading, isLoadingOlderRequests, nextCursor, transport])
 
+  const searchRequests = React.useCallback(
+    (nextSearch: RequestSearchCriteria) => {
+      requestSearchRef.current = nextSearch
+      requestListVersion.current += 1
+      setRequestSearch(nextSearch)
+      setRequestState({
+        hasMoreRequests: false,
+        nextCursor: null,
+        requests: [],
+        selectedId: null,
+      })
+      setIsLoadingOlderRequests(false)
+
+      if (!endpointId) {
+        return
+      }
+
+      const loadingEndpointId = endpointId
+      const requestIdsAtLoadStart = new Set<string>()
+      const requestListVersionAtLoadStart = requestListVersion.current
+
+      setIsLoading(true)
+
+      void (async () => {
+        try {
+          const nextRequestPage = await transport.loadRequests(
+            loadingEndpointId,
+            {
+              search: nextSearch,
+            }
+          )
+
+          if (activeEndpointIdRef.current !== loadingEndpointId) {
+            return
+          }
+
+          applyLoadedRequests({
+            requestListVersionAtLoadStart,
+            page: nextRequestPage,
+            requestIdsAtLoadStart,
+          })
+
+          if (
+            requestListVersion.current === requestListVersionAtLoadStart &&
+            activeEndpointIdRef.current === loadingEndpointId
+          ) {
+            setErrorMessage(null)
+          }
+        } catch (error) {
+          if (
+            requestListVersion.current === requestListVersionAtLoadStart &&
+            activeEndpointIdRef.current === loadingEndpointId
+          ) {
+            setErrorMessage(readErrorMessage(error))
+          }
+        } finally {
+          if (
+            requestListVersion.current === requestListVersionAtLoadStart &&
+            activeEndpointIdRef.current === loadingEndpointId
+          ) {
+            setIsLoading(false)
+          }
+        }
+      })()
+    },
+    [applyLoadedRequests, endpointId, transport]
+  )
+
   const clearEndpoint = React.useCallback(async () => {
     if (!endpointId || isClearing) {
       return
@@ -417,7 +514,7 @@ export function useBrowserEndpointSession(): Endpoint {
 
     try {
       await transport.clearEndpoint(endpointId)
-      clearVersion.current += 1
+      requestListVersion.current += 1
       setRequestState({
         hasMoreRequests: false,
         nextCursor: null,
@@ -552,11 +649,13 @@ export function useBrowserEndpointSession(): Endpoint {
         requests: [],
         selectedId: null,
       })
+      requestListVersion.current += 1
+      resetRequestSearch()
       setIsLoadingOlderRequests(false)
       setResponseConfig(DEFAULT_ENDPOINT_RESPONSE_CONFIG)
       setConnectionState("connecting")
       const requestIdsAtLoadStart = new Set<string>()
-      const clearVersionAtLoadStart = clearVersion.current
+      const requestListVersionAtLoadStart = requestListVersion.current
 
       void (async () => {
         try {
@@ -573,7 +672,7 @@ export function useBrowserEndpointSession(): Endpoint {
 
           applyEndpointMetadata(metadata)
           applyLoadedRequests({
-            clearVersionAtLoadStart,
+            requestListVersionAtLoadStart,
             page: nextRequestPage,
             requestIdsAtLoadStart,
           })
@@ -596,6 +695,7 @@ export function useBrowserEndpointSession(): Endpoint {
       isLoading,
       endpointId,
       rememberActiveEndpointId,
+      resetRequestSearch,
       transport,
       updateEndpointId,
     ]
@@ -678,6 +778,7 @@ export function useBrowserEndpointSession(): Endpoint {
       renameEndpoint: renameCurrentEndpoint,
       refreshEndpoint,
       saveResponseOverride,
+      searchRequests,
       selectRequest: selectCapturedRequest,
       startNewEndpoint,
       switchEndpoint,
@@ -690,6 +791,7 @@ export function useBrowserEndpointSession(): Endpoint {
       refreshEndpoint,
       renameCurrentEndpoint,
       saveResponseOverride,
+      searchRequests,
       selectCapturedRequest,
       startNewEndpoint,
       switchEndpoint,
@@ -709,6 +811,7 @@ export function useBrowserEndpointSession(): Endpoint {
     isSavingResponse,
     recentEndpointIds,
     responseConfig,
+    requestSearch,
     requests,
     selectedRequest,
     endpointId,

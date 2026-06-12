@@ -43,6 +43,13 @@
       "when": 1780824604805,
       "tag": "0005_purple_midnight",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1781242384404,
+      "tag": "0006_glossy_mister_fear",
+      "breakpoints": true
     }
   ]
 }

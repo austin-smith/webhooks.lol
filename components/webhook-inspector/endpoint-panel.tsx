@@ -17,6 +17,10 @@ import {
 } from "@/components/ui/empty"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import type { CapturedRequest } from "@/lib/webhooks/types"
+import {
+  requestSearchIsActive,
+  type RequestSearchCriteria,
+} from "@/lib/webhooks/request-search"
 import { cn } from "@/lib/utils"
 
 // Requests usually load faster than the eye registers, so a loading affordance
@@ -27,6 +31,10 @@ const LOADING_INDICATOR_DELAY_MS = 150
 import { InspectorIconButton } from "./inspector-icon-button"
 import { RequestMethodBadge } from "./request-method-badge"
 import {
+  RequestSearchButton,
+  RequestSearchChips,
+} from "./request-search-control"
+import {
   formatRequestDate,
   formatRequestDateTime,
   formatRequestListPath,
@@ -35,65 +43,90 @@ import {
 
 type EndpointPanelProps = {
   canRefresh: boolean
+  docsUrl: string | null
   hasMoreRequests: boolean
   isClearing: boolean
   isLoading: boolean
   isLoadingOlderRequests: boolean
+  requestSearch: RequestSearchCriteria
   requests: CapturedRequest[]
   selectedId: string | null
   onClearEndpoint: () => void
   onLoadOlderRequests: () => void
   onRefreshEndpoint: () => void
+  onSearchRequests: (search: RequestSearchCriteria) => void
   onSelectRequest: (id: string) => void
 }
 
 export function EndpointPanel({
   canRefresh,
+  docsUrl,
   hasMoreRequests,
   isClearing,
   isLoading,
   isLoadingOlderRequests,
+  requestSearch,
   requests,
   selectedId,
   onClearEndpoint,
   onLoadOlderRequests,
   onRefreshEndpoint,
+  onSearchRequests,
   onSelectRequest,
 }: EndpointPanelProps) {
   const showLoadingIndicator = useDelayedFlag(
     isLoading,
     LOADING_INDICATOR_DELAY_MS
   )
+  const hasActiveSearch = requestSearchIsActive(requestSearch)
 
   return (
     <section className="flex h-[min(42svh,28rem)] min-h-[220px] min-w-0 flex-col overflow-hidden border-b bg-card sm:h-auto sm:min-h-0 sm:border-r sm:border-b-0">
-      <header className="grid h-14 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b bg-muted/20 px-4">
-        <div className="min-w-0">
-          <h2 className="text-sm font-semibold">REQUESTS</h2>
-          <div className="min-h-4 text-[0.68rem] text-muted-foreground">
-            {isLoading ? null : (
-              <span className="animate-in duration-200 fade-in-0 motion-reduce:animate-none">
-                {requests.length} shown
-              </span>
-            )}
+      <header className="border-b bg-muted/20">
+        <div className="grid h-14 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4">
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold">REQUESTS</h2>
+            <div className="min-h-4 text-[0.68rem] text-muted-foreground">
+              {isLoading ? null : (
+                <span className="animate-in duration-200 fade-in-0 motion-reduce:animate-none">
+                  {requests.length} shown
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-1">
+            <RequestSearchButton
+              docsUrl={docsUrl}
+              disabled={!canRefresh}
+              search={requestSearch}
+              onSearch={onSearchRequests}
+            />
+            <InspectorIconButton
+              label="Refresh"
+              disabled={!canRefresh}
+              onClick={onRefreshEndpoint}
+              icon={RefreshCwIcon}
+              variant="ghost"
+            />
+            <InspectorIconButton
+              label="Clear"
+              disabled={!canRefresh || isClearing}
+              onClick={onClearEndpoint}
+              icon={Trash2Icon}
+              variant="ghost"
+            />
           </div>
         </div>
-        <div className="flex items-center gap-1">
-          <InspectorIconButton
-            label="Refresh"
-            disabled={!canRefresh}
-            onClick={onRefreshEndpoint}
-            icon={RefreshCwIcon}
-            variant="ghost"
-          />
-          <InspectorIconButton
-            label="Clear"
-            disabled={!canRefresh || isClearing || requests.length === 0}
-            onClick={onClearEndpoint}
-            icon={Trash2Icon}
-            variant="ghost"
-          />
-        </div>
+        {hasActiveSearch ? (
+          <div className="border-t px-4 py-2">
+            <RequestSearchChips
+              className="mt-0"
+              disabled={!canRefresh}
+              search={requestSearch}
+              onSearch={onSearchRequests}
+            />
+          </div>
+        ) : null}
       </header>
       <div className="flex min-h-0 flex-1 flex-col p-3 sm:p-4">
         {isLoading ? (
@@ -151,8 +184,12 @@ export function EndpointPanel({
               <EmptyMedia variant="icon" className="rounded-sm">
                 <WebhookIcon />
               </EmptyMedia>
-              <EmptyTitle>NO REQUESTS</EmptyTitle>
-              <EmptyDescription className="text-xs">WAITING</EmptyDescription>
+              <EmptyTitle>
+                {hasActiveSearch ? "NO MATCHES" : "NO REQUESTS"}
+              </EmptyTitle>
+              <EmptyDescription className="text-xs">
+                {hasActiveSearch ? "FILTERED" : "WAITING"}
+              </EmptyDescription>
             </EmptyHeader>
           </Empty>
         )}

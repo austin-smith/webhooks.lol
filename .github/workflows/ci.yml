@@ -22,7 +22,23 @@ jobs:
 
     env:
       CI: true
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/webhooks-lol
       NEXT_TELEMETRY_DISABLED: 1
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: webhooks-lol
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d webhooks-lol"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Checkout
@@ -45,6 +61,9 @@ jobs:
 
       - name: Lint
         run: pnpm lint
+
+      - name: Apply database migrations
+        run: pnpm db:migrate
 
       - name: Test
         run: pnpm test

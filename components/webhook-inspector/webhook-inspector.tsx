@@ -93,15 +93,18 @@ export function WebhookInspector({ docsUrl }: WebhookInspectorProps) {
       <section className="grid flex-1 overflow-hidden rounded-md border bg-card sm:min-h-0 sm:grid-cols-[minmax(17.5rem,20rem)_minmax(0,1fr)] sm:grid-rows-1">
         <EndpointPanel
           canRefresh={endpoint.canRefresh}
+          docsUrl={docsUrl}
           hasMoreRequests={endpoint.hasMoreRequests}
           isClearing={endpoint.isClearing}
           isLoading={endpoint.isLoading}
           isLoadingOlderRequests={endpoint.isLoadingOlderRequests}
+          requestSearch={endpoint.requestSearch}
           requests={endpoint.requests}
           selectedId={endpoint.selectedRequest?.id ?? null}
           onClearEndpoint={endpoint.actions.clearEndpoint}
           onLoadOlderRequests={endpoint.actions.loadOlderRequests}
           onRefreshEndpoint={endpoint.actions.refreshEndpoint}
+          onSearchRequests={endpoint.actions.searchRequests}
           onSelectRequest={endpoint.actions.selectRequest}
         />
         <RequestDetail request={endpoint.selectedRequest} />

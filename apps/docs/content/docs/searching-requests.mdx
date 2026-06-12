@@ -1,0 +1,157 @@
+---
+title: Searching Requests
+description: Filter captured requests with basic fields or advanced search syntax.
+---
+
+Request search narrows the captured request list for the current endpoint. New
+live requests are shown only when they match the active search.
+
+There are two search modes:
+
+- **Basic**: Choose methods and simple field filters from the UI.
+- **Advanced**: Write a precise query when you need boolean logic or specific
+  header/query fields.
+
+## Basic search
+
+Basic search covers the common cases, including filtering by method, by field,
+or by both.
+
+Method choices are combined with **OR**. Field filters are combined with
+**AND**. Selecting multiple methods matches any of those methods. Adding
+multiple field filters requires every filter to match.
+
+Basic fields:
+
+| Field          | Searches                                      |
+| -------------- | --------------------------------------------- |
+| `Path`         | Captured path after the endpoint ID           |
+| `URL`          | Captured path plus query string               |
+| `Body`         | Text body content                             |
+| `Headers`     | Header names and values together              |
+| `Query`        | Query parameter names and values together     |
+| `Content-Type` | Captured request content type                 |
+| `IP address`   | Captured source IP address, when available    |
+
+Search values are case-insensitive substring matches.
+
+## Advanced search
+
+Advanced search is for searches that need boolean logic or a specific header or
+query parameter.
+
+Every term uses `field:value`:
+
+```text
+method:POST
+```
+
+Values with spaces should be quoted:
+
+```text
+body:"event accepted"
+```
+
+Use operators to combine terms:
+
+| Operator | Meaning                         |
+| -------- | ------------------------------- |
+| `AND`    | Both sides must match           |
+| `OR`     | Either side can match           |
+| `NOT`    | The following expression cannot |
+
+Parentheses group terms:
+
+```text
+method:POST AND (path:/events OR path:/hooks) AND NOT ip:127.0.0.1
+```
+
+Adjacent terms are treated as `AND`:
+
+```text
+method:POST query.source:test
+```
+
+## Advanced fields
+
+General request fields:
+
+| Field                  | Searches                                             |
+| ---------------------- | ---------------------------------------------------- |
+| `method`               | HTTP method. This is an exact match.                 |
+| `path`                 | Captured path after the endpoint ID.                 |
+| `url`                  | Captured path plus query string.                     |
+| `body`                 | Text body content.                                   |
+| `contentType`          | Captured request content type.                       |
+| `ip`                   | Captured source IP address, when available.          |
+
+Header fields:
+
+| Field            | Searches                                           |
+| ---------------- | -------------------------------------------------- |
+| `headers`        | All header names and values                        |
+| `headerName`     | Names across all headers                           |
+| `headerValue`    | Values across all headers                          |
+| `headers.<name>` | Value for one specific header, for example `headers.accept` |
+
+Query fields:
+
+| Field                    | Searches                                |
+| ------------------------ | --------------------------------------- |
+| `query`                  | All query parameter names and values    |
+| `queryName`              | Names across all query parameters       |
+| `queryValue`             | Values across all query parameters      |
+| `query.<name>`           | Values for one specific query parameter |
+
+Advanced values are case-insensitive substring matches, except `method`, which
+matches the normalized method exactly. Header names are matched
+case-insensitively. Query parameter names use the name captured from the request
+URL.
+
+## Examples
+
+### Method and path
+
+Find `POST` requests sent to an events path:
+
+```text
+method:POST AND path:/events
+```
+
+### Query parameters
+
+Find requests with a specific query parameter value:
+
+```text
+query.source:worker
+```
+
+### Headers
+
+Find requests that mention a header name, regardless of value:
+
+```text
+headerName:x-signature
+```
+
+Find requests where any header value contains a token fragment:
+
+```text
+headerValue:abc123
+```
+
+### Body text
+
+Find requests whose body contains one phrase but not another:
+
+```text
+body:"event accepted" AND NOT body:"dry run"
+```
+
+### Boolean logic
+
+Find requests matching either of two methods:
+
+```text
+method:PUT OR method:PATCH
+```

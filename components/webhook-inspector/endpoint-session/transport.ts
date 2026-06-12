@@ -10,6 +10,11 @@ import type {
 } from "@/lib/webhooks/api-contracts"
 import type { EndpointResponseConfig } from "@/lib/webhooks/endpoint-response"
 import { encodeEndpointId } from "@/lib/webhooks/endpoint-id"
+import {
+  requestSearchIsActive,
+  serializeRequestSearchCriteria,
+  type RequestSearchCriteria,
+} from "@/lib/webhooks/request-search"
 
 export type CapturedRequestPage = {
   hasMore: boolean
@@ -32,6 +37,7 @@ export type EndpointTransport = {
     endpointId: string,
     options?: {
       cursor?: string | null
+      search?: RequestSearchCriteria
     }
   ) => Promise<CapturedRequestPage>
   saveEndpointResponseOverride: (
@@ -155,6 +161,14 @@ export function createFetchEndpointTransport(
 
       if (options.cursor) {
         searchParams.set("cursor", options.cursor)
+      }
+
+      if (options.search && requestSearchIsActive(options.search)) {
+        for (const [key, value] of serializeRequestSearchCriteria(
+          options.search
+        )) {
+          searchParams.append(key, value)
+        }
       }
 
       const query = searchParams.toString()
