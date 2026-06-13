@@ -120,7 +120,7 @@ export function openEndpointEventStream({
 
       events.on(REQUEST_EVENT, onRequest)
       events.on(CLEAR_EVENT, onClear)
-      send("ready", { endpointId })
+      send("ready", { endpointId, readyAt: new Date().toISOString() })
 
       signal.addEventListener("abort", cleanup, { once: true })
     },

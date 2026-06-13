@@ -3,6 +3,7 @@ import type {
   EndpointResponseConfig,
   EndpointResponseOverrideInput,
 } from "@/lib/webhooks/endpoint-response"
+import type { EndpointForwardTarget } from "@/lib/webhooks/endpoint-forwarding/repository"
 
 export type CreateEndpointResponse = {
   endpointId: string
@@ -47,3 +48,24 @@ export type EndpointResponseConfigResponse = {
 
 export type UpdateEndpointResponseOverrideRequest =
   EndpointResponseOverrideInput
+
+export type EndpointForwardTargetsResponse = {
+  endpointId: string
+  targets: EndpointForwardTarget[]
+}
+
+export type EndpointForwardTargetResponse = {
+  endpointId: string
+  target: EndpointForwardTarget
+}
+
+export type CreateEndpointForwardTargetRequest = {
+  url: string
+  pathMode?: string
+}
+
+export type UpdateEndpointForwardTargetRequest = {
+  url?: string
+  pathMode?: string
+  enabled?: boolean
+}

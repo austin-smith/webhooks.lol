@@ -15,9 +15,12 @@ import {
 import { getDatabase } from "@/lib/database/client"
 import {
   capturedRequests,
+  endpointForwardDeliveries,
   endpoints,
   endpointResponses,
 } from "@/lib/database/schema"
+import { mapCapturedRequestRow } from "@/lib/webhooks/captured-request-row"
+import { enqueueEndpointForwardDeliveriesForRequest } from "@/lib/webhooks/endpoint-forwarding/repository"
 import {
   DEFAULT_ENDPOINT_RESPONSE_CONFIG,
   type EndpointResponseConfig,
@@ -34,8 +37,8 @@ import {
   type RequestSearchCriteria,
   type RequestSearchField,
 } from "@/lib/webhooks/request-search"
+import { MAX_REQUESTS_PER_ENDPOINT } from "@/lib/webhooks/request-retention"
 
-const MAX_REQUESTS_PER_ENDPOINT = 500
 export const MAX_ENDPOINT_NAME_LENGTH = 32
 export const DEFAULT_REQUEST_PAGE_SIZE = 50
 export const MAX_REQUEST_PAGE_SIZE = 100
@@ -120,7 +123,12 @@ export async function getEndpointStats(endpointId: string) {
         ),
     })
     .from(capturedRequests)
-    .where(eq(capturedRequests.endpointId, endpoints.id))
+    .where(
+      and(
+        eq(capturedRequests.endpointId, endpoints.id),
+        eq(capturedRequests.deleteAfterForwarding, false)
+      )
+    )
     .as("request_stats")
 
   const [row] = await db
@@ -205,6 +213,12 @@ export async function saveCapturedRequest(input: CapturedRequestInput) {
       contentType: request.contentType,
       receivedAt,
       ip: request.ip,
+      deleteAfterForwarding: false,
+    })
+
+    await enqueueEndpointForwardDeliveriesForRequest({
+      request,
+      transaction,
     })
 
     const retainedRequestIds = transaction
@@ -213,13 +227,23 @@ export async function saveCapturedRequest(input: CapturedRequestInput) {
       .where(eq(capturedRequests.endpointId, request.endpointId))
       .orderBy(desc(capturedRequests.receivedAt), desc(capturedRequests.id))
       .limit(MAX_REQUESTS_PER_ENDPOINT)
+    const activeForwardingRequestIds = transaction
+      .select({ id: endpointForwardDeliveries.requestId })
+      .from(endpointForwardDeliveries)
+      .where(
+        and(
+          eq(endpointForwardDeliveries.endpointId, request.endpointId),
+          eq(endpointForwardDeliveries.status, "pending")
+        )
+      )
 
     await transaction
       .delete(capturedRequests)
       .where(
         and(
           eq(capturedRequests.endpointId, request.endpointId),
-          notInArray(capturedRequests.id, retainedRequestIds)
+          notInArray(capturedRequests.id, retainedRequestIds),
+          notInArray(capturedRequests.id, activeForwardingRequestIds)
         )
       )
 
@@ -254,6 +278,7 @@ export async function listRequests(
   const searchFilter = createRequestSearchFilter(options.search)
   const filters = [
     eq(capturedRequests.endpointId, endpointId),
+    eq(capturedRequests.deleteAfterForwarding, false),
     cursorFilter,
     searchFilter,
   ].filter((filter): filter is SQL => Boolean(filter))
@@ -290,7 +315,8 @@ export async function getRequest(endpointId: string, requestId: string) {
     .where(
       and(
         eq(capturedRequests.endpointId, endpointId),
-        eq(capturedRequests.id, requestId)
+        eq(capturedRequests.id, requestId),
+        eq(capturedRequests.deleteAfterForwarding, false)
       )
     )
     .limit(1)
@@ -303,9 +329,34 @@ export async function clearRequests(endpointId: string) {
   await assertEndpointExists(endpointId)
 
   await getDatabase().transaction(async (transaction) => {
+    const activeForwardingRequestIds = transaction
+      .select({ id: endpointForwardDeliveries.requestId })
+      .from(endpointForwardDeliveries)
+      .where(
+        and(
+          eq(endpointForwardDeliveries.endpointId, endpointId),
+          eq(endpointForwardDeliveries.status, "pending")
+        )
+      )
+
+    await transaction
+      .update(capturedRequests)
+      .set({ deleteAfterForwarding: true })
+      .where(
+        and(
+          eq(capturedRequests.endpointId, endpointId),
+          inArray(capturedRequests.id, activeForwardingRequestIds)
+        )
+      )
+
     await transaction
       .delete(capturedRequests)
-      .where(eq(capturedRequests.endpointId, endpointId))
+      .where(
+        and(
+          eq(capturedRequests.endpointId, endpointId),
+          notInArray(capturedRequests.id, activeForwardingRequestIds)
+        )
+      )
     await transaction
       .update(endpoints)
       .set({
@@ -395,24 +446,6 @@ export async function clearEndpointResponseOverride(endpointId: string) {
   })
 
   return DEFAULT_ENDPOINT_RESPONSE_CONFIG
-}
-
-function mapCapturedRequestRow(row: typeof capturedRequests.$inferSelect) {
-  return {
-    id: row.id,
-    endpointId: row.endpointId,
-    method: row.method,
-    url: row.url,
-    path: row.path,
-    query: row.query,
-    headers: row.headers,
-    bodyText: row.bodyText,
-    bodyBase64: row.bodyBase64,
-    bodySize: row.bodySize,
-    contentType: row.contentType,
-    receivedAt: row.receivedAt.toISOString(),
-    ip: row.ip,
-  } satisfies CapturedRequest
 }
 
 function mapEndpointRow(row: { id: string; name: string | null }) {

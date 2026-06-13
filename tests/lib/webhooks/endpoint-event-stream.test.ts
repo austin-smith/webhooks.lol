@@ -47,9 +47,11 @@ describe("openEndpointEventStream", () => {
     const reader = stream.getReader()
 
     try {
-      await expect(readEvent(reader)).resolves.toBe(
-        'event: ready\ndata: {"endpointId":"endpoint-id"}\n\n'
-      )
+      const readyEvent = await readEvent(reader)
+
+      expect(readyEvent).toContain("event: ready\n")
+      expect(readyEvent).toContain('"endpointId":"endpoint-id"')
+      expect(readyEvent).toContain('"readyAt":')
 
       publishRequest(createRequest("other-endpoint-id", "ignored"))
       publishRequest(createRequest("endpoint-id", "captured-1"))

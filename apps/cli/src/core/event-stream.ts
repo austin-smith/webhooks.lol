@@ -123,8 +123,7 @@ async function* readEventBody(
 function toStreamMessage(event: SseEvent): StreamMessage | null {
   switch (event.event) {
     case "ready": {
-      const endpointId = readEndpointId(event.data)
-      return endpointId ? { type: "ready", endpointId } : null
+      return readReadyEvent(event.data)
     }
     case "clear": {
       const endpointId = readEndpointId(event.data)
@@ -137,6 +136,28 @@ function toStreamMessage(event: SseEvent): StreamMessage | null {
     default:
       return null
   }
+}
+
+function readReadyEvent(data: string): StreamMessage | null {
+  try {
+    const parsed: unknown = JSON.parse(data)
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      typeof (parsed as { endpointId?: unknown }).endpointId === "string" &&
+      typeof (parsed as { readyAt?: unknown }).readyAt === "string"
+    ) {
+      return {
+        type: "ready",
+        endpointId: (parsed as { endpointId: string }).endpointId,
+        readyAt: (parsed as { readyAt: string }).readyAt,
+      }
+    }
+  } catch {
+    return null
+  }
+
+  return null
 }
 
 function readEndpointId(data: string): string | null {

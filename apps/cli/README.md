@@ -34,8 +34,9 @@ npx whlol replay <endpoint-id> --method POST --grep refund --to http://localhost
 
 The original method, headers, and exact body bytes are preserved, so provider
 signature headers (`Stripe-Signature`, `X-Hub-Signature-256`, …) still verify
-against your local handler. `forward` reconnects and replays missed requests if
-the connection drops, and retries delivery if the local server is briefly down.
+against your local handler. `forward` reconnects and reconciles missed requests
+from the endpoint's retained request history, and retries delivery if the local
+server is briefly down.
 
 ## Options
 
@@ -59,6 +60,7 @@ the connection drops, and retries delivery if the local server is briefly down.
 
 ## Security
 
-The endpoint ID is the only credential: anyone who has it can read and forward
-all captured traffic. Treat the receive URL and ID as secrets. By default `--to`
-must be a local or private-network host; pass `--allow-remote` to override.
+The endpoint ID is the only credential for CLI access: anyone who has it can read
+and locally forward captured traffic. Treat the receive URL and ID as secrets.
+By default `--to` must be a local or private-network host; pass `--allow-remote`
+to override.

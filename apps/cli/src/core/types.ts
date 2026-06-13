@@ -20,7 +20,7 @@ export interface CapturedRequest {
 
 export type StreamMessage =
   | { type: "open" }
-  | { type: "ready"; endpointId: string }
+  | { type: "ready"; endpointId: string; readyAt: string }
   | { type: "request"; request: CapturedRequest }
   | { type: "clear"; endpointId: string }
   | { type: "reconnecting"; attempt: number; delayMs: number; error: unknown }

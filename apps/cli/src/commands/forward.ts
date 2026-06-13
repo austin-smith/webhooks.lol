@@ -4,7 +4,7 @@ import {
   eventStreamUrl,
   receiveUrl,
 } from "../core/api-client.js"
-import { fetchRequestsSince } from "../core/backfill.js"
+import { fetchAllRequests } from "../core/backfill.js"
 import { BoundedSet } from "../core/bounded-set.js"
 import { deliverWithRetry } from "../core/deliver.js"
 import { streamEndpointEvents } from "../core/event-stream.js"
@@ -50,17 +50,18 @@ export async function runForward(options: ForwardOptions): Promise<void> {
 
   const delivered = new BoundedSet<string>(DELIVERED_HISTORY)
   const pool = new TaskPool(CONCURRENCY)
-  let lastSeen: string | null = null
-  let connectedBefore = false
+  let initialized = false
+  let historicalCutoff: string | null = null
 
   const handle = async (request: CapturedRequest): Promise<void> => {
-    if (delivered.has(request.id) || !matchesFilter(request, filter)) {
+    if (delivered.has(request.id)) {
       return
     }
 
     delivered.add(request.id)
-    if (lastSeen === null || request.receivedAt > lastSeen) {
-      lastSeen = request.receivedAt
+
+    if (!matchesFilter(request, filter)) {
+      return
     }
 
     const result = await deliverWithRetry({
@@ -90,21 +91,27 @@ export async function runForward(options: ForwardOptions): Promise<void> {
   })) {
     switch (message.type) {
       case "ready": {
-        const shouldBackfill =
-          options.catchup && (connectedBefore || options.replayExisting)
-        if (shouldBackfill) {
+        if (
+          !initialized &&
+          options.endpointId &&
+          !options.replayExisting
+        ) {
+          historicalCutoff = message.readyAt
+        }
+
+        if (options.catchup) {
           await backfill({
             baseUrl,
             endpointId,
-            since: options.replayExisting && !connectedBefore ? null : lastSeen,
             delivered,
             pool,
             handle,
+            skipBeforeReceivedAt: historicalCutoff,
             signal,
             printer,
           })
         }
-        connectedBefore = true
+        initialized = true
         printer.info("listening")
         break
       }
@@ -144,29 +151,27 @@ async function createNewEndpoint(
 async function backfill({
   baseUrl,
   endpointId,
-  since,
   delivered,
   pool,
   handle,
   signal,
   printer,
+  skipBeforeReceivedAt,
 }: {
   baseUrl: string
   endpointId: string
-  since: string | null
   delivered: BoundedSet<string>
   pool: TaskPool
   handle: (request: CapturedRequest) => Promise<void>
+  skipBeforeReceivedAt: string | null
   signal: AbortSignal
   printer: Printer
 }): Promise<void> {
   let result
   try {
-    result = await fetchRequestsSince({
+    result = await fetchAllRequests({
       baseUrl,
       endpointId,
-      since,
-      delivered,
       maxPages: BACKFILL_MAX_PAGES,
       signal,
     })
@@ -180,17 +185,39 @@ async function backfill({
     return
   }
 
-  if (result.requests.length > 0) {
-    printer.info(`delivering ${result.requests.length} missed request(s)`)
+  const skipBeforeTime = skipBeforeReceivedAt
+    ? Date.parse(skipBeforeReceivedAt)
+    : null
+  const missedRequests: CapturedRequest[] = []
+
+  for (const request of [...result.requests].reverse()) {
+    if (delivered.has(request.id)) {
+      continue
+    }
+
+    if (
+      skipBeforeTime !== null &&
+      Date.parse(request.receivedAt) < skipBeforeTime
+    ) {
+      continue
+    }
+
+    missedRequests.push(request)
+  }
+
+  if (missedRequests.length > 0) {
+    printer.info(`delivering ${missedRequests.length} missed request(s)`)
   }
 
   if (result.truncated) {
     printer.warn(
-      `catch-up stopped at ${BACKFILL_MAX_PAGES} pages; older missed requests were not replayed`
+      skipBeforeTime === null
+        ? `catch-up stopped at ${BACKFILL_MAX_PAGES} pages; older missed requests were not replayed`
+        : `initial catch-up marker stopped at ${BACKFILL_MAX_PAGES} pages; older retained requests may replay after reconnect`
     )
   }
 
-  for (const request of result.requests) {
+  for (const request of missedRequests) {
     void pool.run(() => handle(request))
   }
 }

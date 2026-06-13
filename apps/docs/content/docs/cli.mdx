@@ -39,9 +39,9 @@ verify against your local handler. Hop-by-hop headers (`Host`,
 are added: `X-Webhookslol-Endpoint`, `X-Webhookslol-Request-Id`, and
 `X-Webhookslol-Received-At`.
 
-If the connection drops, the CLI reconnects and replays any requests captured
-while it was disconnected. If your local server is briefly unreachable, delivery
-is retried with backoff.
+If the connection drops, the CLI reconnects and reconciles missed requests from
+the endpoint's retained request history. If your local server is briefly
+unreachable, delivery is retried with backoff.
 
 ### tail
 
@@ -99,7 +99,7 @@ WEBHOOKS_LOL_URL=http://localhost:4665 npx whlol tail <endpoint-id>
 
 ## Security
 
-The endpoint ID is the only credential: anyone who has it can read all captured
-traffic and forward it. Treat the receive URL and the ID as secrets. By default
-`--to` must be a local or private-network host; pass `--allow-remote` only when
-you intend to relay traffic to a remote server.
+The endpoint ID is the only credential for CLI access: anyone who has it can read
+captured traffic and forward it from their machine. Treat the receive URL and the
+ID as secrets. By default `--to` must be a local or private-network host; pass
+`--allow-remote` only when you intend to relay traffic to a remote server.

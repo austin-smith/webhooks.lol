@@ -1,4 +1,5 @@
 import {
+  boolean,
   check,
   index,
   integer,
@@ -6,6 +7,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
@@ -42,6 +44,9 @@ export const capturedRequests = pgTable(
       .notNull()
       .defaultNow(),
     ip: text("ip"),
+    deleteAfterForwarding: boolean("delete_after_forwarding")
+      .notNull()
+      .default(false),
   },
   (table) => [
     index("requests_endpoint_id_received_at_idx").on(
@@ -92,5 +97,96 @@ export const endpointResponses = pgTable(
   ]
 )
 
+export const endpointForwardTargets = pgTable(
+  "endpoint_forward_targets",
+  {
+    id: uuid("id").primaryKey(),
+    endpointId: uuid("endpoint_id")
+      .notNull()
+      .references(() => endpoints.id, { onDelete: "cascade" }),
+    url: text("url").notNull(),
+    pathMode: text("path_mode").notNull(),
+    enabled: boolean("enabled").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    index("endpoint_forward_targets_endpoint_id_idx").on(table.endpointId),
+    uniqueIndex("endpoint_forward_targets_endpoint_url_path_idx").on(
+      table.endpointId,
+      table.url,
+      table.pathMode
+    ),
+    check(
+      "endpoint_forward_targets_path_mode_check",
+      sql`${table.pathMode} in ('strip', 'preserve')`
+    ),
+    check(
+      "endpoint_forward_targets_url_check",
+      sql`length(trim(${table.url})) > 0`
+    ),
+  ]
+)
+
+export const endpointForwardDeliveries = pgTable(
+  "endpoint_forward_deliveries",
+  {
+    id: uuid("id").primaryKey(),
+    endpointId: uuid("endpoint_id")
+      .notNull()
+      .references(() => endpoints.id, { onDelete: "cascade" }),
+    targetId: uuid("target_id")
+      .notNull()
+      .references(() => endpointForwardTargets.id, { onDelete: "cascade" }),
+    requestId: uuid("request_id")
+      .notNull()
+      .references(() => capturedRequests.id, { onDelete: "cascade" }),
+    targetUrl: text("target_url").notNull(),
+    targetPathMode: text("target_path_mode").notNull(),
+    status: text("status").notNull(),
+    attempts: integer("attempts").notNull().default(0),
+    lastStatus: integer("last_status"),
+    lastError: text("last_error"),
+    deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("endpoint_forward_deliveries_target_request_idx").on(
+      table.targetId,
+      table.requestId
+    ),
+    index("endpoint_forward_deliveries_endpoint_id_idx").on(table.endpointId),
+    index("endpoint_forward_deliveries_request_id_idx").on(table.requestId),
+    index("endpoint_forward_deliveries_status_idx").on(table.status),
+    check(
+      "endpoint_forward_deliveries_status_check",
+      sql`${table.status} in ('pending', 'delivered', 'failed')`
+    ),
+    check(
+      "endpoint_forward_deliveries_target_path_mode_check",
+      sql`${table.targetPathMode} in ('strip', 'preserve')`
+    ),
+    check(
+      "endpoint_forward_deliveries_attempts_check",
+      sql`${table.attempts} >= 0`
+    ),
+  ]
+)
+
 export type CapturedRequestRow = typeof capturedRequests.$inferSelect
 export type EndpointResponseRow = typeof endpointResponses.$inferSelect
+export type EndpointForwardTargetRow =
+  typeof endpointForwardTargets.$inferSelect
+export type EndpointForwardDeliveryRow =
+  typeof endpointForwardDeliveries.$inferSelect
