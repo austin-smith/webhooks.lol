@@ -13,6 +13,8 @@
     "docs:build": "pnpm --filter @webhooks-lol/docs build",
     "docs:dev": "pnpm --filter @webhooks-lol/docs dev",
     "docs:verify": "pnpm --filter @webhooks-lol/docs verify",
+    "cli:build": "pnpm --filter whlol build",
+    "cli:verify": "pnpm --filter whlol verify",
     "db:generate": "drizzle-kit generate",
     "db:local:logs": "docker logs --follow webhooks-lol-postgres",
     "db:local:start": "docker start webhooks-lol-postgres || docker run --name webhooks-lol-postgres --detach --publish 5434:5432 --env POSTGRES_DB=webhooks-lol --env POSTGRES_USER=postgres --env POSTGRES_PASSWORD=postgres --volume webhooks-lol-postgres-data:/var/lib/postgresql/data postgres:18",
@@ -30,7 +32,7 @@
     "redis:local:logs": "docker logs --follow webhooks-lol-redis",
     "redis:local:start": "docker start webhooks-lol-redis || docker run --name webhooks-lol-redis --detach --publish 6379:6379 --volume webhooks-lol-redis-data:/data redis:8 redis-server --appendonly yes",
     "redis:local:stop": "docker stop webhooks-lol-redis",
-    "verify": "pnpm verify:web && pnpm docs:verify",
+    "verify": "pnpm verify:web && pnpm cli:verify && pnpm docs:verify",
     "verify:web": "pnpm typegen && pnpm typecheck && pnpm lint && pnpm test && pnpm build"
   },
   "dependencies": {

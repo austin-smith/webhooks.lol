@@ -6,6 +6,7 @@
     "inspecting-requests",
     "searching-requests",
     "custom-responses",
+    "cli",
     "limits-and-retention",
     "production-configuration"
   ]

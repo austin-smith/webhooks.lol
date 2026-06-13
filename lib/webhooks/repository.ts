@@ -281,6 +281,23 @@ export async function listRequests(
   }
 }
 
+export async function getRequest(endpointId: string, requestId: string) {
+  await assertEndpointExists(endpointId)
+
+  const [row] = await getDatabase()
+    .select()
+    .from(capturedRequests)
+    .where(
+      and(
+        eq(capturedRequests.endpointId, endpointId),
+        eq(capturedRequests.id, requestId)
+      )
+    )
+    .limit(1)
+
+  return row ? mapCapturedRequestRow(row) : null
+}
+
 export async function clearRequests(endpointId: string) {
   const now = new Date()
   await assertEndpointExists(endpointId)

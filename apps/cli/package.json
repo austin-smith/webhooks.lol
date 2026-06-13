@@ -1,0 +1,28 @@
+{
+  "name": "whlol",
+  "version": "0.1.0",
+  "description": "Forward, tail, and replay webhooks.lol endpoint traffic to a local server.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "whlol": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20.12"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "verify": "pnpm typecheck && pnpm test && pnpm build",
+    "prepublishOnly": "pnpm build"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.2",
+    "typescript": "^5",
+    "vitest": "^4.1.8"
+  }
+}

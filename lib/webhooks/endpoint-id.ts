@@ -1,11 +1,11 @@
+import { isUuid } from "@/lib/webhooks/id-format"
+
 export function parseEndpointId(value: string) {
   return isEndpointId(value) ? value.toLowerCase() : null
 }
 
 export function isEndpointId(value: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    value
-  )
+  return isUuid(value)
 }
 
 export function encodeEndpointId(endpointId: string) {

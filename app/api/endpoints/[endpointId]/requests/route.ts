@@ -18,6 +18,7 @@ import {
   createEndpointNotFoundResponse,
   createInvalidEndpointResponse,
 } from "@/lib/webhooks/endpoint-route-responses"
+import { isUuid } from "@/lib/webhooks/id-format"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -234,10 +235,4 @@ function readRequestPageCursor(searchParams: URLSearchParams):
 
 function encodeRequestPageCursor(cursor: RequestPageCursor) {
   return `${cursor.receivedAt.toISOString()}|${cursor.id}`
-}
-
-function isUuid(value: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    value
-  )
 }

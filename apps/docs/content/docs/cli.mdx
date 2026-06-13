@@ -1,0 +1,105 @@
+---
+title: CLI
+description: Use the whlol CLI to forward, tail, and replay endpoint traffic to a server on your machine.
+---
+
+Webhooks arrive at a public receive URL, but the service you are building
+usually runs on `localhost`. The `whlol` CLI bridges that gap: it streams an
+endpoint's captured requests and re-delivers each one to a local URL, so your
+app receives real provider traffic while you develop.
+
+No installation is required:
+
+```bash
+npx whlol forward --to http://localhost:3000/api/stripe
+```
+
+This creates an endpoint, prints its receive URL, and forwards every request it
+captures to your local server. Paste the printed URL into the provider's
+webhook configuration and trigger an event.
+
+## Commands
+
+### forward
+
+Create or attach to an endpoint and deliver its requests to a local URL.
+
+```bash
+# Create a new endpoint and forward to a local server
+npx whlol forward --to http://localhost:3000/api/stripe
+
+# Attach to an existing endpoint
+npx whlol forward <endpoint-id> --to http://localhost:3000/hook
+```
+
+The original method, headers, and exact body bytes are preserved, so provider
+signature headers such as `Stripe-Signature` and `X-Hub-Signature-256` still
+verify against your local handler. Hop-by-hop headers (`Host`,
+`Content-Length`, `Connection`, …) are recomputed, and three provenance headers
+are added: `X-Webhookslol-Endpoint`, `X-Webhookslol-Request-Id`, and
+`X-Webhookslol-Received-At`.
+
+If the connection drops, the CLI reconnects and replays any requests captured
+while it was disconnected. If your local server is briefly unreachable, delivery
+is retried with backoff.
+
+### tail
+
+Stream live requests to your terminal without delivering them anywhere.
+
+```bash
+npx whlol tail <endpoint-id>
+npx whlol tail <endpoint-id> --json | jq .
+```
+
+### replay
+
+Re-send a stored request, or a filtered set of them, on demand.
+
+```bash
+# Replay one request by id
+npx whlol replay <endpoint-id> --request <request-id> --to http://localhost:3000/hook
+
+# Replay every stored POST whose body or path contains "refund"
+npx whlol replay <endpoint-id> --method POST --grep refund --to http://localhost:3000/hook
+```
+
+## Path mapping
+
+By default the captured subpath is appended to `--to`. A request to
+`/api/hook/<id>/refunds` forwarded with `--to http://localhost:3000/api/stripe`
+is delivered to `http://localhost:3000/api/stripe/refunds`, with the query
+string preserved. Pass `--path strip` to always deliver to the exact `--to` URL.
+
+## Options
+
+| Option | Description |
+| --- | --- |
+| `--to <url>` | Local URL to deliver to (required for `forward` and `replay`). |
+| `--host <url>` | API origin. Defaults to `https://webhooks.lol`, or `WEBHOOKS_LOL_URL`. |
+| `--path <mode>` | Subpath mapping: `preserve` (default) or `strip`. |
+| `--method <m>` | Only include this method. Repeatable. |
+| `--grep <text>` | Only include requests whose path, URL, or text body contains `<text>`. |
+| `--request <id>` | Replay a single stored request by id. |
+| `--timeout <ms>` | Per-delivery timeout in milliseconds (default `30000`). |
+| `--retries <n>` | Connection-failure retries per request (default `5`). |
+| `--no-catchup` | Do not replay requests missed while disconnected. |
+| `--replay-existing` | On first connect, also deliver already-stored requests. |
+| `--allow-remote` | Allow a non-local `--to` host. |
+| `--json` | Emit machine-readable JSON lines. |
+| `--no-color` | Disable colored output. |
+
+## Self-hosting
+
+Point the CLI at your own deployment with `--host`, or set `WEBHOOKS_LOL_URL`:
+
+```bash
+WEBHOOKS_LOL_URL=http://localhost:4665 npx whlol tail <endpoint-id>
+```
+
+## Security
+
+The endpoint ID is the only credential: anyone who has it can read all captured
+traffic and forward it. Treat the receive URL and the ID as secrets. By default
+`--to` must be a local or private-network host; pass `--allow-remote` only when
+you intend to relay traffic to a remote server.

@@ -35,6 +35,11 @@ export type RequestsResponse = {
   requests: CapturedRequest[]
 }
 
+export type RequestResponse = {
+  endpointId: string
+  request: CapturedRequest
+}
+
 export type EndpointResponseConfigResponse = {
   endpointId: string
   response: EndpointResponseConfig
