@@ -17,15 +17,19 @@ import type { CapturedRequest } from "@/lib/webhooks/types"
 import type {
   ConnectionState,
   EndpointActions,
+  EndpointForwardPathMode,
   EndpointNames,
   Endpoint,
 } from "../types"
 import { createBrowserEndpointEventStream } from "./event-stream"
 import {
+  mergeForwardTarget,
   mergeCapturedRequestPage,
   mergeCapturedRequest,
   rememberEndpointId,
   reconcileLoadedRequests,
+  removeForwardTarget,
+  replaceForwardTarget,
   selectRequest,
   selectRequestId,
 } from "./state"
@@ -33,6 +37,7 @@ import { createBrowserEndpointSessionStorage } from "./storage"
 import {
   type CapturedRequestPage,
   createFetchEndpointTransport,
+  type EndpointForwardTarget,
   type EndpointMetadata,
   type EndpointStats,
 } from "./transport"
@@ -51,9 +56,12 @@ export function useBrowserEndpointSession(): Endpoint {
   )
   const hasLoadedStorage = React.useRef(false)
   const activeEndpointIdRef = React.useRef<string | null>(null)
+  const forwardTargetListVersion = React.useRef(0)
+  const isSavingForwardTargetRef = React.useRef(false)
   const requestListVersion = React.useRef(0)
   const requestSearchRef =
     React.useRef<RequestSearchCriteria>(EMPTY_REQUEST_SEARCH)
+  const replayingRequestIdsRef = React.useRef<Set<string>>(new Set())
   const renameSaveStatesByEndpoint = React.useRef(
     new Map<string, EndpointRenameSaveState>()
   )
@@ -73,19 +81,32 @@ export function useBrowserEndpointSession(): Endpoint {
   })
   const [requestSearch, setRequestSearch] =
     React.useState<RequestSearchCriteria>(EMPTY_REQUEST_SEARCH)
+  const [forwardTargets, setForwardTargets] = React.useState<
+    EndpointForwardTarget[]
+  >([])
   const [responseConfig, setResponseConfig] =
     React.useState<EndpointResponseConfig>(DEFAULT_ENDPOINT_RESPONSE_CONFIG)
   const [isLoading, setIsLoading] = React.useState(true)
   const [isClearing, setIsClearing] = React.useState(false)
+  const [isLoadingForwardTargets, setIsLoadingForwardTargets] =
+    React.useState(false)
   const [isLoadingOlderRequests, setIsLoadingOlderRequests] =
     React.useState(false)
+  const [isSavingForwardTarget, setIsSavingForwardTarget] =
+    React.useState(false)
   const [isSavingResponse, setIsSavingResponse] = React.useState(false)
+  const [replayingRequestIds, setReplayingRequestIds] = React.useState<
+    Set<string>
+  >(() => new Set())
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
   const [connectionState, setConnectionState] =
     React.useState<ConnectionState>("connecting")
   const { hasMoreRequests, nextCursor, requests, selectedId } = requestState
 
   const selectedRequest = selectRequest(requests, selectedId)
+  const isReplayingSelectedRequest = selectedRequest
+    ? replayingRequestIds.has(selectedRequest.id)
+    : false
 
   const updateEndpointId = React.useCallback((nextEndpointId: string) => {
     activeEndpointIdRef.current = nextEndpointId
@@ -188,12 +209,19 @@ export function useBrowserEndpointSession(): Endpoint {
         requests: [],
         selectedId: null,
       })
+      setForwardTargets([])
+      forwardTargetListVersion.current += 1
+      replayingRequestIdsRef.current = new Set()
+      setReplayingRequestIds(replayingRequestIdsRef.current)
       requestListVersion.current += 1
       resetRequestSearch()
       setResponseConfig(DEFAULT_ENDPOINT_RESPONSE_CONFIG)
       setErrorMessage(null)
       setConnectionState("connecting")
       setIsLoadingOlderRequests(false)
+      setIsLoadingForwardTargets(false)
+      isSavingForwardTargetRef.current = false
+      setIsSavingForwardTarget(false)
       setIsLoading(false)
     },
     [
@@ -234,16 +262,21 @@ export function useBrowserEndpointSession(): Endpoint {
 
         void (async () => {
           try {
-            const [nextRequestPage, nextResponseConfig, metadataResults] =
-              await Promise.all([
-                transport.loadRequests(activeEndpointId),
-                transport.loadEndpointResponseConfig(activeEndpointId),
-                Promise.allSettled(
-                  storedSession.recentEndpointIds.map((recentEndpointId) =>
-                    transport.loadEndpoint(recentEndpointId)
-                  )
-                ),
-              ])
+            const [
+              nextRequestPage,
+              nextResponseConfig,
+              nextForwardTargets,
+              metadataResults,
+            ] = await Promise.all([
+              transport.loadRequests(activeEndpointId),
+              transport.loadEndpointResponseConfig(activeEndpointId),
+              transport.listForwardTargets(activeEndpointId),
+              Promise.allSettled(
+                storedSession.recentEndpointIds.map((recentEndpointId) =>
+                  transport.loadEndpoint(recentEndpointId)
+                )
+              ),
+            ])
             const restoredEndpointMetadata = metadataResults.flatMap(
               (result) => (result.status === "fulfilled" ? [result.value] : [])
             )
@@ -258,6 +291,7 @@ export function useBrowserEndpointSession(): Endpoint {
               page: nextRequestPage,
               requestIdsAtLoadStart,
             })
+            setForwardTargets(nextForwardTargets)
             setResponseConfig(nextResponseConfig)
             setErrorMessage(null)
           } catch (error) {
@@ -530,6 +564,224 @@ export function useBrowserEndpointSession(): Endpoint {
     }
   }, [isClearing, endpointId, transport])
 
+  const loadForwardTargets = React.useCallback(async () => {
+    if (!endpointId || isLoadingForwardTargets) {
+      return
+    }
+
+    const loadingEndpointId = endpointId
+    const forwardTargetListVersionAtLoadStart = forwardTargetListVersion.current
+
+    setIsLoadingForwardTargets(true)
+
+    try {
+      const nextForwardTargets =
+        await transport.listForwardTargets(loadingEndpointId)
+
+      if (
+        activeEndpointIdRef.current === loadingEndpointId &&
+        forwardTargetListVersion.current === forwardTargetListVersionAtLoadStart
+      ) {
+        setForwardTargets(nextForwardTargets)
+        setErrorMessage(null)
+      }
+    } catch (error) {
+      if (activeEndpointIdRef.current === loadingEndpointId) {
+        setErrorMessage(readErrorMessage(error))
+      }
+
+      throw error
+    } finally {
+      if (activeEndpointIdRef.current === loadingEndpointId) {
+        setIsLoadingForwardTargets(false)
+      }
+    }
+  }, [endpointId, isLoadingForwardTargets, transport])
+
+  const createForwardTarget = React.useCallback(
+    async ({
+      pathMode,
+      url,
+    }: {
+      pathMode?: EndpointForwardPathMode
+      url: string
+    }) => {
+      if (!endpointId || isSavingForwardTargetRef.current) {
+        return
+      }
+
+      const savingEndpointId = endpointId
+
+      isSavingForwardTargetRef.current = true
+      forwardTargetListVersion.current += 1
+      setIsSavingForwardTarget(true)
+
+      try {
+        const target = await transport.createForwardTarget(savingEndpointId, {
+          pathMode,
+          url,
+        })
+
+        if (activeEndpointIdRef.current === savingEndpointId) {
+          setForwardTargets((current) => mergeForwardTarget(current, target))
+          setErrorMessage(null)
+        }
+      } catch (error) {
+        if (activeEndpointIdRef.current === savingEndpointId) {
+          setErrorMessage(readErrorMessage(error))
+        }
+
+        throw error
+      } finally {
+        if (activeEndpointIdRef.current === savingEndpointId) {
+          isSavingForwardTargetRef.current = false
+          setIsSavingForwardTarget(false)
+        }
+      }
+    },
+    [endpointId, transport]
+  )
+
+  const updateForwardTarget = React.useCallback(
+    async (
+      targetId: string,
+      target: {
+        enabled?: boolean
+        pathMode?: EndpointForwardPathMode
+        url?: string
+      }
+    ) => {
+      if (!endpointId || isSavingForwardTargetRef.current) {
+        return
+      }
+
+      const savingEndpointId = endpointId
+
+      isSavingForwardTargetRef.current = true
+      forwardTargetListVersion.current += 1
+      setIsSavingForwardTarget(true)
+
+      try {
+        const nextTarget = await transport.updateForwardTarget(
+          savingEndpointId,
+          targetId,
+          target
+        )
+
+        if (activeEndpointIdRef.current === savingEndpointId) {
+          setForwardTargets((current) =>
+            replaceForwardTarget(current, nextTarget)
+          )
+          setErrorMessage(null)
+        }
+      } catch (error) {
+        if (activeEndpointIdRef.current === savingEndpointId) {
+          setErrorMessage(readErrorMessage(error))
+        }
+
+        throw error
+      } finally {
+        if (activeEndpointIdRef.current === savingEndpointId) {
+          isSavingForwardTargetRef.current = false
+          setIsSavingForwardTarget(false)
+        }
+      }
+    },
+    [endpointId, transport]
+  )
+
+  const deleteForwardTarget = React.useCallback(
+    async (targetId: string) => {
+      if (!endpointId || isSavingForwardTargetRef.current) {
+        return
+      }
+
+      const savingEndpointId = endpointId
+
+      isSavingForwardTargetRef.current = true
+      forwardTargetListVersion.current += 1
+      setIsSavingForwardTarget(true)
+
+      try {
+        await transport.deleteForwardTarget(savingEndpointId, targetId)
+
+        if (activeEndpointIdRef.current === savingEndpointId) {
+          setForwardTargets((current) => removeForwardTarget(current, targetId))
+          setErrorMessage(null)
+        }
+      } catch (error) {
+        if (activeEndpointIdRef.current === savingEndpointId) {
+          setErrorMessage(readErrorMessage(error))
+        }
+
+        throw error
+      } finally {
+        if (activeEndpointIdRef.current === savingEndpointId) {
+          isSavingForwardTargetRef.current = false
+          setIsSavingForwardTarget(false)
+        }
+      }
+    },
+    [endpointId, transport]
+  )
+
+  const replayRequest = React.useCallback(
+    async (requestId: string) => {
+      if (!endpointId || replayingRequestIdsRef.current.has(requestId)) {
+        return
+      }
+
+      const replayingEndpointId = endpointId
+      const pendingRequestIds = new Set(replayingRequestIdsRef.current).add(
+        requestId
+      )
+
+      replayingRequestIdsRef.current = pendingRequestIds
+      setReplayingRequestIds(pendingRequestIds)
+
+      try {
+        const replayedRequest = await transport.replayRequest(
+          replayingEndpointId,
+          requestId
+        )
+
+        if (activeEndpointIdRef.current === replayingEndpointId) {
+          setRequestState((current) => {
+            if (
+              !requestMatchesSearch(replayedRequest, requestSearchRef.current)
+            ) {
+              return current
+            }
+
+            return {
+              hasMoreRequests: current.hasMoreRequests,
+              nextCursor: current.nextCursor,
+              requests: mergeCapturedRequest(current.requests, replayedRequest),
+              selectedId: replayedRequest.id,
+            }
+          })
+          setErrorMessage(null)
+        }
+      } catch (error) {
+        if (activeEndpointIdRef.current === replayingEndpointId) {
+          setErrorMessage(readErrorMessage(error))
+        }
+
+        throw error
+      } finally {
+        setReplayingRequestIds(() => {
+          const next = new Set(replayingRequestIdsRef.current)
+
+          next.delete(requestId)
+          replayingRequestIdsRef.current = next
+
+          return next
+        })
+      }
+    },
+    [endpointId, transport]
+  )
+
   const loadEndpointStats = React.useCallback(async () => {
     if (!endpointId) {
       return null
@@ -649,9 +901,16 @@ export function useBrowserEndpointSession(): Endpoint {
         requests: [],
         selectedId: null,
       })
+      setForwardTargets([])
+      forwardTargetListVersion.current += 1
+      replayingRequestIdsRef.current = new Set()
+      setReplayingRequestIds(replayingRequestIdsRef.current)
       requestListVersion.current += 1
       resetRequestSearch()
       setIsLoadingOlderRequests(false)
+      setIsLoadingForwardTargets(false)
+      isSavingForwardTargetRef.current = false
+      setIsSavingForwardTarget(false)
       setResponseConfig(DEFAULT_ENDPOINT_RESPONSE_CONFIG)
       setConnectionState("connecting")
       const requestIdsAtLoadStart = new Set<string>()
@@ -659,12 +918,17 @@ export function useBrowserEndpointSession(): Endpoint {
 
       void (async () => {
         try {
-          const [nextRequestPage, nextResponseConfig, metadata] =
-            await Promise.all([
-              transport.loadRequests(nextEndpointId),
-              transport.loadEndpointResponseConfig(nextEndpointId),
-              transport.loadEndpoint(nextEndpointId),
-            ])
+          const [
+            nextRequestPage,
+            nextResponseConfig,
+            nextForwardTargets,
+            metadata,
+          ] = await Promise.all([
+            transport.loadRequests(nextEndpointId),
+            transport.loadEndpointResponseConfig(nextEndpointId),
+            transport.listForwardTargets(nextEndpointId),
+            transport.loadEndpoint(nextEndpointId),
+          ])
 
           if (activeEndpointIdRef.current !== nextEndpointId) {
             return
@@ -676,6 +940,7 @@ export function useBrowserEndpointSession(): Endpoint {
             page: nextRequestPage,
             requestIdsAtLoadStart,
           })
+          setForwardTargets(nextForwardTargets)
           setResponseConfig(nextResponseConfig)
           setErrorMessage(null)
         } catch (error) {
@@ -773,28 +1038,38 @@ export function useBrowserEndpointSession(): Endpoint {
     () => ({
       clearEndpoint,
       clearResponseOverride,
+      createForwardTarget,
+      deleteForwardTarget,
+      loadForwardTargets,
       loadEndpointStats,
       loadOlderRequests,
       renameEndpoint: renameCurrentEndpoint,
       refreshEndpoint,
+      replayRequest,
       saveResponseOverride,
       searchRequests,
       selectRequest: selectCapturedRequest,
       startNewEndpoint,
       switchEndpoint,
+      updateForwardTarget,
     }),
     [
       clearEndpoint,
       clearResponseOverride,
+      createForwardTarget,
+      deleteForwardTarget,
+      loadForwardTargets,
       loadEndpointStats,
       loadOlderRequests,
       refreshEndpoint,
       renameCurrentEndpoint,
+      replayRequest,
       saveResponseOverride,
       searchRequests,
       selectCapturedRequest,
       startNewEndpoint,
       switchEndpoint,
+      updateForwardTarget,
     ]
   )
 
@@ -804,10 +1079,14 @@ export function useBrowserEndpointSession(): Endpoint {
     connectionState,
     errorMessage,
     endpointNames,
+    forwardTargets,
     hasMoreRequests,
     isClearing,
+    isLoadingForwardTargets,
     isLoading,
     isLoadingOlderRequests,
+    isReplayingSelectedRequest,
+    isSavingForwardTarget,
     isSavingResponse,
     recentEndpointIds,
     responseConfig,

@@ -2,14 +2,18 @@ import { describe, expect, it } from "vitest"
 
 import {
   MAX_RECENT_ENDPOINTS,
+  mergeForwardTarget,
   mergeCapturedRequestPage,
   mergeCapturedRequest,
   normalizeEndpointIds,
   reconcileLoadedRequests,
   rememberEndpointId,
+  removeForwardTarget,
+  replaceForwardTarget,
   selectRequest,
   selectRequestId,
 } from "@/components/webhook-inspector/endpoint-session/state"
+import type { EndpointForwardTarget } from "@/components/webhook-inspector/endpoint-session/transport"
 import type { CapturedRequest } from "@/lib/webhooks/types"
 
 const ENDPOINT_ID = "11111111-1111-4111-8111-111111111111"
@@ -36,6 +40,23 @@ function createRequest(id: string): CapturedRequest {
     contentType: null,
     receivedAt: `2026-06-05T00:00:0${id}.000Z`,
     ip: null,
+  }
+}
+
+function createForwardTarget(
+  id: string,
+  overrides: Partial<EndpointForwardTarget> = {}
+): EndpointForwardTarget {
+  return {
+    id,
+    endpointId: ENDPOINT_ID,
+    url: `https://example.com/${id}`,
+    pathMode: "preserve",
+    enabled: true,
+    deleted: false,
+    createdAt: `2026-06-05T00:00:0${id}.000Z`,
+    updatedAt: `2026-06-05T00:00:0${id}.000Z`,
+    ...overrides,
   }
 }
 
@@ -75,6 +96,53 @@ describe("endpoint session state", () => {
     expect(
       mergeCapturedRequestPage([newest, duplicate], [duplicate, oldest])
     ).toEqual([newest, duplicate, oldest])
+  })
+
+  it("merges forward targets without duplicating or breaking creation order", () => {
+    const newest = createForwardTarget("3")
+    const middle = createForwardTarget("2")
+    const oldest = createForwardTarget("1")
+    const replacement = {
+      ...middle,
+      enabled: false,
+      url: "https://updated.example.com/webhook",
+      updatedAt: "2026-06-05T00:01:00.000Z",
+    }
+
+    expect(mergeForwardTarget([newest, middle], oldest)).toEqual([
+      oldest,
+      middle,
+      newest,
+    ])
+    expect(mergeForwardTarget([oldest, middle, newest], replacement)).toEqual([
+      oldest,
+      replacement,
+      newest,
+    ])
+  })
+
+  it("replaces forward targets while preserving target order", () => {
+    const first = createForwardTarget("1")
+    const second = createForwardTarget("2")
+    const replacement = {
+      ...second,
+      pathMode: "strip" as const,
+      updatedAt: "2026-06-05T00:01:00.000Z",
+    }
+
+    expect(replaceForwardTarget([first, second], replacement)).toEqual([
+      first,
+      replacement,
+    ])
+    expect(replaceForwardTarget([first], replacement)).toEqual([first])
+  })
+
+  it("removes forward targets by id", () => {
+    const first = createForwardTarget("1")
+    const second = createForwardTarget("2")
+
+    expect(removeForwardTarget([first, second], first.id)).toEqual([second])
+    expect(removeForwardTarget([first], second.id)).toEqual([first])
   })
 
   it("preserves live requests received while a server load is in flight", () => {
@@ -129,8 +197,9 @@ describe("endpoint session state", () => {
       rememberEndpointId(secondEndpointId, [firstEndpointId, secondEndpointId])
     ).toEqual([firstEndpointId, secondEndpointId])
 
-    expect(
-      rememberEndpointId(secondEndpointId, [firstEndpointId])
-    ).toEqual([secondEndpointId, firstEndpointId])
+    expect(rememberEndpointId(secondEndpointId, [firstEndpointId])).toEqual([
+      secondEndpointId,
+      firstEndpointId,
+    ])
   })
 })

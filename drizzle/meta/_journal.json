@@ -57,6 +57,13 @@
       "when": 1781390305899,
       "tag": "0007_violet_stature",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1781418317553,
+      "tag": "0008_wakeful_captain_marvel",
+      "breakpoints": true
     }
   ]
 }

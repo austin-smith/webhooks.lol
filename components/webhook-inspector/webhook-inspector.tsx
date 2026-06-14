@@ -67,19 +67,26 @@ export function WebhookInspector({ docsUrl }: WebhookInspectorProps) {
         docsUrl={docsUrl}
         copyMessage={copyMessage}
         endpointNames={endpoint.endpointNames}
+        forwardTargets={endpoint.forwardTargets}
         isLoading={endpoint.isLoading}
+        isLoadingForwardTargets={endpoint.isLoadingForwardTargets}
+        isSavingForwardTarget={endpoint.isSavingForwardTarget}
         isSavingResponse={endpoint.isSavingResponse}
         recentEndpointIds={endpoint.recentEndpointIds}
         responseConfig={endpoint.responseConfig}
         endpointId={endpoint.endpointId}
         webhookUrl={webhookUrl}
+        onCreateForwardTarget={endpoint.actions.createForwardTarget}
         onCopyWebhookUrl={copyWebhookUrl}
+        onDeleteForwardTarget={endpoint.actions.deleteForwardTarget}
+        onLoadForwardTargets={endpoint.actions.loadForwardTargets}
         onLoadEndpointStats={endpoint.actions.loadEndpointStats}
         onNewEndpoint={endpoint.actions.startNewEndpoint}
         onRenameEndpoint={endpoint.actions.renameEndpoint}
         onResetResponseOverride={endpoint.actions.clearResponseOverride}
         onSaveResponseOverride={endpoint.actions.saveResponseOverride}
         onSwitchEndpoint={endpoint.actions.switchEndpoint}
+        onUpdateForwardTarget={endpoint.actions.updateForwardTarget}
       />
 
       {endpoint.errorMessage ? (
@@ -107,7 +114,11 @@ export function WebhookInspector({ docsUrl }: WebhookInspectorProps) {
           onSearchRequests={endpoint.actions.searchRequests}
           onSelectRequest={endpoint.actions.selectRequest}
         />
-        <RequestDetail request={endpoint.selectedRequest} />
+        <RequestDetail
+          isReplaying={endpoint.isReplayingSelectedRequest}
+          request={endpoint.selectedRequest}
+          onReplayRequest={endpoint.actions.replayRequest}
+        />
       </section>
     </main>
   )

@@ -1,10 +1,15 @@
 import type { CapturedRequest } from "@/lib/webhooks/types"
 import type {
+  CreateEndpointForwardTargetRequest,
   CreateEndpointResponse,
+  EndpointForwardTargetResponse,
+  EndpointForwardTargetsResponse,
   EndpointMetadataResponse,
   EndpointResponseConfigResponse,
   EndpointStatsResponse,
+  ReplayRequestResponse,
   RequestsResponse,
+  UpdateEndpointForwardTargetRequest,
   UpdateEndpointMetadataRequest,
   UpdateEndpointResponseOverrideRequest,
 } from "@/lib/webhooks/api-contracts"
@@ -27,7 +32,13 @@ export type EndpointTransport = {
     endpointId: string
   ) => Promise<EndpointResponseConfig>
   clearEndpoint: (endpointId: string) => Promise<void>
+  createForwardTarget: (
+    endpointId: string,
+    target: CreateEndpointForwardTargetRequest
+  ) => Promise<EndpointForwardTarget>
   createEndpoint: () => Promise<EndpointMetadata>
+  deleteForwardTarget: (endpointId: string, targetId: string) => Promise<void>
+  listForwardTargets: (endpointId: string) => Promise<EndpointForwardTarget[]>
   loadEndpoint: (endpointId: string) => Promise<EndpointMetadata>
   loadEndpointStats: (endpointId: string) => Promise<EndpointStats>
   loadEndpointResponseConfig: (
@@ -44,10 +55,19 @@ export type EndpointTransport = {
     endpointId: string,
     override: UpdateEndpointResponseOverrideRequest
   ) => Promise<EndpointResponseConfig>
+  replayRequest: (
+    endpointId: string,
+    requestId: string
+  ) => Promise<CapturedRequest>
   updateEndpointMetadata: (
     endpointId: string,
     metadata: UpdateEndpointMetadataRequest
   ) => Promise<EndpointMetadata>
+  updateForwardTarget: (
+    endpointId: string,
+    targetId: string,
+    target: UpdateEndpointForwardTargetRequest
+  ) => Promise<EndpointForwardTarget>
 }
 
 export type EndpointMetadata = {
@@ -56,6 +76,8 @@ export type EndpointMetadata = {
 }
 
 export type EndpointStats = EndpointStatsResponse
+export type EndpointForwardTarget =
+  EndpointForwardTargetsResponse["targets"][number]
 
 type Fetcher = (
   input: RequestInfo | URL,
@@ -76,7 +98,12 @@ export function createFetchEndpointTransport(
       )
 
       if (!response.ok) {
-        throw new Error("Could not reset response override.")
+        throw new Error(
+          await readResponseError(
+            response,
+            "Could not reset response override."
+          )
+        )
       }
 
       const data = (await response.json()) as EndpointResponseConfigResponse
@@ -93,8 +120,33 @@ export function createFetchEndpointTransport(
       )
 
       if (!response.ok) {
-        throw new Error("Could not clear endpoint.")
+        throw new Error(
+          await readResponseError(response, "Could not clear endpoint.")
+        )
       }
+    },
+    async createForwardTarget(endpointId, target) {
+      const encodedEndpointId = encodeEndpointId(endpointId)
+      const response = await fetcher(
+        `/api/endpoints/${encodedEndpointId}/forward-targets`,
+        {
+          body: JSON.stringify(target),
+          headers: {
+            "content-type": "application/json",
+          },
+          method: "POST",
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error(
+          await readResponseError(response, "Could not create forward target.")
+        )
+      }
+
+      const data = (await response.json()) as EndpointForwardTargetResponse
+
+      return data.target
     },
     async createEndpoint() {
       const response = await fetcher("/api/endpoints", {
@@ -102,12 +154,48 @@ export function createFetchEndpointTransport(
       })
 
       if (!response.ok) {
-        throw new Error("Could not create endpoint.")
+        throw new Error(
+          await readResponseError(response, "Could not create endpoint.")
+        )
       }
 
       const data = (await response.json()) as CreateEndpointResponse
 
       return mapEndpointMetadata(data)
+    },
+    async deleteForwardTarget(endpointId, targetId) {
+      const encodedEndpointId = encodeEndpointId(endpointId)
+      const response = await fetcher(
+        `/api/endpoints/${encodedEndpointId}/forward-targets/${targetId}`,
+        {
+          method: "DELETE",
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error(
+          await readResponseError(response, "Could not delete forward target.")
+        )
+      }
+    },
+    async listForwardTargets(endpointId) {
+      const encodedEndpointId = encodeEndpointId(endpointId)
+      const response = await fetcher(
+        `/api/endpoints/${encodedEndpointId}/forward-targets`,
+        {
+          cache: "no-store",
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error(
+          await readResponseError(response, "Could not load forward targets.")
+        )
+      }
+
+      const data = (await response.json()) as EndpointForwardTargetsResponse
+
+      return data.targets
     },
     async loadEndpoint(endpointId) {
       const encodedEndpointId = encodeEndpointId(endpointId)
@@ -116,7 +204,9 @@ export function createFetchEndpointTransport(
       })
 
       if (!response.ok) {
-        throw new Error("Could not load endpoint.")
+        throw new Error(
+          await readResponseError(response, "Could not load endpoint.")
+        )
       }
 
       const data = (await response.json()) as EndpointMetadataResponse
@@ -133,7 +223,9 @@ export function createFetchEndpointTransport(
       )
 
       if (!response.ok) {
-        throw new Error("Could not load endpoint details.")
+        throw new Error(
+          await readResponseError(response, "Could not load endpoint details.")
+        )
       }
 
       return (await response.json()) as EndpointStatsResponse
@@ -148,7 +240,9 @@ export function createFetchEndpointTransport(
       )
 
       if (!response.ok) {
-        throw new Error("Could not load response override.")
+        throw new Error(
+          await readResponseError(response, "Could not load response override.")
+        )
       }
 
       const data = (await response.json()) as EndpointResponseConfigResponse
@@ -180,7 +274,9 @@ export function createFetchEndpointTransport(
       )
 
       if (!response.ok) {
-        throw new Error("Could not load requests.")
+        throw new Error(
+          await readResponseError(response, "Could not load requests.")
+        )
       }
 
       const data = (await response.json()) as RequestsResponse
@@ -205,12 +301,33 @@ export function createFetchEndpointTransport(
       )
 
       if (!response.ok) {
-        throw new Error("Could not save response override.")
+        throw new Error(
+          await readResponseError(response, "Could not save response override.")
+        )
       }
 
       const data = (await response.json()) as EndpointResponseConfigResponse
 
       return data.response
+    },
+    async replayRequest(endpointId, requestId) {
+      const encodedEndpointId = encodeEndpointId(endpointId)
+      const response = await fetcher(
+        `/api/endpoints/${encodedEndpointId}/requests/${requestId}/replay`,
+        {
+          method: "POST",
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error(
+          await readResponseError(response, "Could not replay request.")
+        )
+      }
+
+      const data = (await response.json()) as ReplayRequestResponse
+
+      return data.request
     },
     async updateEndpointMetadata(endpointId, metadata) {
       const encodedEndpointId = encodeEndpointId(endpointId)
@@ -223,14 +340,53 @@ export function createFetchEndpointTransport(
       })
 
       if (!response.ok) {
-        throw new Error("Could not save endpoint.")
+        throw new Error(
+          await readResponseError(response, "Could not save endpoint.")
+        )
       }
 
       const data = (await response.json()) as EndpointMetadataResponse
 
       return mapEndpointMetadata(data)
     },
+    async updateForwardTarget(endpointId, targetId, target) {
+      const encodedEndpointId = encodeEndpointId(endpointId)
+      const response = await fetcher(
+        `/api/endpoints/${encodedEndpointId}/forward-targets/${targetId}`,
+        {
+          body: JSON.stringify(target),
+          headers: {
+            "content-type": "application/json",
+          },
+          method: "PATCH",
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error(
+          await readResponseError(response, "Could not save forward target.")
+        )
+      }
+
+      const data = (await response.json()) as EndpointForwardTargetResponse
+
+      return data.target
+    },
   }
+}
+
+async function readResponseError(response: Response, fallback: string) {
+  try {
+    const data = (await response.json()) as { error?: unknown }
+
+    if (typeof data.error === "string" && data.error.trim()) {
+      return data.error
+    }
+  } catch {
+    // Use the local fallback when the response is not JSON.
+  }
+
+  return fallback
 }
 
 function mapEndpointMetadata(

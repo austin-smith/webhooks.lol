@@ -16,6 +16,7 @@ export function InspectorIconButton({
   className,
   disabled,
   icon: Icon,
+  iconClassName,
   label,
   onClick,
   size = "icon",
@@ -25,6 +26,7 @@ export function InspectorIconButton({
   className?: string
   disabled?: boolean
   icon: LucideIcon
+  iconClassName?: string
   label: string
   onClick?: () => void
   size?: ComponentProps<typeof Button>["size"]
@@ -42,7 +44,7 @@ export function InspectorIconButton({
           aria-pressed={ariaPressed}
           onClick={onClick}
         >
-          <Icon data-icon="inline-start" />
+          <Icon data-icon="inline-start" className={iconClassName} />
           <span className="sr-only">{label}</span>
         </Button>
       </TooltipTrigger>

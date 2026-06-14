@@ -10,6 +10,7 @@ import type {
 import { parseEndpointId } from "@/lib/webhooks/endpoint-id"
 import { EndpointForwardTargetValidationError } from "@/lib/webhooks/endpoint-forwarding/policy"
 import {
+  deleteEndpointForwardTarget,
   isEndpointForwardingEndpointUnavailableError,
   isEndpointForwardTargetUnavailableError,
   updateEndpointForwardTarget,
@@ -68,16 +69,12 @@ export async function DELETE(
   }
 
   try {
-    const response = {
+    await deleteEndpointForwardTarget({
       endpointId: params.endpointId,
-      target: await updateEndpointForwardTarget({
-        enabled: false,
-        endpointId: params.endpointId,
-        targetId: params.targetId,
-      }),
-    } satisfies EndpointForwardTargetResponse
+      targetId: params.targetId,
+    })
 
-    return Response.json(response, { headers: NO_STORE_HEADERS })
+    return new Response(null, { headers: NO_STORE_HEADERS, status: 204 })
   } catch (error) {
     return handleEndpointForwardTargetUpdateError(error)
   }

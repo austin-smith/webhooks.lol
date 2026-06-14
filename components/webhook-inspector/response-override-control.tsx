@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { SaveIcon, SlidersHorizontalIcon } from "lucide-react"
+import { BookTextIcon, SaveIcon, SlidersHorizontalIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,6 +17,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { createDocsPageUrl, CUSTOM_RESPONSE_DOCS_PATH } from "@/lib/docs-links"
 import type {
   EndpointResponseConfig,
   EndpointResponseOverrideInput,
@@ -48,6 +49,7 @@ const RESPONSE_BODY_VARIABLES = [
 
 type ResponseOverrideControlProps = {
   disabled: boolean
+  docsUrl: string | null
   isSaving: boolean
   responseConfig: EndpointResponseConfig
   onReset: () => Promise<void>
@@ -56,11 +58,13 @@ type ResponseOverrideControlProps = {
 
 export function ResponseOverrideControl({
   disabled,
+  docsUrl,
   isSaving,
   onReset,
   onSave,
   responseConfig,
 }: ResponseOverrideControlProps) {
+  const responseDocsUrl = createDocsPageUrl(docsUrl, CUSTOM_RESPONSE_DOCS_PATH)
   const [open, setOpen] = React.useState(false)
   const [tooltipOpen, setTooltipOpen] = React.useState(false)
   const [suppressTooltip, setSuppressTooltip] = React.useState(false)
@@ -245,11 +249,26 @@ export function ResponseOverrideControl({
         onOpenAutoFocus={(event) => event.preventDefault()}
       >
         <div className="grid gap-3 p-3">
-          <div className="min-w-0">
-            <h2 className="text-sm font-semibold">RESPONSE</h2>
-            <p className="text-[0.68rem] text-muted-foreground">
-              {draftMode === "custom" ? "CUSTOM OVERRIDE" : "DEFAULT BEHAVIOR"}
-            </p>
+          <div className="flex min-w-0 items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-sm font-semibold">RESPONSE</h2>
+              <p className="text-[0.68rem] text-muted-foreground">
+                {draftMode === "custom"
+                  ? "CUSTOM OVERRIDE"
+                  : "DEFAULT BEHAVIOR"}
+              </p>
+            </div>
+            {responseDocsUrl ? (
+              <a
+                href={responseDocsUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-[0.68rem] font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none"
+              >
+                <BookTextIcon className="size-3.5" aria-hidden="true" />
+                Learn more
+              </a>
+            ) : null}
           </div>
 
           <ToggleGroup

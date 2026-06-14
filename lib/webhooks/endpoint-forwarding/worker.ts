@@ -107,6 +107,16 @@ export async function processEndpointForwardDeliveryJob({
     return
   }
 
+  if (loaded.target.deleted) {
+    await recordEndpointForwardDeliveryAttempt({
+      deliveryId,
+      lastError: "Forward target was deleted.",
+      lastStatus: null,
+      status: "cancelled",
+    })
+    return
+  }
+
   if (!loaded.target.enabled) {
     await recordEndpointForwardDeliveryAttempt({
       deliveryId,

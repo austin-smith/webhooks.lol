@@ -1,0 +1,71 @@
+---
+title: Forwarding Requests
+description: Send newly captured endpoint requests to HTTPS targets.
+---
+
+Forwarding delivers copies of an endpoint's captured requests to one or more
+HTTPS targets. Use it when the service you are testing needs to receive the same
+traffic that webhooks.lol captures.
+
+Forwarding does not change what the original caller receives from your endpoint.
+To change that response, use [Custom Responses](/custom-responses).
+
+## Adding a target
+
+Open the forwarding control in the inspector header, enter an HTTPS URL, choose
+how paths should be handled, and save.
+
+Each enabled target receives future requests captured by the endpoint. The
+request method, query string, body, and forwardable headers are delivered with
+the forwarded request. Hop-by-hop headers such as `Host` and `Content-Length`
+are recomputed for the target.
+
+<Callout type="info">
+  Forwarding applies to new captured requests. It does not backfill requests
+  that were already in the list before the target was added.
+</Callout>
+
+## Path handling
+
+The path setting controls how the captured request path maps to the target URL:
+
+| Mode         | Behavior                                               |
+| ------------ | ------------------------------------------------------ |
+| **Strip**    | Deliver to the target URL's path. This is the default. |
+| **Preserve** | Append the captured path under the target URL's path.  |
+
+For example, if a request arrives at:
+
+```text
+https://webhooks.lol/api/hook/<endpoint-id>/events/created?debug=true
+```
+
+and the target is:
+
+```text
+https://example.com/webhooks
+```
+
+then **Strip** delivers to:
+
+```text
+https://example.com/webhooks?debug=true
+```
+
+and **Preserve** delivers to:
+
+```text
+https://example.com/webhooks/events/created?debug=true
+```
+
+## Managing targets
+
+Use the forwarding control to edit a target URL, change its path handling, or
+enable and disable delivery. Disabled targets stay in the list so you can turn
+them back on without re-entering the URL.
+
+Each endpoint can have up to five enabled targets and up to twenty total target
+rows, including disabled targets.
+
+Targets must use HTTPS, must resolve to a public address, and must not include
+credentials in the URL.

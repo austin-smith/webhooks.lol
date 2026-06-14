@@ -1,6 +1,6 @@
 import * as React from "react"
 import {
-  CircleHelpIcon,
+  BookTextIcon,
   ListFilterIcon,
   PlusIcon,
   SearchIcon,
@@ -443,7 +443,7 @@ function RequestSearchForm({
                 rel="noreferrer"
                 className="inline-flex items-center gap-1 text-[0.6rem] font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none"
               >
-                <CircleHelpIcon className="size-3" aria-hidden="true" />
+                <BookTextIcon className="size-3" aria-hidden="true" />
                 Search syntax
               </a>
             ) : null

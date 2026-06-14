@@ -15,10 +15,14 @@ import { cn } from "@/lib/utils"
 
 import { EndpointSwitcher } from "./endpoint-switcher"
 import { EndpointDetailsPopover } from "./endpoint-details-popover"
+import { EndpointForwardingControl } from "./endpoint-forwarding-control"
 import { InspectorIconButton } from "./inspector-icon-button"
 import { ResponseOverrideControl } from "./response-override-control"
-import type { ConnectionState } from "./types"
-import type { EndpointStats } from "./endpoint-session/transport"
+import type { ConnectionState, EndpointForwardPathMode } from "./types"
+import type {
+  EndpointForwardTarget,
+  EndpointStats,
+} from "./endpoint-session/transport"
 import { formatConnectionState } from "./request-formatters"
 
 const GITHUB_URL = "https://github.com/austin-smith/webhooks.lol"
@@ -29,13 +33,22 @@ type InspectorHeaderProps = {
   copyMessage: string
   docsUrl: string | null
   endpointNames: Record<string, string>
+  forwardTargets: EndpointForwardTarget[]
   isLoading: boolean
+  isLoadingForwardTargets: boolean
+  isSavingForwardTarget: boolean
   isSavingResponse: boolean
   recentEndpointIds: string[]
   responseConfig: EndpointResponseConfig
   endpointId: string | null
   webhookUrl: string
+  onCreateForwardTarget: (target: {
+    pathMode?: EndpointForwardPathMode
+    url: string
+  }) => Promise<void>
   onCopyWebhookUrl: () => void
+  onDeleteForwardTarget: (targetId: string) => Promise<void>
+  onLoadForwardTargets: () => Promise<void>
   onLoadEndpointStats: () => Promise<EndpointStats | null>
   onNewEndpoint: () => void
   onRenameEndpoint: (name: string) => void
@@ -44,6 +57,14 @@ type InspectorHeaderProps = {
     override: EndpointResponseOverrideInput
   ) => Promise<void>
   onSwitchEndpoint: (endpointId: string) => void
+  onUpdateForwardTarget: (
+    targetId: string,
+    target: {
+      enabled?: boolean
+      pathMode?: EndpointForwardPathMode
+      url?: string
+    }
+  ) => Promise<void>
 }
 
 export function InspectorHeader({
@@ -52,9 +73,15 @@ export function InspectorHeader({
   copyMessage,
   docsUrl,
   endpointNames,
+  forwardTargets,
   isLoading,
+  isLoadingForwardTargets,
+  isSavingForwardTarget,
   isSavingResponse,
+  onCreateForwardTarget,
+  onDeleteForwardTarget,
   onResetResponseOverride,
+  onLoadForwardTargets,
   onSaveResponseOverride,
   recentEndpointIds,
   responseConfig,
@@ -65,6 +92,7 @@ export function InspectorHeader({
   onNewEndpoint,
   onRenameEndpoint,
   onSwitchEndpoint,
+  onUpdateForwardTarget,
 }: InspectorHeaderProps) {
   const endpointName = endpointId ? (endpointNames[endpointId] ?? "") : ""
 
@@ -154,8 +182,20 @@ export function InspectorHeader({
             name={endpointName}
             onLoadEndpointStats={onLoadEndpointStats}
           />
+          <EndpointForwardingControl
+            disabled={isLoading || !endpointId}
+            docsUrl={docsUrl}
+            isLoading={isLoadingForwardTargets}
+            isSaving={isSavingForwardTarget}
+            targets={forwardTargets}
+            onCreateTarget={onCreateForwardTarget}
+            onDeleteTarget={onDeleteForwardTarget}
+            onLoadTargets={onLoadForwardTargets}
+            onUpdateTarget={onUpdateForwardTarget}
+          />
           <ResponseOverrideControl
             disabled={isLoading || !endpointId}
+            docsUrl={docsUrl}
             isSaving={isSavingResponse}
             responseConfig={responseConfig}
             onReset={onResetResponseOverride}
@@ -204,7 +244,10 @@ function ConnectionStatus({ state }: { state: ConnectionState }) {
       className="inline-flex h-7 shrink-0 items-center gap-1.5 px-1 text-[0.68rem] font-medium tracking-wide text-muted-foreground"
     >
       <span
-        className={cn("inline-flex size-1.5 rounded-full", connectionDotStyles[state])}
+        className={cn(
+          "inline-flex size-1.5 rounded-full",
+          connectionDotStyles[state]
+        )}
         aria-hidden="true"
       />
       {formatConnectionState(state)}

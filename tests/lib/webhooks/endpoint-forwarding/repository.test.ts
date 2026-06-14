@@ -42,6 +42,7 @@ import {
 import { EndpointForwardTargetValidationError } from "@/lib/webhooks/endpoint-forwarding/policy"
 import {
   createEndpointForwardTarget,
+  deleteEndpointForwardTarget,
   listEndpointForwardTargets,
   MAX_ENDPOINT_FORWARD_TARGETS,
   recordEndpointForwardDeliveryAttempt,
@@ -185,6 +186,124 @@ describe("endpoint forwarding repository", () => {
       enabled: false,
       id: target.id,
     })
+    await expect(
+      listEndpointForwardTargets(endpoint.endpointId)
+    ).resolves.toMatchObject([
+      {
+        enabled: false,
+        id: target.id,
+      },
+    ])
+  })
+
+  it("soft deletes endpoint forward targets and cancels pending deliveries", async () => {
+    assertEndpointForwardTargetUrlCanBeReachedSafely.mockResolvedValue(
+      undefined
+    )
+    const endpoint = await createEndpoint()
+    createdEndpointIds.push(endpoint.endpointId)
+    const target = await createEndpointForwardTarget({
+      endpointId: endpoint.endpointId,
+      pathMode: "preserve",
+      url: "https://example.com/webhook",
+    })
+    const request = await saveCapturedRequest({
+      endpointId: endpoint.endpointId,
+      method: "POST",
+      url: "/events",
+      path: "/events",
+      query: {},
+      headers: {},
+      bodyBase64: "e30=",
+      bodySize: 2,
+      bodyText: "{}",
+      contentType: "application/json",
+      ip: null,
+    })
+
+    await deleteEndpointForwardTarget({
+      endpointId: endpoint.endpointId,
+      targetId: target.id,
+    })
+
+    await expect(
+      listEndpointForwardTargets(endpoint.endpointId)
+    ).resolves.toEqual([])
+
+    const [deletedTarget] = await getDatabase()
+      .select()
+      .from(endpointForwardTargets)
+      .where(eq(endpointForwardTargets.id, target.id))
+    const [delivery] = await getDatabase()
+      .select()
+      .from(endpointForwardDeliveries)
+      .where(eq(endpointForwardDeliveries.requestId, request.id))
+
+    expect(deletedTarget).toMatchObject({
+      deleted: true,
+      enabled: false,
+      id: target.id,
+    })
+    expect(delivery).toMatchObject({
+      lastError: "Forward target was deleted.",
+      requestId: request.id,
+      status: "cancelled",
+      targetId: target.id,
+    })
+    await expect(
+      updateEndpointForwardTarget({
+        enabled: true,
+        endpointId: endpoint.endpointId,
+        targetId: target.id,
+      })
+    ).rejects.toThrow("was not found")
+    await expect(
+      createEndpointForwardTarget({
+        endpointId: endpoint.endpointId,
+        pathMode: "preserve",
+        url: "https://example.com/webhook",
+      })
+    ).resolves.toMatchObject({
+      enabled: true,
+      pathMode: "preserve",
+      url: "https://example.com/webhook",
+    })
+  })
+
+  it("excludes deleted endpoint forward targets from future forwarding", async () => {
+    assertEndpointForwardTargetUrlCanBeReachedSafely.mockResolvedValue(
+      undefined
+    )
+    const endpoint = await createEndpoint()
+    createdEndpointIds.push(endpoint.endpointId)
+    const target = await createEndpointForwardTarget({
+      endpointId: endpoint.endpointId,
+      url: "https://example.com/webhook",
+    })
+
+    await deleteEndpointForwardTarget({
+      endpointId: endpoint.endpointId,
+      targetId: target.id,
+    })
+    const request = await saveCapturedRequest({
+      endpointId: endpoint.endpointId,
+      method: "POST",
+      url: "/events",
+      path: "/events",
+      query: {},
+      headers: {},
+      bodyBase64: "e30=",
+      bodySize: 2,
+      bodyText: "{}",
+      contentType: "application/json",
+      ip: null,
+    })
+    const deliveries = await getDatabase()
+      .select()
+      .from(endpointForwardDeliveries)
+      .where(eq(endpointForwardDeliveries.requestId, request.id))
+
+    expect(deliveries).toHaveLength(0)
   })
 
   it("caps forward targets per endpoint", async () => {

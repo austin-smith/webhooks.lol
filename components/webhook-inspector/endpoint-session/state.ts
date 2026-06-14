@@ -1,5 +1,6 @@
 import { parseEndpointId } from "@/lib/webhooks/endpoint-id"
 import type { CapturedRequest } from "@/lib/webhooks/types"
+import type { EndpointForwardTarget } from "./transport"
 
 export const MAX_RECENT_ENDPOINTS = 50
 
@@ -39,6 +40,32 @@ export function mergeCapturedRequestPage(
   )
 
   return sortCapturedRequests([...requestsById.values()])
+}
+
+export function mergeForwardTarget(
+  targets: EndpointForwardTarget[],
+  target: EndpointForwardTarget
+) {
+  return sortForwardTargets([
+    target,
+    ...targets.filter((item) => item.id !== target.id),
+  ])
+}
+
+export function replaceForwardTarget(
+  targets: EndpointForwardTarget[],
+  target: EndpointForwardTarget
+) {
+  return sortForwardTargets(
+    targets.map((item) => (item.id === target.id ? target : item))
+  )
+}
+
+export function removeForwardTarget(
+  targets: EndpointForwardTarget[],
+  targetId: string
+) {
+  return targets.filter((target) => target.id !== targetId)
 }
 
 export function reconcileLoadedRequests({
@@ -112,5 +139,17 @@ function sortCapturedRequests(requests: CapturedRequest[]) {
     }
 
     return right.id.localeCompare(left.id)
+  })
+}
+
+function sortForwardTargets(targets: EndpointForwardTarget[]) {
+  return targets.sort((left, right) => {
+    const createdAtOrder = left.createdAt.localeCompare(right.createdAt)
+
+    if (createdAtOrder !== 0) {
+      return createdAtOrder
+    }
+
+    return left.id.localeCompare(right.id)
   })
 }

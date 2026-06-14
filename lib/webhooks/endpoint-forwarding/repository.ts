@@ -21,6 +21,7 @@ import { MAX_REQUESTS_PER_ENDPOINT } from "@/lib/webhooks/request-retention"
 import type { CapturedRequest } from "@/lib/webhooks/types"
 
 const MAX_DELIVERY_ERROR_LENGTH = 1000
+const TARGET_DELETED_DELIVERY_ERROR = "Forward target was deleted."
 export const MAX_ENDPOINT_FORWARD_TARGETS = 5
 export const MAX_ENDPOINT_FORWARD_TARGET_ROWS = 20
 
@@ -49,6 +50,7 @@ export type EndpointForwardTarget = {
   url: string
   pathMode: EndpointForwardPathMode
   enabled: boolean
+  deleted: boolean
   createdAt: string
   updatedAt: string
 }
@@ -126,7 +128,12 @@ export async function listEndpointForwardTargets(endpointId: string) {
   const rows = await getDatabase()
     .select()
     .from(endpointForwardTargets)
-    .where(eq(endpointForwardTargets.endpointId, endpointId))
+    .where(
+      and(
+        eq(endpointForwardTargets.endpointId, endpointId),
+        eq(endpointForwardTargets.deleted, false)
+      )
+    )
     .orderBy(endpointForwardTargets.createdAt)
 
   return rows.map(mapEndpointForwardTargetRow)
@@ -206,7 +213,8 @@ export async function updateEndpointForwardTarget({
       .where(
         and(
           eq(endpointForwardTargets.id, targetId),
-          eq(endpointForwardTargets.endpointId, endpointId)
+          eq(endpointForwardTargets.endpointId, endpointId),
+          eq(endpointForwardTargets.deleted, false)
         )
       )
       .returning()
@@ -219,6 +227,70 @@ export async function updateEndpointForwardTarget({
   }
 
   return mapEndpointForwardTargetRow(row)
+}
+
+export async function deleteEndpointForwardTarget({
+  endpointId,
+  targetId,
+}: {
+  endpointId: string
+  targetId: string
+}) {
+  const now = new Date()
+
+  await getDatabase().transaction(async (transaction) => {
+    await assertEndpointExistsForUpdate({ endpointId, transaction })
+    await getEndpointForwardTargetRow({
+      endpointId,
+      targetId,
+      transaction,
+    })
+
+    const [deleted] = await transaction
+      .update(endpointForwardTargets)
+      .set({
+        deleted: true,
+        enabled: false,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(endpointForwardTargets.id, targetId),
+          eq(endpointForwardTargets.endpointId, endpointId),
+          eq(endpointForwardTargets.deleted, false)
+        )
+      )
+      .returning({ id: endpointForwardTargets.id })
+
+    if (!deleted) {
+      throw new EndpointForwardTargetNotFoundError(targetId)
+    }
+
+    const cancelledDeliveries = await transaction
+      .update(endpointForwardDeliveries)
+      .set({
+        lastError: TARGET_DELETED_DELIVERY_ERROR,
+        lastStatus: null,
+        status: "cancelled",
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(endpointForwardDeliveries.endpointId, endpointId),
+          eq(endpointForwardDeliveries.targetId, targetId),
+          eq(endpointForwardDeliveries.status, "pending")
+        )
+      )
+      .returning({
+        requestId: endpointForwardDeliveries.requestId,
+      })
+
+    await pruneForwardingCompletedRequests({
+      endpointId,
+      requestIds: cancelledDeliveries.map((delivery) => delivery.requestId),
+      transaction,
+    })
+  })
 }
 
 async function getEndpointForwardTargetRow({
@@ -236,7 +308,8 @@ async function getEndpointForwardTargetRow({
     .where(
       and(
         eq(endpointForwardTargets.id, targetId),
-        eq(endpointForwardTargets.endpointId, endpointId)
+        eq(endpointForwardTargets.endpointId, endpointId),
+        eq(endpointForwardTargets.deleted, false)
       )
     )
     .limit(1)
@@ -261,7 +334,8 @@ export async function enqueueEndpointForwardDeliveriesForRequest({
     .where(
       and(
         eq(endpointForwardTargets.endpointId, request.endpointId),
-        eq(endpointForwardTargets.enabled, true)
+        eq(endpointForwardTargets.enabled, true),
+        eq(endpointForwardTargets.deleted, false)
       )
     )
 
@@ -352,57 +426,11 @@ export async function recordEndpointForwardDeliveryAttempt({
       return
     }
 
-    const activeForwardingRequestIds = transaction
-      .select({ id: endpointForwardDeliveries.requestId })
-      .from(endpointForwardDeliveries)
-      .where(
-        and(
-          eq(endpointForwardDeliveries.requestId, row.requestId),
-          eq(endpointForwardDeliveries.status, "pending")
-        )
-      )
-
-    await transaction
-      .delete(capturedRequests)
-      .where(
-        and(
-          eq(capturedRequests.id, row.requestId),
-          eq(capturedRequests.deleteAfterForwarding, true),
-          notInArray(capturedRequests.id, activeForwardingRequestIds)
-        )
-      )
-
-    const retainedRequestIds = transaction
-      .select({ id: capturedRequests.id })
-      .from(capturedRequests)
-      .where(
-        and(
-          eq(capturedRequests.endpointId, row.endpointId),
-          eq(capturedRequests.deleteAfterForwarding, false)
-        )
-      )
-      .orderBy(desc(capturedRequests.receivedAt), desc(capturedRequests.id))
-      .limit(MAX_REQUESTS_PER_ENDPOINT)
-    const activeEndpointForwardingRequestIds = transaction
-      .select({ id: endpointForwardDeliveries.requestId })
-      .from(endpointForwardDeliveries)
-      .where(
-        and(
-          eq(endpointForwardDeliveries.endpointId, row.endpointId),
-          eq(endpointForwardDeliveries.status, "pending")
-        )
-      )
-
-    await transaction
-      .delete(capturedRequests)
-      .where(
-        and(
-          eq(capturedRequests.endpointId, row.endpointId),
-          eq(capturedRequests.deleteAfterForwarding, false),
-          notInArray(capturedRequests.id, retainedRequestIds),
-          notInArray(capturedRequests.id, activeEndpointForwardingRequestIds)
-        )
-      )
+    await pruneForwardingCompletedRequests({
+      endpointId: row.endpointId,
+      requestIds: [row.requestId],
+      transaction,
+    })
   })
 }
 
@@ -439,7 +467,8 @@ async function assertEndpointForwardTargetExists({
     .where(
       and(
         eq(endpointForwardTargets.endpointId, endpointId),
-        eq(endpointForwardTargets.id, targetId)
+        eq(endpointForwardTargets.id, targetId),
+        eq(endpointForwardTargets.deleted, false)
       )
     )
     .limit(1)
@@ -483,12 +512,16 @@ async function assertEndpointCanAddForwardTarget({
 }) {
   const [summary] = await transaction
     .select({
-      activeTargetCount:
-        sql<number>`cast(count(*) filter (where ${endpointForwardTargets.enabled}) as integer)`,
+      activeTargetCount: sql<number>`cast(count(*) filter (where ${endpointForwardTargets.enabled} and ${endpointForwardTargets.deleted} = false) as integer)`,
       totalTargetCount: sql<number>`cast(count(*) as integer)`,
     })
     .from(endpointForwardTargets)
-    .where(eq(endpointForwardTargets.endpointId, endpointId))
+    .where(
+      and(
+        eq(endpointForwardTargets.endpointId, endpointId),
+        eq(endpointForwardTargets.deleted, false)
+      )
+    )
   const activeTargetCount = summary?.activeTargetCount ?? 0
   const totalTargetCount = summary?.totalTargetCount ?? 0
 
@@ -511,7 +544,8 @@ async function assertEndpointCanAddForwardTarget({
       and(
         eq(endpointForwardTargets.endpointId, endpointId),
         eq(endpointForwardTargets.url, url),
-        eq(endpointForwardTargets.pathMode, pathMode)
+        eq(endpointForwardTargets.pathMode, pathMode),
+        eq(endpointForwardTargets.deleted, false)
       )
     )
     .limit(1)
@@ -544,7 +578,8 @@ async function assertEndpointForwardTargetIsUnique({
         eq(endpointForwardTargets.endpointId, endpointId),
         eq(endpointForwardTargets.url, url),
         eq(endpointForwardTargets.pathMode, pathMode),
-        ne(endpointForwardTargets.id, targetId)
+        ne(endpointForwardTargets.id, targetId),
+        eq(endpointForwardTargets.deleted, false)
       )
     )
     .limit(1)
@@ -574,7 +609,8 @@ async function assertEndpointCanEnableForwardTarget({
       and(
         eq(endpointForwardTargets.endpointId, endpointId),
         eq(endpointForwardTargets.enabled, true),
-        ne(endpointForwardTargets.id, targetId)
+        ne(endpointForwardTargets.id, targetId),
+        eq(endpointForwardTargets.deleted, false)
       )
     )
   const targetCount = summary?.targetCount ?? 0
@@ -586,6 +622,70 @@ async function assertEndpointCanEnableForwardTarget({
   }
 }
 
+async function pruneForwardingCompletedRequests({
+  endpointId,
+  requestIds,
+  transaction,
+}: {
+  endpointId: string
+  requestIds: string[]
+  transaction: DatabaseTransaction
+}) {
+  for (const requestId of new Set(requestIds)) {
+    const activeForwardingRequestIds = transaction
+      .select({ id: endpointForwardDeliveries.requestId })
+      .from(endpointForwardDeliveries)
+      .where(
+        and(
+          eq(endpointForwardDeliveries.requestId, requestId),
+          eq(endpointForwardDeliveries.status, "pending")
+        )
+      )
+
+    await transaction
+      .delete(capturedRequests)
+      .where(
+        and(
+          eq(capturedRequests.id, requestId),
+          eq(capturedRequests.deleteAfterForwarding, true),
+          notInArray(capturedRequests.id, activeForwardingRequestIds)
+        )
+      )
+  }
+
+  const retainedRequestIds = transaction
+    .select({ id: capturedRequests.id })
+    .from(capturedRequests)
+    .where(
+      and(
+        eq(capturedRequests.endpointId, endpointId),
+        eq(capturedRequests.deleteAfterForwarding, false)
+      )
+    )
+    .orderBy(desc(capturedRequests.receivedAt), desc(capturedRequests.id))
+    .limit(MAX_REQUESTS_PER_ENDPOINT)
+  const activeEndpointForwardingRequestIds = transaction
+    .select({ id: endpointForwardDeliveries.requestId })
+    .from(endpointForwardDeliveries)
+    .where(
+      and(
+        eq(endpointForwardDeliveries.endpointId, endpointId),
+        eq(endpointForwardDeliveries.status, "pending")
+      )
+    )
+
+  await transaction
+    .delete(capturedRequests)
+    .where(
+      and(
+        eq(capturedRequests.endpointId, endpointId),
+        eq(capturedRequests.deleteAfterForwarding, false),
+        notInArray(capturedRequests.id, retainedRequestIds),
+        notInArray(capturedRequests.id, activeEndpointForwardingRequestIds)
+      )
+    )
+}
+
 function mapEndpointForwardTargetRow(
   row: typeof endpointForwardTargets.$inferSelect
 ) {
@@ -595,6 +695,7 @@ function mapEndpointForwardTargetRow(
     url: row.url,
     pathMode: row.pathMode as EndpointForwardPathMode,
     enabled: row.enabled,
+    deleted: row.deleted,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   } satisfies EndpointForwardTarget

@@ -20,10 +20,15 @@ const {
   resolveEndpointForwardTargetUrlSafely: vi.fn(),
 }))
 
-vi.mock("@/lib/webhooks/endpoint-forwarding/policy", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/webhooks/endpoint-forwarding/policy")>()),
-  resolveEndpointForwardTargetUrlSafely,
-}))
+vi.mock(
+  "@/lib/webhooks/endpoint-forwarding/policy",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("@/lib/webhooks/endpoint-forwarding/policy")
+    >()),
+    resolveEndpointForwardTargetUrlSafely,
+  })
+)
 
 vi.mock("@/lib/webhooks/endpoint-forwarding/repository", async () => ({
   getEndpointForwardDeliveryForProcessing,
@@ -75,6 +80,7 @@ function createLoadedDelivery(
     target: {
       id: "44444444-4444-4444-8444-444444444444",
       createdAt: "2026-06-13T12:00:00.000Z",
+      deleted: false,
       enabled: true,
       endpointId: "33333333-3333-4333-8333-333333333333",
       pathMode: "strip",
@@ -272,5 +278,51 @@ describe("processEndpointForwardDeliveryJob", () => {
       lastStatus: null,
       status: "failed",
     })
+  })
+
+  it("marks deleted targets cancelled without calling transport", async () => {
+    getEndpointForwardDeliveryForProcessing.mockResolvedValueOnce(
+      createLoadedDelivery({
+        target: {
+          ...createLoadedDelivery().target,
+          deleted: true,
+          enabled: false,
+        },
+      })
+    )
+    const transport = vi.fn()
+
+    await processEndpointForwardDeliveryJob({
+      job: createJob(),
+      transport,
+    })
+
+    expect(transport).not.toHaveBeenCalled()
+    expect(recordEndpointForwardDeliveryAttempt).toHaveBeenCalledWith({
+      deliveryId: DELIVERY_ID,
+      lastError: "Forward target was deleted.",
+      lastStatus: null,
+      status: "cancelled",
+    })
+  })
+
+  it("ignores cancelled deliveries without calling transport", async () => {
+    getEndpointForwardDeliveryForProcessing.mockResolvedValueOnce(
+      createLoadedDelivery({
+        delivery: {
+          ...createLoadedDelivery().delivery,
+          status: "cancelled",
+        },
+      })
+    )
+    const transport = vi.fn()
+
+    await processEndpointForwardDeliveryJob({
+      job: createJob(),
+      transport,
+    })
+
+    expect(transport).not.toHaveBeenCalled()
+    expect(recordEndpointForwardDeliveryAttempt).not.toHaveBeenCalled()
   })
 })

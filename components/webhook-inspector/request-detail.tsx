@@ -1,5 +1,11 @@
 import * as React from "react"
-import { BracesIcon, CheckIcon, CopyIcon, WrapTextIcon } from "lucide-react"
+import {
+  BracesIcon,
+  CheckIcon,
+  CopyIcon,
+  Repeat2Icon,
+  WrapTextIcon,
+} from "lucide-react"
 
 import {
   Empty,
@@ -27,8 +33,12 @@ import {
 const BODY_WRAP_STORAGE_KEY = "webhooks.lol:body-wrap"
 
 export function RequestDetail({
+  isReplaying = false,
+  onReplayRequest,
   request,
 }: {
+  isReplaying?: boolean
+  onReplayRequest?: (requestId: string) => Promise<void>
   request: CapturedRequest | null
 }) {
   if (!request) {
@@ -52,7 +62,11 @@ export function RequestDetail({
 
   return (
     <section className="flex min-h-[520px] min-w-0 animate-in flex-col bg-card duration-200 fade-in-0 motion-reduce:animate-none sm:min-h-0">
-      <RequestSummaryHeader request={request} />
+      <RequestSummaryHeader
+        isReplaying={isReplaying}
+        request={request}
+        onReplayRequest={onReplayRequest}
+      />
       <div className="flex min-h-0 flex-1 flex-col p-3">
         <RequestMetrics request={request} />
 
@@ -79,8 +93,55 @@ function RequestDetailHeader({
   )
 }
 
-function RequestSummaryHeader({ request }: { request: CapturedRequest }) {
+function RequestSummaryHeader({
+  isReplaying,
+  onReplayRequest,
+  request,
+}: {
+  isReplaying: boolean
+  onReplayRequest?: (requestId: string) => Promise<void>
+  request: CapturedRequest
+}) {
   const path = formatRequestListPath(request)
+  const [replayedRequestId, setReplayedRequestId] = React.useState<
+    string | null
+  >(null)
+  const resetTimeout = React.useRef<number | null>(null)
+  const justReplayed = replayedRequestId === request.id
+
+  React.useEffect(() => {
+    return () => {
+      if (resetTimeout.current) {
+        window.clearTimeout(resetTimeout.current)
+      }
+    }
+  }, [])
+
+  const handleReplay = React.useCallback(async () => {
+    if (!onReplayRequest) {
+      return
+    }
+
+    try {
+      await onReplayRequest(request.id)
+    } catch {
+      return
+    }
+
+    if (resetTimeout.current) {
+      window.clearTimeout(resetTimeout.current)
+    }
+
+    setReplayedRequestId(request.id)
+
+    resetTimeout.current = window.setTimeout(() => {
+      setReplayedRequestId(null)
+      resetTimeout.current = null
+    }, 1400)
+  }, [onReplayRequest, request.id])
+
+  const replayIcon = justReplayed ? CheckIcon : Repeat2Icon
+  const replayLabel = justReplayed ? "Replayed request" : "Replay request"
 
   return (
     <header className="flex h-14 items-center gap-3 border-b bg-muted/20 px-4">
@@ -88,23 +149,37 @@ function RequestSummaryHeader({ request }: { request: CapturedRequest }) {
       <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
         {path}
       </span>
-      <div className="flex shrink-0 items-center gap-2 text-[0.68rem] text-muted-foreground">
-        {request.ip ? (
-          <>
-            <span className="hidden truncate sm:inline" title={request.ip}>
-              {request.ip}
-            </span>
-            <span
-              className="hidden text-muted-foreground/40 sm:inline"
-              aria-hidden="true"
-            >
-              ·
-            </span>
-          </>
-        ) : null}
-        <span className="whitespace-nowrap">
-          {formatRequestDateTime(request.receivedAt)}
-        </span>
+      <div className="flex shrink-0 items-center gap-2.5">
+        <div className="flex items-center gap-2 text-[0.68rem] text-muted-foreground">
+          {request.ip ? (
+            <>
+              <span className="hidden truncate sm:inline" title={request.ip}>
+                {request.ip}
+              </span>
+              <span
+                className="hidden text-muted-foreground/40 sm:inline"
+                aria-hidden="true"
+              >
+                ·
+              </span>
+            </>
+          ) : null}
+          <span className="whitespace-nowrap">
+            {formatRequestDateTime(request.receivedAt)}
+          </span>
+        </div>
+        <Separator orientation="vertical" className="h-5" />
+        <InspectorIconButton
+          className="size-7 rounded-sm"
+          disabled={!onReplayRequest || isReplaying}
+          icon={replayIcon}
+          label={replayLabel}
+          onClick={() => {
+            void handleReplay()
+          }}
+          size="icon-sm"
+          variant="ghost"
+        />
       </div>
     </header>
   )

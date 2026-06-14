@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest"
 
-import { createFetchEndpointTransport } from "@/components/webhook-inspector/endpoint-session/transport"
+import {
+  createFetchEndpointTransport,
+  type EndpointForwardTarget,
+} from "@/components/webhook-inspector/endpoint-session/transport"
 import { DEFAULT_ENDPOINT_RESPONSE_CONFIG } from "@/lib/webhooks/endpoint-response"
 import {
   parseAdvancedRequestSearchQuery,
@@ -33,6 +36,22 @@ function createRequest(): CapturedRequest {
     contentType: null,
     receivedAt: "2026-06-05T00:00:00.000Z",
     ip: null,
+  }
+}
+
+function createForwardTarget(
+  overrides: Partial<EndpointForwardTarget> = {}
+): EndpointForwardTarget {
+  return {
+    id: "forward-target-1",
+    endpointId: ENDPOINT_ID,
+    url: "https://example.com/webhook",
+    pathMode: "preserve",
+    enabled: true,
+    deleted: false,
+    createdAt: "2026-06-05T00:00:00.000Z",
+    updatedAt: "2026-06-05T00:00:00.000Z",
+    ...overrides,
   }
 }
 
@@ -302,6 +321,193 @@ describe("endpoint transport", () => {
     )
   })
 
+  it("manages endpoint forward targets through the fetch adapter", async () => {
+    const createdTarget = createForwardTarget()
+    const updatedTarget = createForwardTarget({
+      pathMode: "strip",
+      updatedAt: "2026-06-05T00:01:00.000Z",
+      url: "https://example.com/updated",
+    })
+    const disabledTarget = createForwardTarget({
+      enabled: false,
+      updatedAt: "2026-06-05T00:02:00.000Z",
+    })
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(
+        createResponse({
+          endpointId: ENDPOINT_ID,
+          targets: [createdTarget],
+        })
+      )
+      .mockResolvedValueOnce(
+        createResponse({
+          endpointId: ENDPOINT_ID,
+          target: createdTarget,
+        })
+      )
+      .mockResolvedValueOnce(
+        createResponse({
+          endpointId: ENDPOINT_ID,
+          target: updatedTarget,
+        })
+      )
+      .mockResolvedValueOnce(
+        createResponse({
+          endpointId: ENDPOINT_ID,
+          target: disabledTarget,
+        })
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+    const transport = createFetchEndpointTransport(fetcher)
+
+    await expect(transport.listForwardTargets(ENDPOINT_ID)).resolves.toEqual([
+      createdTarget,
+    ])
+    await expect(
+      transport.createForwardTarget(ENDPOINT_ID, {
+        pathMode: "preserve",
+        url: "https://example.com/webhook",
+      })
+    ).resolves.toEqual(createdTarget)
+    await expect(
+      transport.updateForwardTarget(ENDPOINT_ID, createdTarget.id, {
+        pathMode: "strip",
+        url: "https://example.com/updated",
+      })
+    ).resolves.toEqual(updatedTarget)
+    await expect(
+      transport.updateForwardTarget(ENDPOINT_ID, createdTarget.id, {
+        enabled: false,
+      })
+    ).resolves.toEqual(disabledTarget)
+    await expect(
+      transport.deleteForwardTarget(ENDPOINT_ID, createdTarget.id)
+    ).resolves.toBeUndefined()
+
+    expect(fetcher).toHaveBeenNthCalledWith(
+      1,
+      `/api/endpoints/${ENDPOINT_ID}/forward-targets`,
+      {
+        cache: "no-store",
+      }
+    )
+    expect(fetcher).toHaveBeenNthCalledWith(
+      2,
+      `/api/endpoints/${ENDPOINT_ID}/forward-targets`,
+      {
+        body: JSON.stringify({
+          pathMode: "preserve",
+          url: "https://example.com/webhook",
+        }),
+        headers: {
+          "content-type": "application/json",
+        },
+        method: "POST",
+      }
+    )
+    expect(fetcher).toHaveBeenNthCalledWith(
+      3,
+      `/api/endpoints/${ENDPOINT_ID}/forward-targets/${createdTarget.id}`,
+      {
+        body: JSON.stringify({
+          pathMode: "strip",
+          url: "https://example.com/updated",
+        }),
+        headers: {
+          "content-type": "application/json",
+        },
+        method: "PATCH",
+      }
+    )
+    expect(fetcher).toHaveBeenNthCalledWith(
+      4,
+      `/api/endpoints/${ENDPOINT_ID}/forward-targets/${createdTarget.id}`,
+      {
+        body: JSON.stringify({
+          enabled: false,
+        }),
+        headers: {
+          "content-type": "application/json",
+        },
+        method: "PATCH",
+      }
+    )
+    expect(fetcher).toHaveBeenNthCalledWith(
+      5,
+      `/api/endpoints/${ENDPOINT_ID}/forward-targets/${createdTarget.id}`,
+      {
+        method: "DELETE",
+      }
+    )
+  })
+
+  it("replays a captured request through the fetch adapter", async () => {
+    const replayedRequest = {
+      ...createRequest(),
+      id: "captured-replay-1",
+      receivedAt: "2026-06-05T00:01:00.000Z",
+    }
+    const fetcher = vi.fn().mockResolvedValueOnce(
+      createResponse({
+        endpointId: ENDPOINT_ID,
+        originalRequestId: "captured-1",
+        request: replayedRequest,
+      })
+    )
+    const transport = createFetchEndpointTransport(fetcher)
+
+    await expect(
+      transport.replayRequest(ENDPOINT_ID, "captured-1")
+    ).resolves.toEqual(replayedRequest)
+
+    expect(fetcher).toHaveBeenCalledWith(
+      `/api/endpoints/${ENDPOINT_ID}/requests/captured-1/replay`,
+      {
+        method: "POST",
+      }
+    )
+  })
+
+  it("surfaces server validation errors for forwarding and replay", async () => {
+    const transport = createFetchEndpointTransport(
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          createResponse(
+            { error: "Forward URL must use HTTPS." },
+            { status: 400 }
+          )
+        )
+        .mockResolvedValueOnce(
+          createResponse(
+            { error: "Forward URL has already been added." },
+            { status: 400 }
+          )
+        )
+        .mockResolvedValueOnce(
+          createResponse(
+            { error: "Captured request was not found." },
+            { status: 404 }
+          )
+        )
+    )
+
+    await expect(
+      transport.createForwardTarget(ENDPOINT_ID, {
+        url: "http://example.com/webhook",
+      })
+    ).rejects.toThrow("Forward URL must use HTTPS.")
+    await expect(
+      transport.updateForwardTarget(ENDPOINT_ID, "forward-target-1", {
+        url: "https://example.com/webhook",
+      })
+    ).rejects.toThrow("Forward URL has already been added.")
+    await expect(
+      transport.replayRequest(ENDPOINT_ID, "captured-1")
+    ).rejects.toThrow("Captured request was not found.")
+  })
+
   it("maps failed responses to stable errors", async () => {
     const transport = createFetchEndpointTransport(
       vi.fn().mockResolvedValue(createResponse({}, { status: 500 }))
@@ -338,5 +544,24 @@ describe("endpoint transport", () => {
     await expect(
       transport.updateEndpointMetadata(ENDPOINT_ID, { name: null })
     ).rejects.toThrow("Could not save endpoint.")
+    await expect(transport.listForwardTargets(ENDPOINT_ID)).rejects.toThrow(
+      "Could not load forward targets."
+    )
+    await expect(
+      transport.createForwardTarget(ENDPOINT_ID, {
+        url: "https://example.com/webhook",
+      })
+    ).rejects.toThrow("Could not create forward target.")
+    await expect(
+      transport.updateForwardTarget(ENDPOINT_ID, "forward-target-1", {
+        enabled: false,
+      })
+    ).rejects.toThrow("Could not save forward target.")
+    await expect(
+      transport.deleteForwardTarget(ENDPOINT_ID, "forward-target-1")
+    ).rejects.toThrow("Could not delete forward target.")
+    await expect(
+      transport.replayRequest(ENDPOINT_ID, "captured-1")
+    ).rejects.toThrow("Could not replay request.")
   })
 })

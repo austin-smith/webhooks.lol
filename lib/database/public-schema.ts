@@ -107,6 +107,7 @@ export const endpointForwardTargets = pgTable(
     url: text("url").notNull(),
     pathMode: text("path_mode").notNull(),
     enabled: boolean("enabled").notNull().default(true),
+    deleted: boolean("deleted").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -117,11 +118,9 @@ export const endpointForwardTargets = pgTable(
   },
   (table) => [
     index("endpoint_forward_targets_endpoint_id_idx").on(table.endpointId),
-    uniqueIndex("endpoint_forward_targets_endpoint_url_path_idx").on(
-      table.endpointId,
-      table.url,
-      table.pathMode
-    ),
+    uniqueIndex("endpoint_forward_targets_endpoint_url_path_idx")
+      .on(table.endpointId, table.url, table.pathMode)
+      .where(sql`${table.deleted} = false`),
     check(
       "endpoint_forward_targets_path_mode_check",
       sql`${table.pathMode} in ('strip', 'preserve')`
@@ -171,7 +170,7 @@ export const endpointForwardDeliveries = pgTable(
     index("endpoint_forward_deliveries_status_idx").on(table.status),
     check(
       "endpoint_forward_deliveries_status_check",
-      sql`${table.status} in ('pending', 'delivered', 'failed')`
+      sql`${table.status} in ('pending', 'delivered', 'failed', 'cancelled')`
     ),
     check(
       "endpoint_forward_deliveries_target_path_mode_check",

@@ -34,7 +34,11 @@ header. The main limits:
 - **Creating endpoints**: up to 100 per hour from one client.
 - **Capturing requests**: up to 600 per minute per endpoint, and 1,200 per
   minute per client across all endpoints.
+- **Replaying requests**: up to 120 per minute per endpoint, 60 per minute per
+  client, and 60 per minute for one stored request.
 - **Captured volume**: up to 1 GiB of request bodies per endpoint per day.
+- **Forwarding targets**: up to 5 enabled targets per endpoint and 20 total
+  target rows, including disabled targets.
 - **Live streams**: up to 3 concurrent live connections per endpoint (so an
   endpoint can be open in a few tabs at once).
 
