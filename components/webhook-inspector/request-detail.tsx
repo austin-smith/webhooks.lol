@@ -168,7 +168,7 @@ function RequestSummaryHeader({
             {formatRequestDateTime(request.receivedAt)}
           </span>
         </div>
-        <Separator orientation="vertical" className="h-5" />
+        <Separator orientation="vertical" className="h-5 data-vertical:self-center" />
         <InspectorIconButton
           className="size-7 rounded-sm"
           disabled={!onReplayRequest || isReplaying}

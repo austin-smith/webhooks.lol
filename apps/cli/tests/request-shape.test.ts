@@ -65,13 +65,19 @@ describe("buildTargetUrl", () => {
     expect(url.pathname).toBe("/hook")
   })
 
-  it("preserves repeated query values", () => {
+  it("preserves raw query ordering and encoding", () => {
     const url = buildTargetUrl(
-      "http://localhost:3000/",
-      makeRequest({ query: { tag: ["a", "b"] }, path: "/" }),
+      "http://localhost:3000/?existing=1",
+      makeRequest({
+        path: "/",
+        query: { a: ["1", "3"], b: ["2"], x: ["a b"] },
+        url: "/payments/created?a=1&b=2&a=3&x=a%20b",
+      }),
       "preserve"
     )
-    expect(url.searchParams.getAll("tag")).toEqual(["a", "b"])
+    expect(url.toString()).toBe(
+      "http://localhost:3000/?existing=1&a=1&b=2&a=3&x=a%20b"
+    )
   })
 })
 

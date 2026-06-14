@@ -38,12 +38,15 @@ describe("endpoint forwarding request shape", () => {
   it("strips the captured path by default while preserving query values", () => {
     const url = buildEndpointForwardTargetUrl({
       pathMode: "strip",
-      request: createRequest(),
+      request: createRequest({
+        query: { a: ["1", "3"], b: ["2"], x: ["a b"] },
+        url: "/stripe/events?a=1&b=2&a=3&x=a%20b",
+      }),
       targetUrl: "https://app.example.com/webhooks/stripe?existing=1",
     })
 
     expect(url.toString()).toBe(
-      "https://app.example.com/webhooks/stripe?existing=1&source=test&tag=a&tag=b"
+      "https://app.example.com/webhooks/stripe?existing=1&a=1&b=2&a=3&x=a%20b"
     )
   })
 

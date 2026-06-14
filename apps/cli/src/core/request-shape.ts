@@ -34,11 +34,7 @@ export function buildTargetUrl(
     url.pathname = joinPath(url.pathname, request.path)
   }
 
-  for (const [key, values] of Object.entries(request.query)) {
-    for (const value of values) {
-      url.searchParams.append(key, value)
-    }
-  }
+  appendRawSearch(url, readRawSearch(request.url))
 
   return url
 }
@@ -81,4 +77,33 @@ function joinPath(base: string, sub: string): string {
   const left = base.endsWith("/") ? base.slice(0, -1) : base
   const right = sub.startsWith("/") ? sub : `/${sub}`
   return `${left}${right}`
+}
+
+function readRawSearch(capturedUrl: string) {
+  const queryStart = capturedUrl.indexOf("?")
+
+  if (queryStart === -1) {
+    return ""
+  }
+
+  const hashStart = capturedUrl.indexOf("#", queryStart)
+  const search = capturedUrl.slice(
+    queryStart,
+    hashStart === -1 ? undefined : hashStart
+  )
+
+  return search === "?" ? "" : search
+}
+
+function appendRawSearch(url: URL, rawSearch: string) {
+  if (!rawSearch) {
+    return
+  }
+
+  if (!url.search) {
+    url.search = rawSearch
+    return
+  }
+
+  url.search = `${url.search}&${rawSearch.slice(1)}`
 }
