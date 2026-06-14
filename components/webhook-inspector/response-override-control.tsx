@@ -333,7 +333,7 @@ export function ResponseOverrideControl({
           <div className="flex justify-end">
             <Button
               type="button"
-              size="sm"
+              size="xs"
               className="rounded-sm"
               disabled={disabled || isSaving}
               onClick={saveOverride}
