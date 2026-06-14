@@ -168,7 +168,10 @@ function RequestSummaryHeader({
             {formatRequestDateTime(request.receivedAt)}
           </span>
         </div>
-        <Separator orientation="vertical" className="h-5 data-vertical:self-center" />
+        <Separator
+          orientation="vertical"
+          className="h-5 data-vertical:self-center"
+        />
         <InspectorIconButton
           className="size-7 rounded-sm"
           disabled={!onReplayRequest || isReplaying}
@@ -367,11 +370,7 @@ function WrapToggle({
   return (
     <InspectorIconButton
       aria-pressed={active}
-      className={cn(
-        "size-7 rounded-sm",
-        variant === "outline" && "bg-background/95",
-        active && "border-foreground/30 bg-muted text-foreground"
-      )}
+      className="size-7 rounded-sm"
       icon={WrapTextIcon}
       label={active ? "Disable word wrap" : "Enable word wrap"}
       onClick={onToggle}
@@ -398,10 +397,7 @@ function CopyButton({
 }) {
   return (
     <InspectorIconButton
-      className={cn(
-        "size-7 rounded-sm",
-        variant === "outline" && "bg-background/95"
-      )}
+      className="size-7 rounded-sm"
       disabled={disabled}
       icon={copied ? CheckIcon : CopyIcon}
       label={copied ? copiedLabel : label}
