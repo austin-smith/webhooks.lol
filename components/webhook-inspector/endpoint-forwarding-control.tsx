@@ -25,13 +25,13 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
-import { Input } from "@/components/ui/input"
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Textarea } from "@/components/ui/textarea"
 import {
   Tooltip,
   TooltipContent,
@@ -392,14 +392,24 @@ function ForwardTargetEditor({
 }) {
   return (
     <div className="grid min-w-0 gap-2.5 rounded-sm border bg-background px-2.5 py-2.5">
-      <Input
-        density="compact"
+      <Textarea
         aria-label="Forward URL"
         placeholder="https://example.com/webhook"
         value={url}
         disabled={isSaving}
         aria-invalid={Boolean(draftError)}
-        onChange={(event) => onUrlChange(event.target.value)}
+        spellCheck={false}
+        autoCapitalize="none"
+        autoComplete="url"
+        className="max-h-28 min-h-14 resize-y rounded-sm px-2 py-1 font-mono text-xs leading-snug break-all whitespace-normal md:text-xs"
+        onChange={(event) =>
+          onUrlChange(event.currentTarget.value.replace(/[\r\n]+/g, ""))
+        }
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault()
+          }
+        }}
       />
 
       <div className="flex min-w-0 items-center gap-1.5">
@@ -505,10 +515,9 @@ function ForwardTargetItem({
         <div className="min-w-0 flex-1">
           <p
             className={cn(
-              "truncate text-xs font-medium",
+              "text-xs leading-snug font-medium break-all whitespace-normal",
               !target.enabled && "text-muted-foreground"
             )}
-            title={target.url}
           >
             {target.url}
           </p>
