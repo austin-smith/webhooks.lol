@@ -180,9 +180,7 @@ Do not import browser endpoint-session code into the CLI.
   through the normal capture persistence/event publication path.
 - `components/webhook-inspector/endpoint-session/*` owns browser-side endpoint session
   state, storage, transport, and event-stream handling.
-- `apps/cli/src/*` owns the `whlol` command-line client. Keep CLI request
-  shaping, API transport, SSE parsing, local delivery, and command orchestration
-  inside the CLI package instead of sharing browser-only code.
+- `apps/cli/src/*` owns the `whlol` command-line client.
 - `components/ui/*` contains shadcn/Radix-derived primitives. Extend them
   consistently instead of inventing incompatible UI primitives.
 
@@ -216,6 +214,8 @@ handlers when they belong in domain modules.
 
 ## Webhook Behavior
 
+### Capture and Event Streams
+
 - Redis-backed admission control protects endpoint creation, webhook capture
   request counts, captured body bytes, and live event-stream connection leases.
   Keep admission checks before expensive work such as body reads when possible.
@@ -228,15 +228,19 @@ handlers when they belong in domain modules.
 - Publish live request events only after persistence succeeds.
 - Be careful with binary payloads: text display and base64 storage are separate
   concerns.
-- Endpoint forwarding creates queued deliveries after capture persistence.
+
+### Forwarding and Replay
+
+- Endpoint forwarding creates queued deliveries only after capture persistence
+  succeeds.
   Forwarding workers must preserve original method, forwardable headers, body
   bytes, path mode, and query semantics while rejecting unsafe target URLs.
 - Request retention must not delete captured requests with pending forwarding
   deliveries. Requests marked for deletion after forwarding should be pruned only
   after all pending deliveries for that request are no longer pending.
-- Request replay creates a new captured request for the same endpoint and should
-  not enqueue endpoint-forwarding deliveries unless that behavior is explicitly
-  changed.
+- Request replay creates and publishes a new captured request for the same
+  endpoint. It should not enqueue endpoint-forwarding deliveries unless that
+  behavior is explicitly changed.
 
 ## File Organization
 
