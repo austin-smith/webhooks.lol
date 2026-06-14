@@ -11,7 +11,7 @@ through webhooks.lol or to a local server.
 No installation is required:
 
 ```bash
-npx whlol forward --to http://localhost:3000/api/stripe
+npx whlol forward --to http://localhost:3000/api/webhooks
 ```
 
 This creates an endpoint, prints its receive URL, and forwards every request it
@@ -26,7 +26,7 @@ Create or attach to an endpoint and deliver its requests to a local URL.
 
 ```bash
 # Create a new endpoint and forward to a local server
-npx whlol forward --to http://localhost:3000/api/stripe
+npx whlol forward --to http://localhost:3000/api/webhooks
 
 # Attach to an existing endpoint
 npx whlol forward <endpoint-id> --to http://localhost:3000/hook
@@ -63,21 +63,21 @@ a local server from your machine.
 # Replay one request by id through webhooks.lol
 npx whlol replay <endpoint-id> --request <request-id>
 
-# Replay every stored POST whose body or path contains "refund" through webhooks.lol
-npx whlol replay <endpoint-id> --method POST --grep refund
+# Replay every stored POST whose body or path contains "created" through webhooks.lol
+npx whlol replay <endpoint-id> --method POST --grep created
 
 # Replay one request by id to a local server
 npx whlol replay <endpoint-id> --request <request-id> --to http://localhost:3000/hook
 
-# Replay every stored POST whose body or path contains "refund" to a local server
-npx whlol replay <endpoint-id> --method POST --grep refund --to http://localhost:3000/hook
+# Replay every stored POST whose body or path contains "created" to a local server
+npx whlol replay <endpoint-id> --method POST --grep created --to http://localhost:3000/hook
 ```
 
 ## Path mapping
 
 By default the captured subpath is appended to `--to`. A request to
-`/api/hook/<id>/refunds` forwarded with `--to http://localhost:3000/api/stripe`
-is delivered to `http://localhost:3000/api/stripe/refunds`, with the query
+`/api/hook/<id>/events` forwarded with `--to http://localhost:3000/api/webhooks`
+is delivered to `http://localhost:3000/api/webhooks/events`, with the query
 string preserved. Pass `--path strip` to always deliver to the exact `--to` URL.
 
 ## Options

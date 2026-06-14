@@ -73,9 +73,9 @@ For production, run it on a Node.js host with PostgreSQL available through `DATA
 Example:
 
 ```bash
-curl -X POST https://hooks.example.com/api/hook/<id>/payments/created \
+curl -X POST https://hooks.example.com/api/hook/<id>/events/created \
   -H "content-type: application/json" \
-  -d '{"event":"payment.created","amount":42}'
+  -d '{"event":"created","id":"evt_123"}'
 ```
 
 Captured requests appear live in the endpoint. Select a request to inspect the parsed body, headers, query string, and raw HTTP request.
@@ -90,7 +90,7 @@ signature headers still verify locally.
 
 ```bash
 # Forward to a local server (creates an endpoint and prints its receive URL)
-npx whlol forward --to http://localhost:3000/api/stripe
+npx whlol forward --to http://localhost:3000/api/webhooks
 
 # Stream live requests to the terminal
 npx whlol tail <endpoint-id>

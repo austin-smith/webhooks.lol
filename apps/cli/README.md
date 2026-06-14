@@ -9,7 +9,7 @@ development, tail live requests as they arrive, or replay retained requests
 through webhooks.lol or to a local server.
 
 ```bash
-npx whlol forward --to http://localhost:3000/api/stripe
+npx whlol forward --to http://localhost:3000/api/webhooks
 ```
 
 This creates an endpoint, prints its receive URL, and forwards every captured
@@ -20,7 +20,7 @@ configuration and trigger an event.
 
 ```bash
 # Forward (create a new endpoint, or attach to an existing one)
-npx whlol forward --to http://localhost:3000/api/stripe
+npx whlol forward --to http://localhost:3000/api/webhooks
 npx whlol forward <endpoint-id> --to http://localhost:3000/hook
 
 # Tail live requests to the terminal
@@ -29,11 +29,11 @@ npx whlol tail <endpoint-id> --json | jq .
 
 # Replay a stored request, or a filtered set
 npx whlol replay <endpoint-id> --request <request-id>
-npx whlol replay <endpoint-id> --method POST --grep refund
+npx whlol replay <endpoint-id> --method POST --grep created
 
 # Replay to a local server from your machine
 npx whlol replay <endpoint-id> --request <request-id> --to http://localhost:3000/hook
-npx whlol replay <endpoint-id> --method POST --grep refund --to http://localhost:3000/hook
+npx whlol replay <endpoint-id> --method POST --grep created --to http://localhost:3000/hook
 ```
 
 The original method, headers, and exact body bytes are preserved, so provider
