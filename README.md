@@ -80,11 +80,12 @@ curl -X POST https://hooks.example.com/api/hook/<id>/payments/created \
 
 Captured requests appear live in the endpoint. Select a request to inspect the parsed body, headers, query string, and raw HTTP request.
 
-## Local forwarding
+## CLI
 
-The `whlol` CLI (in `apps/cli`) forwards an endpoint's captured requests to a
-server on your machine, so a local app can receive real webhook traffic. The
-original method, headers, and exact body bytes are preserved, so provider
+The [`whlol`](https://www.npmjs.com/package/whlol) CLI streams endpoint traffic
+from your terminal. Use it to forward captured requests to a local server, tail
+live requests, or replay stored requests. Forwarded and replayed requests
+preserve the original method, headers, and exact body bytes, so provider
 signature headers still verify locally.
 
 ```bash
@@ -98,9 +99,9 @@ npx whlol tail <endpoint-id>
 npx whlol replay <endpoint-id> --request <request-id> --to http://localhost:3000/hook
 ```
 
-Point the CLI at a local deployment with `--host http://localhost:4665` or the
-`WEBHOOKS_LOL_URL` environment variable. See `apps/cli/README.md` for all
-options.
+Point the CLI at a local or self-hosted deployment with
+`--host http://localhost:4665` or the `WEBHOOKS_LOL_URL` environment variable.
+See `apps/cli/README.md` for all options.
 
 ## Behavior
 

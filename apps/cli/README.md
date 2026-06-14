@@ -1,12 +1,12 @@
 # whlol
 
 Forward, tail, and replay [webhooks.lol](https://webhooks.lol) endpoint traffic
-to a server on your machine.
+from your terminal.
 
-Webhooks are delivered to a public receive URL, but the service you are building
-runs on `localhost`. `whlol` streams an endpoint's captured requests and
-re-delivers each one to a local URL, so your app receives real provider traffic
-while you develop.
+[`whlol`](https://www.npmjs.com/package/whlol) lets you inspect endpoint traffic
+without opening the browser. Use it to create forwarding sessions for local
+development, tail live requests as they arrive, or replay retained requests
+through webhooks.lol or to a local server.
 
 ```bash
 npx whlol forward --to http://localhost:3000/api/stripe
@@ -66,7 +66,7 @@ briefly down.
 
 ## Security
 
-The endpoint ID is the only credential for CLI access: anyone who has it can read
-and locally forward captured traffic. Treat the receive URL and ID as secrets.
-By default `--to` must be a local or private-network host; pass `--allow-remote`
-to override.
+The endpoint ID is the only credential for CLI access: anyone who has it can
+read, replay, and forward captured traffic. Treat the receive URL and ID as
+secrets. By default `--to` must be a local or private-network host; pass
+`--allow-remote` to override.

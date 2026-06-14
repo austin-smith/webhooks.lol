@@ -1,12 +1,12 @@
 ---
 title: CLI
-description: Use the whlol CLI to forward, tail, and replay endpoint traffic to a server on your machine.
+description: Use the whlol CLI to forward, tail, and replay endpoint traffic from your terminal.
 ---
 
-Webhooks arrive at a public receive URL, but the service you are building
-usually runs on `localhost`. The `whlol` CLI bridges that gap: it streams an
-endpoint's captured requests and re-delivers each one to a local URL, so your
-app receives real provider traffic while you develop.
+The [`whlol`](https://www.npmjs.com/package/whlol) CLI lets you inspect endpoint
+traffic from your terminal. Use it to create forwarding sessions for local
+development, tail live requests as they arrive, or replay retained requests
+through webhooks.lol or to a local server.
 
 No installation is required:
 
@@ -108,7 +108,7 @@ WEBHOOKS_LOL_URL=http://localhost:4665 npx whlol tail <endpoint-id>
 
 ## Security
 
-The endpoint ID is the only credential for CLI access: anyone who has it can read
-captured traffic and forward it from their machine. Treat the receive URL and the
-ID as secrets. By default `--to` must be a local or private-network host; pass
+The endpoint ID is the only credential for CLI access: anyone who has it can
+read, replay, and forward captured traffic. Treat the receive URL and the ID as
+secrets. By default `--to` must be a local or private-network host; pass
 `--allow-remote` only when you intend to relay traffic to a remote server.
