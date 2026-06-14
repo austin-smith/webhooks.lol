@@ -115,6 +115,34 @@ export async function checkWebhookCaptureBodyAdmission({
   }
 }
 
+export async function checkRequestReplayAdmission({
+  endpointId,
+  request,
+  requestId,
+}: {
+  endpointId: string
+  request: Request
+  requestId: string
+}): Promise<AdmissionDecision> {
+  const clientIdentity = readClientIdentity(request)
+
+  return checkAdmission(
+    [
+      [clientIdentity.key, webhookRateLimitPolicies.requestReplayPerClient],
+      [
+        `endpoint:${endpointId}`,
+        webhookRateLimitPolicies.requestReplayPerEndpoint,
+      ],
+      [
+        `endpoint:${endpointId}:request:${requestId}`,
+        webhookRateLimitPolicies.requestReplayPerRequest,
+      ],
+      ["global", webhookRateLimitPolicies.requestReplayGlobal],
+    ],
+    clientIdentity
+  )
+}
+
 export async function acquireEndpointEventStreamAdmission({
   endpointId,
   request,

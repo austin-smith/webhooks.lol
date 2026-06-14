@@ -178,6 +178,25 @@ export async function updateEndpointName({
 }
 
 export async function saveCapturedRequest(input: CapturedRequestInput) {
+  return saveCapturedRequestWithForwarding(input, {
+    enqueueForwarding: true,
+  })
+}
+
+export async function saveReplayedCapturedRequest(input: CapturedRequestInput) {
+  return saveCapturedRequestWithForwarding(input, {
+    enqueueForwarding: false,
+  })
+}
+
+async function saveCapturedRequestWithForwarding(
+  input: CapturedRequestInput,
+  {
+    enqueueForwarding,
+  }: {
+    enqueueForwarding: boolean
+  }
+) {
   const receivedAt = new Date()
   const request: CapturedRequest = {
     ...input,
@@ -216,10 +235,12 @@ export async function saveCapturedRequest(input: CapturedRequestInput) {
       deleteAfterForwarding: false,
     })
 
-    await enqueueEndpointForwardDeliveriesForRequest({
-      request,
-      transaction,
-    })
+    if (enqueueForwarding) {
+      await enqueueEndpointForwardDeliveriesForRequest({
+        request,
+        transaction,
+      })
+    }
 
     const retainedRequestIds = transaction
       .select({ id: capturedRequests.id })

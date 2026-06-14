@@ -1,4 +1,4 @@
-import type { CapturedRequest } from "./types.js"
+import type { CapturedRequest, ServerReplayResult } from "./types.js"
 
 export class ApiError extends Error {
   readonly status: number
@@ -125,6 +125,34 @@ export async function getRequest(
 
   const data = (await response.json()) as { request: CapturedRequest }
   return data.request
+}
+
+export async function replayRequest(
+  baseUrl: string,
+  endpointId: string,
+  requestId: string,
+  signal: AbortSignal
+): Promise<ServerReplayResult> {
+  const response = await fetch(
+    new URL(
+      `/api/endpoints/${endpointId}/requests/${requestId}/replay`,
+      baseUrl
+    ),
+    {
+      method: "POST",
+      signal,
+    }
+  )
+
+  if (!response.ok) {
+    throw new ApiError(
+      response.status,
+      (await readErrorMessage(response)) ??
+        `Failed to replay request (status ${response.status}).`
+    )
+  }
+
+  return (await response.json()) as ServerReplayResult
 }
 
 async function readErrorMessage(response: Response) {

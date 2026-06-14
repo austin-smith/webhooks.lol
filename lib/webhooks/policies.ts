@@ -48,6 +48,34 @@ export const webhookRateLimitPolicies = {
     limit: 600,
     windowSeconds: 60,
   },
+  // Server-side request replays across the whole service.
+  // Limit: 600 replays per 60-second window; average 10/second.
+  requestReplayGlobal: {
+    id: "request-replay-global",
+    limit: 600,
+    windowSeconds: 60,
+  },
+  // Server-side request replays from one client across all endpoints.
+  // Limit: 60 replays per 60-second window; average 1/second.
+  requestReplayPerClient: {
+    id: "request-replay-client",
+    limit: 60,
+    windowSeconds: 60,
+  },
+  // Server-side request replays for one endpoint.
+  // Limit: 120 replays per 60-second window; average 2/second.
+  requestReplayPerEndpoint: {
+    id: "request-replay-endpoint",
+    limit: 120,
+    windowSeconds: 60,
+  },
+  // Server-side replays of one stored request.
+  // Limit: 60 replays per 60-second window; average 1/second.
+  requestReplayPerRequest: {
+    id: "request-replay-request",
+    limit: 60,
+    windowSeconds: 60,
+  },
 } satisfies Record<string, RateLimitPolicy>
 
 export const webhookEventStreamPolicies = {

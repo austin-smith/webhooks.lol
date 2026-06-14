@@ -21,21 +21,21 @@ const HELP = `whlol — forward, tail, and replay webhooks.lol traffic to a loca
 Usage:
   whlol forward [endpointId] --to <url> [options]
   whlol tail <endpointId> [options]
-  whlol replay <endpointId> (--request <id> | --method <m> | --grep <text>) --to <url> [options]
+  whlol replay <endpointId> (--request <id> | --method <m> | --grep <text>) [--to <url>] [options]
 
 Commands:
   forward   Create or attach to an endpoint and deliver its requests to --to.
   tail      Stream live requests to the terminal without delivering them.
-  replay    Re-send one stored request (--request) or a filtered set to --to.
+  replay    Re-send one stored request (--request) or a filtered set.
 
 Options:
-  --to <url>          Local URL to deliver to (required for forward/replay).
+  --to <url>          Local URL to deliver to. Omit for server replay through webhooks.lol.
   --host <url>        API origin (default https://webhooks.lol, or WEBHOOKS_LOL_URL).
-  --path <mode>       Subpath mapping: "preserve" (default) or "strip".
+  --path <mode>       Local delivery subpath mapping: "preserve" (default) or "strip".
   --method <m>        Only include this method (repeatable).
   --grep <text>       Only include requests whose path/url/body contains <text>.
   --request <id>      Replay a single stored request by id.
-  --timeout <ms>      Per-delivery timeout in milliseconds (default 30000).
+  --timeout <ms>      Local delivery timeout in milliseconds (default 30000).
   --retries <n>       Connection-failure retries per request (default 5).
   --no-catchup        Do not replay requests missed while disconnected.
   --replay-existing   On first connect, also deliver already-stored requests.
@@ -139,15 +139,20 @@ async function main(argv: string[]): Promise<number> {
           endpointId: parseEndpointId(endpointArg),
           requestId: values.request ?? null,
           filter,
-          target: resolveTarget({
-            to: values.to,
-            allowRemote: values["allow-remote"] ?? false,
-          }),
+          localTarget:
+            values.to !== undefined
+              ? resolveTarget({
+                  to: values.to,
+                  allowRemote: values["allow-remote"] ?? false,
+                })
+              : null,
           pathMode: parsePathMode(values.path),
+          pathModeWasProvided: values.path !== undefined,
           timeoutMs: parsePositiveInteger(values.timeout, {
             flag: "--timeout",
             fallback: 30_000,
           }),
+          timeoutWasProvided: values.timeout !== undefined,
           json,
           signal: controller.signal,
           printer,

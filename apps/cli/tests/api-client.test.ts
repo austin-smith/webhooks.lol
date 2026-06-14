@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { ApiError, getRequest } from "../src/core/api-client.js"
+import { ApiError, getRequest, replayRequest } from "../src/core/api-client.js"
 import type { CapturedRequest } from "../src/core/types.js"
 
 const endpointId = "11111111-1111-4111-8111-111111111111"
@@ -86,6 +86,42 @@ describe("getRequest", () => {
       status: 404,
       message: "Endpoint not found.",
     } satisfies Partial<ApiError>)
+  })
+})
+
+describe("replayRequest", () => {
+  it("posts to the server replay route without a request body", async () => {
+    const replayedRequest = {
+      ...createRequest(),
+      id: "33333333-3333-4333-8333-333333333333",
+    }
+    const replayResult = {
+      endpointId,
+      originalRequestId: requestId,
+      request: replayedRequest,
+    }
+    const fetcher = vi.fn(async () => Response.json(replayResult))
+    vi.stubGlobal("fetch", fetcher)
+
+    await expect(
+      replayRequest(
+        "https://hooks.example.com",
+        endpointId,
+        requestId,
+        signal()
+      )
+    ).resolves.toEqual(replayResult)
+
+    expect(fetcher).toHaveBeenCalledWith(
+      new URL(
+        `/api/endpoints/${endpointId}/requests/${requestId}/replay`,
+        "https://hooks.example.com"
+      ),
+      {
+        method: "POST",
+        signal: expect.any(AbortSignal),
+      }
+    )
   })
 })
 

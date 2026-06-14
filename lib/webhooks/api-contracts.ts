@@ -41,6 +41,12 @@ export type RequestResponse = {
   request: CapturedRequest
 }
 
+export type ReplayRequestResponse = {
+  endpointId: string
+  originalRequestId: string
+  request: CapturedRequest
+}
+
 export type EndpointResponseConfigResponse = {
   endpointId: string
   response: EndpointResponseConfig

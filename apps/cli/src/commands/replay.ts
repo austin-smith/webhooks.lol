@@ -1,5 +1,5 @@
 import { CliError } from "../cli-error.js"
-import { getRequest } from "../core/api-client.js"
+import { getRequest, replayRequest } from "../core/api-client.js"
 import { fetchAllRequests } from "../core/backfill.js"
 import { deliverRequest } from "../core/deliver.js"
 import {
@@ -18,15 +18,29 @@ export interface ReplayOptions {
   endpointId: string
   requestId: string | null
   filter: RequestFilter
-  target: string
+  localTarget: string | null
   pathMode: PathMode
+  pathModeWasProvided: boolean
   timeoutMs: number
+  timeoutWasProvided: boolean
   json: boolean
   signal: AbortSignal
   printer: Printer
 }
 
 export async function runReplay(options: ReplayOptions): Promise<void> {
+  if (!options.localTarget && options.pathModeWasProvided) {
+    throw new CliError(
+      "Server replay uses the original captured request path. --path only applies to local replay with --to."
+    )
+  }
+
+  if (!options.localTarget && options.timeoutWasProvided) {
+    throw new CliError(
+      "Server replay uses the webhooks.lol capture path. --timeout only applies to local replay with --to."
+    )
+  }
+
   const requests = await collectRequests(options)
 
   if (requests.length === 0) {
@@ -39,9 +53,17 @@ export async function runReplay(options: ReplayOptions): Promise<void> {
       return
     }
 
+    if (!options.localTarget) {
+      await replayViaServer({
+        options,
+        request,
+      })
+      continue
+    }
+
     const result = await deliverRequest({
       request,
-      target: options.target,
+      target: options.localTarget,
       pathMode: options.pathMode,
       timeoutMs: options.timeoutMs,
       signal: options.signal,
@@ -53,6 +75,30 @@ export async function runReplay(options: ReplayOptions): Promise<void> {
       options.printer.delivery(request, result)
     }
   }
+}
+
+async function replayViaServer({
+  options,
+  request,
+}: {
+  options: ReplayOptions
+  request: CapturedRequest
+}) {
+  const result = await replayRequest(
+    options.baseUrl,
+    options.endpointId,
+    request.id,
+    options.signal
+  )
+
+  if (options.json) {
+    options.printer.json({ request, replay: result })
+    return
+  }
+
+  options.printer.info(
+    `${request.method} ${request.path} replayed as ${result.request.id}`
+  )
 }
 
 async function collectRequests(

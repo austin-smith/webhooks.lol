@@ -14,6 +14,12 @@ The server-side persistence boundary for webhook endpoints and captured requests
 
 The live server-sent event stream for one endpoint. It sends readiness, captured request, clear, and heartbeat events while hiding emitter details from route modules.
 
+### Request replay
+
+The flow that takes an already captured request and re-submits it through the
+normal capture persistence path, producing a new captured request for the same
+endpoint. Replay is independent from endpoint forwarding configuration.
+
 ### Browser endpoint session
 
 The client-side inspector flow that chooses the active endpoint, remembers recent webhook endpoint IDs, loads endpoint metadata and captured requests, subscribes to the endpoint event stream, and exposes stable endpoint actions to UI modules.

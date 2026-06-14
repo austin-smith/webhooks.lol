@@ -18,10 +18,15 @@ const {
   enqueueEndpointForwardDeliveryJob: vi.fn(),
 }))
 
-vi.mock("@/lib/webhooks/endpoint-forwarding/policy", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/webhooks/endpoint-forwarding/policy")>()),
-  assertEndpointForwardTargetUrlCanBeReachedSafely,
-}))
+vi.mock(
+  "@/lib/webhooks/endpoint-forwarding/policy",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("@/lib/webhooks/endpoint-forwarding/policy")
+    >()),
+    assertEndpointForwardTargetUrlCanBeReachedSafely,
+  })
+)
 
 vi.mock("@/lib/webhooks/endpoint-forwarding/queue", () => ({
   enqueueEndpointForwardDeliveryJob,
@@ -48,6 +53,7 @@ import {
   getEndpointStats,
   listRequests,
   saveCapturedRequest,
+  saveReplayedCapturedRequest,
 } from "@/lib/webhooks/repository"
 import { MAX_REQUESTS_PER_ENDPOINT } from "@/lib/webhooks/request-retention"
 
@@ -110,6 +116,40 @@ describe("endpoint forwarding repository", () => {
       targetId: target.id,
       transaction: expect.anything(),
     })
+  })
+
+  it("does not create forward deliveries for replayed captured requests", async () => {
+    assertEndpointForwardTargetUrlCanBeReachedSafely.mockResolvedValueOnce(
+      undefined
+    )
+    const endpoint = await createEndpoint()
+    createdEndpointIds.push(endpoint.endpointId)
+    await createEndpointForwardTarget({
+      endpointId: endpoint.endpointId,
+      url: "https://example.com/webhook",
+    })
+
+    const request = await saveReplayedCapturedRequest({
+      endpointId: endpoint.endpointId,
+      method: "POST",
+      url: "/events",
+      path: "/events",
+      query: {},
+      headers: {},
+      bodyBase64: "e30=",
+      bodySize: 2,
+      bodyText: "{}",
+      contentType: "application/json",
+      ip: null,
+    })
+
+    const deliveries = await getDatabase()
+      .select()
+      .from(endpointForwardDeliveries)
+      .where(eq(endpointForwardDeliveries.requestId, request.id))
+
+    expect(deliveries).toHaveLength(0)
+    expect(enqueueEndpointForwardDeliveryJob).not.toHaveBeenCalled()
   })
 
   it("lists and disables endpoint forward targets", async () => {

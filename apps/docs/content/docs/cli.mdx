@@ -54,13 +54,22 @@ npx whlol tail <endpoint-id> --json | jq .
 
 ### replay
 
-Re-send a stored request, or a filtered set of them, on demand.
+Re-send a stored request, or a filtered set of them, on demand. Without `--to`,
+the stored request is re-submitted through webhooks.lol and appears as a new
+captured request for the same endpoint. With `--to`, the CLI sends the replay to
+a local server from your machine.
 
 ```bash
-# Replay one request by id
+# Replay one request by id through webhooks.lol
+npx whlol replay <endpoint-id> --request <request-id>
+
+# Replay every stored POST whose body or path contains "refund" through webhooks.lol
+npx whlol replay <endpoint-id> --method POST --grep refund
+
+# Replay one request by id to a local server
 npx whlol replay <endpoint-id> --request <request-id> --to http://localhost:3000/hook
 
-# Replay every stored POST whose body or path contains "refund"
+# Replay every stored POST whose body or path contains "refund" to a local server
 npx whlol replay <endpoint-id> --method POST --grep refund --to http://localhost:3000/hook
 ```
 
@@ -73,21 +82,21 @@ string preserved. Pass `--path strip` to always deliver to the exact `--to` URL.
 
 ## Options
 
-| Option | Description |
-| --- | --- |
-| `--to <url>` | Local URL to deliver to (required for `forward` and `replay`). |
-| `--host <url>` | API origin. Defaults to `https://webhooks.lol`, or `WEBHOOKS_LOL_URL`. |
-| `--path <mode>` | Subpath mapping: `preserve` (default) or `strip`. |
-| `--method <m>` | Only include this method. Repeatable. |
-| `--grep <text>` | Only include requests whose path, URL, or text body contains `<text>`. |
-| `--request <id>` | Replay a single stored request by id. |
-| `--timeout <ms>` | Per-delivery timeout in milliseconds (default `30000`). |
-| `--retries <n>` | Connection-failure retries per request (default `5`). |
-| `--no-catchup` | Do not replay requests missed while disconnected. |
-| `--replay-existing` | On first connect, also deliver already-stored requests. |
-| `--allow-remote` | Allow a non-local `--to` host. |
-| `--json` | Emit machine-readable JSON lines. |
-| `--no-color` | Disable colored output. |
+| Option              | Description                                                                   |
+| ------------------- | ----------------------------------------------------------------------------- |
+| `--to <url>`        | Local URL to deliver to. Required for `forward`; optional for local `replay`. |
+| `--host <url>`      | API origin. Defaults to `https://webhooks.lol`, or `WEBHOOKS_LOL_URL`.        |
+| `--path <mode>`     | Local delivery subpath mapping: `preserve` (default) or `strip`.              |
+| `--method <m>`      | Only include this method. Repeatable.                                         |
+| `--grep <text>`     | Only include requests whose path, URL, or text body contains `<text>`.        |
+| `--request <id>`    | Replay a single stored request by id.                                         |
+| `--timeout <ms>`    | Local delivery timeout in milliseconds (default `30000`).                     |
+| `--retries <n>`     | Connection-failure retries per request (default `5`).                         |
+| `--no-catchup`      | Do not replay requests missed while disconnected.                             |
+| `--replay-existing` | On first connect, also deliver already-stored requests.                       |
+| `--allow-remote`    | Allow a non-local `--to` host.                                                |
+| `--json`            | Emit machine-readable JSON lines.                                             |
+| `--no-color`        | Disable colored output.                                                       |
 
 ## Self-hosting
 

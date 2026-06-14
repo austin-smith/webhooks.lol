@@ -18,6 +18,12 @@ export interface CapturedRequest {
   ip: string | null
 }
 
+export interface ServerReplayResult {
+  endpointId: string
+  originalRequestId: string
+  request: CapturedRequest
+}
+
 export type StreamMessage =
   | { type: "open" }
   | { type: "ready"; endpointId: string; readyAt: string }
