@@ -3,6 +3,11 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { ApiError, getRequest, replayRequest } from "../src/core/api-client.js"
 import type { CapturedRequest } from "../src/core/types.js"
 
+type FetchMock = (
+  input: string | URL | Request,
+  init?: RequestInit
+) => Promise<Response>
+
 const endpointId = "11111111-1111-4111-8111-111111111111"
 const requestId = "22222222-2222-4222-8222-222222222222"
 
@@ -10,34 +15,18 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-function createRequest(): CapturedRequest {
-  return {
-    id: requestId,
-    endpointId,
-    method: "POST",
-    url: "/hook",
-    path: "/hook",
-    query: {},
-    headers: {},
-    bodyText: "",
-    bodyBase64: "",
-    bodySize: 0,
-    contentType: null,
-    receivedAt: "2026-06-13T12:00:00.000Z",
-    ip: null,
-  }
-}
-
 describe("getRequest", () => {
   it("returns a captured request", async () => {
     const request = createRequest()
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        Response.json({
-          endpointId,
-          request,
-        })
+      vi.fn<FetchMock>(() =>
+        Promise.resolve(
+          Response.json({
+            endpointId,
+            request,
+          })
+        )
       )
     )
 
@@ -49,13 +38,15 @@ describe("getRequest", () => {
   it("returns null when the request is missing", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        Response.json(
-          {
-            ok: false,
-            error: "Request not found.",
-          },
-          { status: 404 }
+      vi.fn<FetchMock>(() =>
+        Promise.resolve(
+          Response.json(
+            {
+              ok: false,
+              error: "Request not found.",
+            },
+            { status: 404 }
+          )
         )
       )
     )
@@ -68,13 +59,15 @@ describe("getRequest", () => {
   it("throws a specific error when the endpoint is missing", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        Response.json(
-          {
-            ok: false,
-            error: "Endpoint not found.",
-          },
-          { status: 404 }
+      vi.fn<FetchMock>(() =>
+        Promise.resolve(
+          Response.json(
+            {
+              ok: false,
+              error: "Endpoint not found.",
+            },
+            { status: 404 }
+          )
         )
       )
     )
@@ -100,7 +93,9 @@ describe("replayRequest", () => {
       originalRequestId: requestId,
       request: replayedRequest,
     }
-    const fetcher = vi.fn(async () => Response.json(replayResult))
+    const fetcher = vi.fn<FetchMock>(() =>
+      Promise.resolve(Response.json(replayResult))
+    )
     vi.stubGlobal("fetch", fetcher)
 
     await expect(
@@ -112,18 +107,37 @@ describe("replayRequest", () => {
       )
     ).resolves.toEqual(replayResult)
 
-    expect(fetcher).toHaveBeenCalledWith(
+    expect(fetcher).toHaveBeenCalledOnce()
+    const [url, init] = fetcher.mock.calls[0] ?? []
+
+    expect(url).toEqual(
       new URL(
         `/api/endpoints/${endpointId}/requests/${requestId}/replay`,
         "https://hooks.example.com"
-      ),
-      {
-        method: "POST",
-        signal: expect.any(AbortSignal),
-      }
+      )
     )
+    expect(init?.method).toBe("POST")
+    expect(init?.signal).toBeInstanceOf(AbortSignal)
   })
 })
+
+function createRequest(): CapturedRequest {
+  return {
+    id: requestId,
+    endpointId,
+    method: "POST",
+    url: "/hook",
+    path: "/hook",
+    query: {},
+    headers: {},
+    bodyText: "",
+    bodyBase64: "",
+    bodySize: 0,
+    contentType: null,
+    receivedAt: "2026-06-13T12:00:00.000Z",
+    ip: null,
+  }
+}
 
 function signal() {
   return new AbortController().signal

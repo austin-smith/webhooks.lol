@@ -21,7 +21,7 @@ describe("streamEndpointEvents", () => {
     })
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => new Response(body, { status: 200 }))
+      vi.fn(() => Promise.resolve(new Response(body, { status: 200 })))
     )
 
     const controller = new AbortController()

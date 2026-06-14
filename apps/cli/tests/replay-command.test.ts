@@ -33,7 +33,8 @@ describe("runReplay", () => {
       request: replayedRequest,
     })
 
-    const printer = createPrinter()
+    const info = vi.fn()
+    const printer = createPrinter({ info })
     await runReplay({
       ...baseOptions(),
       printer,
@@ -45,7 +46,7 @@ describe("runReplay", () => {
       requestId,
       expect.any(AbortSignal)
     )
-    expect(printer.info).toHaveBeenCalledWith(
+    expect(info).toHaveBeenCalledWith(
       `POST /hook replayed as ${replayedRequestId}`
     )
   })
@@ -92,7 +93,7 @@ function baseOptions() {
   }
 }
 
-function createPrinter(): Printer {
+function createPrinter(overrides: Partial<Printer> = {}): Printer {
   return {
     banner: vi.fn(),
     capture: vi.fn(),
@@ -101,6 +102,7 @@ function createPrinter(): Printer {
     info: vi.fn(),
     json: vi.fn(),
     warn: vi.fn(),
+    ...overrides,
   }
 }
 
