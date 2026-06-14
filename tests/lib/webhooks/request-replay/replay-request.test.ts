@@ -6,12 +6,12 @@ const {
   checkWebhookCaptureBodyAdmission,
   getRequest,
   publishRequest,
-  saveReplayedCapturedRequest,
+  saveCapturedRequest,
 } = vi.hoisted(() => ({
   checkWebhookCaptureBodyAdmission: vi.fn(),
   getRequest: vi.fn(),
   publishRequest: vi.fn(),
-  saveReplayedCapturedRequest: vi.fn(),
+  saveCapturedRequest: vi.fn(),
 }))
 
 vi.mock("@/lib/webhooks/admission-control", () => ({
@@ -25,7 +25,7 @@ vi.mock("@/lib/webhooks/endpoint-event-stream", () => ({
 vi.mock("@/lib/webhooks/repository", () => ({
   getRequest,
   isEndpointUnavailableError: vi.fn(() => false),
-  saveReplayedCapturedRequest,
+  saveCapturedRequest,
 }))
 
 import {
@@ -43,7 +43,7 @@ describe("replayCapturedRequest", () => {
     checkWebhookCaptureBodyAdmission.mockResolvedValue(createAllowedAdmission())
     getRequest.mockReset()
     publishRequest.mockReset()
-    saveReplayedCapturedRequest.mockReset()
+    saveCapturedRequest.mockReset()
   })
 
   it("saves a new captured request from the stored request", async () => {
@@ -54,7 +54,7 @@ describe("replayCapturedRequest", () => {
       receivedAt: "2026-06-13T12:01:00.000Z",
     }
     getRequest.mockResolvedValueOnce(request)
-    saveReplayedCapturedRequest.mockResolvedValueOnce(replayedRequest)
+    saveCapturedRequest.mockResolvedValueOnce(replayedRequest)
 
     const result = await replayCapturedRequest({
       endpointId: ENDPOINT_ID,
@@ -67,7 +67,7 @@ describe("replayCapturedRequest", () => {
       endpointId: ENDPOINT_ID,
       request: expect.any(Request),
     })
-    expect(saveReplayedCapturedRequest).toHaveBeenCalledWith({
+    expect(saveCapturedRequest).toHaveBeenCalledWith({
       bodyBase64: request.bodyBase64,
       bodySize: request.bodySize,
       bodyText: request.bodyText,
@@ -81,6 +81,14 @@ describe("replayCapturedRequest", () => {
       url: request.url,
     })
     expect(publishRequest).toHaveBeenCalledWith(replayedRequest)
+    const [saveCallOrder] = saveCapturedRequest.mock.invocationCallOrder
+    const [publishCallOrder] = publishRequest.mock.invocationCallOrder
+
+    if (saveCallOrder === undefined || publishCallOrder === undefined) {
+      throw new Error("Expected save and publish calls to be recorded.")
+    }
+
+    expect(saveCallOrder).toBeLessThan(publishCallOrder)
     expect(result).toEqual({
       endpointId: ENDPOINT_ID,
       originalRequestId: REQUEST_ID,
@@ -99,7 +107,7 @@ describe("replayCapturedRequest", () => {
       })
     ).rejects.toThrow(ReplayRequestNotFoundError)
     expect(checkWebhookCaptureBodyAdmission).not.toHaveBeenCalled()
-    expect(saveReplayedCapturedRequest).not.toHaveBeenCalled()
+    expect(saveCapturedRequest).not.toHaveBeenCalled()
     expect(publishRequest).not.toHaveBeenCalled()
   })
 
@@ -120,7 +128,7 @@ describe("replayCapturedRequest", () => {
       name: "ReplayBodyRateLimitedError",
       rateLimit: createRateLimit(),
     })
-    expect(saveReplayedCapturedRequest).not.toHaveBeenCalled()
+    expect(saveCapturedRequest).not.toHaveBeenCalled()
     expect(publishRequest).not.toHaveBeenCalled()
   })
 })

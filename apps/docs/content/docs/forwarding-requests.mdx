@@ -16,10 +16,11 @@ separate copy of the captured request.
 Open the forwarding control in the inspector header, enter an HTTPS URL, choose
 how paths should be handled, and save.
 
-Each enabled target receives future requests captured by the endpoint. The
-request method, query string, body, and forwardable headers are delivered with
-the forwarded request. Hop-by-hop headers such as `Host` and `Content-Length`
-are recomputed for the target.
+Each enabled target receives future requests captured by the endpoint, including
+replayed requests created after the target is enabled. The request method, query
+string, body, and forwardable headers are delivered with the forwarded request.
+Hop-by-hop headers such as `Host` and `Content-Length` are recomputed for the
+target.
 
 <Callout type="info">
   Forwarding applies to new captured requests. It does not backfill requests

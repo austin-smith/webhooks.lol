@@ -54,7 +54,6 @@ import {
   getEndpointStats,
   listRequests,
   saveCapturedRequest,
-  saveReplayedCapturedRequest,
 } from "@/lib/webhooks/repository"
 import { MAX_REQUESTS_PER_ENDPOINT } from "@/lib/webhooks/request-retention"
 
@@ -119,18 +118,24 @@ describe("endpoint forwarding repository", () => {
     })
   })
 
-  it("does not create forward deliveries for replayed captured requests", async () => {
+  it("does not create forward deliveries for disabled forward targets", async () => {
     assertEndpointForwardTargetUrlCanBeReachedSafely.mockResolvedValueOnce(
       undefined
     )
     const endpoint = await createEndpoint()
     createdEndpointIds.push(endpoint.endpointId)
-    await createEndpointForwardTarget({
+    const target = await createEndpointForwardTarget({
       endpointId: endpoint.endpointId,
       url: "https://example.com/webhook",
     })
+    await updateEndpointForwardTarget({
+      enabled: false,
+      endpointId: endpoint.endpointId,
+      targetId: target.id,
+    })
+    enqueueEndpointForwardDeliveryJob.mockReset()
 
-    const request = await saveReplayedCapturedRequest({
+    const request = await saveCapturedRequest({
       endpointId: endpoint.endpointId,
       method: "POST",
       url: "/events",

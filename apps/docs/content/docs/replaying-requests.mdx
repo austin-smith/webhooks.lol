@@ -18,14 +18,11 @@ type, and body come from the original captured request.
 
 Replay uses the stored request. It does not call the original sender.
 
-## Forwarding is separate
+## Forwarding
 
-Replay does not require [Forwarding Requests](/forwarding-requests), and
-forwarding targets do not control whether a request can be replayed. Replaying
-a request does not deliver it to forwarding targets.
-
-Forwarding sends newly captured endpoint traffic to configured HTTPS targets.
-Replay creates a new captured request from an existing one.
+Replay creates a fresh captured request from an existing one. If the endpoint
+has enabled [Forwarding Requests](/forwarding-requests) targets, the replayed
+request is queued for forwarding like any other newly captured request.
 
 ## Limits
 

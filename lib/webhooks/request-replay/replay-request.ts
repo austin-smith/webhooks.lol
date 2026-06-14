@@ -7,7 +7,7 @@ import type { RateLimitHeadersInput } from "@/lib/rate-limits/http"
 import {
   getRequest,
   isEndpointUnavailableError,
-  saveReplayedCapturedRequest,
+  saveCapturedRequest,
 } from "@/lib/webhooks/repository"
 import type { ReplayRequestResult } from "@/lib/webhooks/request-replay/types"
 
@@ -55,7 +55,7 @@ export async function replayCapturedRequest({
     throw new ReplayBodyRateLimitedError(bodyAdmission.rateLimit)
   }
 
-  const replayedRequest = await saveReplayedCapturedRequest({
+  const replayedRequest = await saveCapturedRequest({
     bodyBase64: sourceRequest.bodyBase64,
     bodySize: sourceRequest.bodySize,
     bodyText: sourceRequest.bodyText,

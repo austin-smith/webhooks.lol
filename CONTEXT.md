@@ -18,7 +18,9 @@ The live server-sent event stream for one endpoint. It sends readiness, captured
 
 The flow that takes an already captured request and re-submits it through the
 normal capture persistence path, producing a new captured request for the same
-endpoint. Replay is independent from endpoint forwarding configuration.
+endpoint. Replayed requests enter the same post-persistence behavior as newly
+captured requests, including live event publication and endpoint forwarding
+delivery enqueueing.
 
 ### Browser endpoint session
 

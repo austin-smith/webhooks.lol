@@ -1,6 +1,6 @@
 {
   "name": "whlol",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Forward, tail, and replay webhooks.lol endpoint traffic to a local server.",
   "license": "MIT",
   "type": "module",
