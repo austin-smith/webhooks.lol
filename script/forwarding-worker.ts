@@ -1,5 +1,15 @@
 #!/usr/bin/env node
-import { runEndpointForwardingWorker } from "@/lib/webhooks/endpoint-forwarding/worker"
+import { existsSync } from "node:fs"
+import { loadEnvFile } from "node:process"
+
+for (const envFile of [".env.local", ".env"]) {
+  if (existsSync(envFile)) {
+    loadEnvFile(envFile)
+  }
+}
+
+const { runEndpointForwardingWorker } =
+  await import("@/lib/webhooks/endpoint-forwarding/worker")
 
 const controller = new AbortController()
 
