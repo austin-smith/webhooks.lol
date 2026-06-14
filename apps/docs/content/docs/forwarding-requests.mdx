@@ -7,8 +7,9 @@ Forwarding delivers copies of an endpoint's captured requests to one or more
 HTTPS targets. Use it when the service you are testing needs to receive the same
 traffic that webhooks.lol captures.
 
-Forwarding does not change what the original caller receives from your endpoint.
-To change that response, use [Custom Responses](/custom-responses).
+The sender receives the endpoint's default acknowledgement or configured
+[Custom Response](/custom-responses). Each enabled forwarding target receives a
+separate copy of the captured request.
 
 ## Adding a target
 
