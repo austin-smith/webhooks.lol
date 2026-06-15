@@ -1,7 +1,7 @@
 import { CliError } from "../cli-error.js"
 import { getRequest, replayRequest } from "../core/api-client.js"
 import { fetchAllRequests } from "../core/backfill.js"
-import { deliverRequest } from "../core/deliver.js"
+import { deliverWithRetry } from "../core/deliver.js"
 import {
   filterIsActive,
   matchesFilter,
@@ -23,6 +23,8 @@ export interface ReplayOptions {
   pathModeWasProvided: boolean
   timeoutMs: number
   timeoutWasProvided: boolean
+  maxRetries: number
+  retriesWasProvided: boolean
   json: boolean
   signal: AbortSignal
   printer: Printer
@@ -38,6 +40,12 @@ export async function runReplay(options: ReplayOptions): Promise<void> {
   if (!options.localTarget && options.timeoutWasProvided) {
     throw new CliError(
       "Server replay uses the webhooks.lol capture path. --timeout only applies to local replay with --to."
+    )
+  }
+
+  if (!options.localTarget && options.retriesWasProvided) {
+    throw new CliError(
+      "Server replay uses the webhooks.lol capture path. --retries only applies to local replay with --to."
     )
   }
 
@@ -61,12 +69,18 @@ export async function runReplay(options: ReplayOptions): Promise<void> {
       continue
     }
 
-    const result = await deliverRequest({
+    const result = await deliverWithRetry({
       request,
       target: options.localTarget,
       pathMode: options.pathMode,
       timeoutMs: options.timeoutMs,
+      maxRetries: options.maxRetries,
       signal: options.signal,
+      onRetry: (attempt, delayMs) => {
+        options.printer.warn(
+          `local target unreachable, retrying ${request.method} ${request.path} in ${Math.round(delayMs / 1000)}s (attempt ${attempt})`
+        )
+      },
     })
 
     if (options.json) {

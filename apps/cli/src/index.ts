@@ -153,6 +153,11 @@ async function main(argv: string[]): Promise<number> {
             fallback: 30_000,
           }),
           timeoutWasProvided: values.timeout !== undefined,
+          maxRetries: parsePositiveInteger(values.retries, {
+            flag: "--retries",
+            fallback: 5,
+          }),
+          retriesWasProvided: values.retries !== undefined,
           json,
           signal: controller.signal,
           printer,
