@@ -41,8 +41,8 @@
     "verify": "turbo run typecheck lint test build"
   },
   "devDependencies": {
-    "@types/node": "^25.9.2",
-    "prettier": "^3.8.3",
+    "@types/node": "^25.9.3",
+    "prettier": "^3.8.4",
     "prettier-plugin-tailwindcss": "^0.8.0",
     "turbo": "^2.9.18",
     "typescript": "^5"

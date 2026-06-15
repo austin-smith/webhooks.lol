@@ -20,7 +20,7 @@
     "@webhooks-lol/database": "workspace:*",
     "@webhooks-lol/webhooks-core": "workspace:*",
     "@webhooks-lol/webhooks-server": "workspace:*",
-    "better-auth": "^1.6.15",
+    "better-auth": "^1.6.17",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
@@ -41,7 +41,7 @@
   "devDependencies": {
     "@next/env": "16.2.7",
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^25.9.2",
+    "@types/node": "^25.9.3",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19",
     "eslint": "^9",
