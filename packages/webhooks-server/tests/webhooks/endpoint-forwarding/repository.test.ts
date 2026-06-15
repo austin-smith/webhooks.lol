@@ -1,4 +1,4 @@
-import { eq, inArray } from "drizzle-orm"
+import { and, eq, inArray } from "drizzle-orm"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 const {
@@ -432,6 +432,100 @@ describe("endpoint forwarding repository", () => {
 
     expect(remainingRequests).toHaveLength(0)
     expect(remainingDeliveries).toHaveLength(0)
+  })
+
+  it("does not count forwarding-deletion rows against visible request retention", async () => {
+    assertEndpointForwardTargetUrlCanBeReachedSafely.mockResolvedValueOnce(
+      undefined
+    )
+    const endpoint = await createEndpoint()
+    createdEndpointIds.push(endpoint.endpointId)
+    const target = await createEndpointForwardTarget({
+      endpointId: endpoint.endpointId,
+      url: "https://example.com/webhook",
+    })
+    const visibleRequestRows = Array.from(
+      { length: MAX_REQUESTS_PER_ENDPOINT - 1 },
+      (_, index) => ({
+        id: crypto.randomUUID(),
+        bodyBase64: "",
+        bodySize: 0,
+        bodyText: "",
+        contentType: null,
+        deleteAfterForwarding: false,
+        endpointId: endpoint.endpointId,
+        headers: {},
+        ip: null,
+        method: "POST",
+        path: `/visible/${index}`,
+        query: {},
+        receivedAt: new Date(Date.UTC(2026, 0, 1, 0, 0, index)),
+        url: `/visible/${index}`,
+      })
+    )
+    const forwardingOnlyRequestId = crypto.randomUUID()
+
+    await getDatabase()
+      .insert(capturedRequests)
+      .values([
+        ...visibleRequestRows,
+        {
+          id: forwardingOnlyRequestId,
+          bodyBase64: "",
+          bodySize: 0,
+          bodyText: "",
+          contentType: null,
+          deleteAfterForwarding: true,
+          endpointId: endpoint.endpointId,
+          headers: {},
+          ip: null,
+          method: "POST",
+          path: "/cleared-pending-forwarding",
+          query: {},
+          receivedAt: new Date(Date.UTC(2100, 0, 1)),
+          url: "/cleared-pending-forwarding",
+        },
+      ])
+    await getDatabase().insert(endpointForwardDeliveries).values({
+      id: crypto.randomUUID(),
+      endpointId: endpoint.endpointId,
+      requestId: forwardingOnlyRequestId,
+      status: "pending",
+      targetId: target.id,
+      targetPathMode: target.pathMode,
+      targetUrl: target.url,
+    })
+
+    await saveCapturedRequest({
+      endpointId: endpoint.endpointId,
+      method: "POST",
+      url: "/new-visible",
+      path: "/new-visible",
+      query: {},
+      headers: {},
+      bodyBase64: "",
+      bodySize: 0,
+      bodyText: "",
+      contentType: null,
+      ip: null,
+    })
+
+    const visibleRequests = await getDatabase()
+      .select({ id: capturedRequests.id })
+      .from(capturedRequests)
+      .where(
+        and(
+          eq(capturedRequests.endpointId, endpoint.endpointId),
+          eq(capturedRequests.deleteAfterForwarding, false)
+        )
+      )
+    const forwardingOnlyRows = await getDatabase()
+      .select({ id: capturedRequests.id })
+      .from(capturedRequests)
+      .where(eq(capturedRequests.id, forwardingOnlyRequestId))
+
+    expect(visibleRequests).toHaveLength(MAX_REQUESTS_PER_ENDPOINT)
+    expect(forwardingOnlyRows).toHaveLength(1)
   })
 
   it("prunes over-retained requests after pending forwarding finishes", async () => {

@@ -224,7 +224,12 @@ export async function saveCapturedRequest(input: CapturedRequestInput) {
     const retainedRequestIds = transaction
       .select({ id: capturedRequests.id })
       .from(capturedRequests)
-      .where(eq(capturedRequests.endpointId, request.endpointId))
+      .where(
+        and(
+          eq(capturedRequests.endpointId, request.endpointId),
+          eq(capturedRequests.deleteAfterForwarding, false)
+        )
+      )
       .orderBy(desc(capturedRequests.receivedAt), desc(capturedRequests.id))
       .limit(MAX_REQUESTS_PER_ENDPOINT)
     const activeForwardingRequestIds = transaction
