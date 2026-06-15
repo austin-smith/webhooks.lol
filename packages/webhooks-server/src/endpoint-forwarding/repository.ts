@@ -393,7 +393,12 @@ export async function recordEndpointForwardDeliveryAttempt({
         status,
         updatedAt: now,
       })
-      .where(eq(endpointForwardDeliveries.id, deliveryId))
+      .where(
+        and(
+          eq(endpointForwardDeliveries.id, deliveryId),
+          eq(endpointForwardDeliveries.status, "pending")
+        )
+      )
       .returning({
         endpointId: endpointForwardDeliveries.endpointId,
         requestId: endpointForwardDeliveries.requestId,

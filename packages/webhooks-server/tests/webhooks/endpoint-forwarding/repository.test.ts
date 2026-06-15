@@ -266,6 +266,63 @@ describe("endpoint forwarding repository", () => {
     })
   })
 
+  it("does not overwrite cancelled deliveries with late worker attempts", async () => {
+    assertEndpointForwardTargetUrlCanBeReachedSafely.mockResolvedValue(
+      undefined
+    )
+    const endpoint = await createEndpoint()
+    createdEndpointIds.push(endpoint.endpointId)
+    const target = await createEndpointForwardTarget({
+      endpointId: endpoint.endpointId,
+      url: "https://example.com/webhook",
+    })
+    const request = await saveCapturedRequest({
+      endpointId: endpoint.endpointId,
+      method: "POST",
+      url: "/events",
+      path: "/events",
+      query: {},
+      headers: {},
+      bodyBase64: "e30=",
+      bodySize: 2,
+      bodyText: "{}",
+      contentType: "application/json",
+      ip: null,
+    })
+    const [pendingDelivery] = await getDatabase()
+      .select()
+      .from(endpointForwardDeliveries)
+      .where(eq(endpointForwardDeliveries.requestId, request.id))
+
+    if (!pendingDelivery) {
+      throw new Error("Expected pending endpoint forward delivery.")
+    }
+
+    await deleteEndpointForwardTarget({
+      endpointId: endpoint.endpointId,
+      targetId: target.id,
+    })
+    await recordEndpointForwardDeliveryAttempt({
+      deliveryId: pendingDelivery.id,
+      lastError: null,
+      lastStatus: 204,
+      status: "delivered",
+    })
+
+    const [delivery] = await getDatabase()
+      .select()
+      .from(endpointForwardDeliveries)
+      .where(eq(endpointForwardDeliveries.id, pendingDelivery.id))
+
+    expect(delivery).toMatchObject({
+      attempts: 0,
+      deliveredAt: null,
+      lastError: "Forward target was deleted.",
+      lastStatus: null,
+      status: "cancelled",
+    })
+  })
+
   it("excludes deleted endpoint forward targets from future forwarding", async () => {
     assertEndpointForwardTargetUrlCanBeReachedSafely.mockResolvedValue(
       undefined
