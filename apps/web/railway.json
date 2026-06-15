@@ -2,7 +2,7 @@
   "$schema": "https://railway.com/railway.schema.json",
   "build": {
     "builder": "RAILPACK",
-    "buildCommand": "pnpm --filter @webhooks-lol/web build",
+    "buildCommand": "pnpm web:build",
     "watchPatterns": [
       "/**",
       "!/apps/cli/**",
@@ -11,8 +11,8 @@
     ]
   },
   "deploy": {
-    "startCommand": "pnpm --filter @webhooks-lol/web start",
-    "preDeployCommand": ["pnpm --filter @webhooks-lol/database db:migrate"],
+    "startCommand": "pnpm web:start",
+    "preDeployCommand": ["pnpm db:migrate"],
     "runtime": "V2",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10,

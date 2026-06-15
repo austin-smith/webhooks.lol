@@ -14,7 +14,7 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -b tsconfig.build.json",
     "db:generate": "drizzle-kit generate",
     "db:local:logs": "docker logs --follow webhooks-lol-postgres",
     "db:local:start": "docker start webhooks-lol-postgres || docker run --name webhooks-lol-postgres --detach --publish 5434:5432 --env POSTGRES_DB=webhooks-lol --env POSTGRES_USER=postgres --env POSTGRES_PASSWORD=postgres --volume webhooks-lol-postgres-data:/var/lib/postgresql/data postgres:18",
@@ -23,7 +23,8 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "typecheck": "tsc --noEmit",
-    "verify": "pnpm typecheck && pnpm build"
+    "verify": "pnpm typecheck && pnpm build",
+    "watch": "tsc -b tsconfig.build.json --watch --preserveWatchOutput"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",

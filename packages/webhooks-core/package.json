@@ -14,11 +14,12 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -b tsconfig.build.json",
     "lint": "eslint",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+    "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "watch": "tsc -b tsconfig.build.json --watch --preserveWatchOutput"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

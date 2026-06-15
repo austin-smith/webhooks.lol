@@ -1,0 +1,12 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "dev": {
+      "with": [
+        "@webhooks-lol/database#watch",
+        "@webhooks-lol/webhooks-core#watch",
+        "@webhooks-lol/webhooks-server#watch"
+      ]
+    }
+  }
+}

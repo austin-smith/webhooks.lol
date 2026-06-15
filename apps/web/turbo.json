@@ -1,0 +1,23 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["$TURBO_EXTENDS$", "typecheck"],
+      "outputs": [".next/**", "!.next/cache/**", "!.next/types/**"]
+    },
+    "dev": {
+      "with": [
+        "@webhooks-lol/database#watch",
+        "@webhooks-lol/webhooks-core#watch",
+        "@webhooks-lol/webhooks-server#watch"
+      ]
+    },
+    "typecheck": {
+      "dependsOn": ["$TURBO_EXTENDS$", "typegen"]
+    },
+    "typegen": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/types/**"]
+    }
+  }
+}

@@ -62,8 +62,25 @@ The dev server runs on `http://localhost:4665`.
 Keep route handlers and server-only modules on the Node.js runtime when they use
 database access, `Buffer`, streams, or other Node-specific APIs.
 
-The repository is a pnpm workspace. Use `pnpm --filter <package> <script>` for
-package-specific commands.
+Workspace task orchestration uses Turborepo. Keep internal workspace libraries
+as compiled packages with `dist` package exports, and express dependency order,
+caching, and long-running dev task behavior in `turbo.json` rather than in
+nested shell scripts. Root app commands such as `pnpm dev`, `pnpm web:build`,
+and `pnpm pgboss:dev` should use the Turbo-backed scripts so package builds and
+watchers stay dependency-aware.
+
+Use root Turbo-backed scripts for any app or worker command that depends on
+compiled workspace packages. Direct filtered app commands such as
+`pnpm --filter @webhooks-lol/web build`,
+`pnpm --filter @webhooks-lol/web test`, or
+`pnpm --filter @webhooks-lol/pgboss build` do not build ignored `dist` outputs
+for workspace dependencies on a clean checkout. Use the root commands
+(`pnpm web:build`, `pnpm web:verify`, `pnpm pgboss:build`,
+`pnpm pgboss:verify`) or an explicit `turbo run <task> --filter <app>...`
+invocation instead. Direct `pnpm --filter <package> <script>` remains
+appropriate for package-owned commands that do not require compiled workspace
+dependency outputs, such as database tooling and focused package tests after
+the relevant dependency build graph has run.
 
 Local env files live with the package or app that reads them. Put database
 tooling variables in `packages/database/.env.local`, web runtime variables in
@@ -125,12 +142,13 @@ domain module.
 ## Testing Instructions
 
 - Run all tests through package verification: `pnpm verify`
-- Run web tests: `pnpm --filter @webhooks-lol/web test`
+- Run web tests with package dependencies: `pnpm exec turbo run test --filter @webhooks-lol/web...`
 - Run webhook core tests: `pnpm --filter @webhooks-lol/webhooks-core test`
 - Run webhook server tests: `pnpm --filter @webhooks-lol/webhooks-server test`
 - Run one package test file: `pnpm --filter <package> vitest run path/to/file.test.ts`
 - Run package tests by name: `pnpm --filter <package> vitest run -t "test name"`
 - Run TypeScript checks: `pnpm typecheck`
+- Run app lint with package dependencies: `pnpm exec turbo run lint --filter @webhooks-lol/web...`
 - Run package lint: `pnpm --filter <package> lint`
 - Run the full suite before finishing broad changes: `pnpm verify`
 
@@ -162,7 +180,7 @@ The `whlol` CLI lives in `apps/cli` as a separate pnpm workspace package. It
 owns local forwarding, tailing, replay command orchestration, API transport, SSE
 parsing, request shaping, local delivery, and terminal output.
 
-- Run CLI verification: `pnpm --filter whlol verify`
+- Run CLI verification: `pnpm cli:verify`
 - Run CLI tests: `pnpm --filter whlol test`
 - Build CLI output: `pnpm --filter whlol build`
 

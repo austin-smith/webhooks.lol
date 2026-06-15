@@ -8,15 +8,13 @@
     "node": "24.x"
   },
   "scripts": {
-    "build": "pnpm build:packages && next build",
-    "build:packages": "pnpm --filter @webhooks-lol/database build && pnpm --filter @webhooks-lol/webhooks-core build && pnpm --filter @webhooks-lol/webhooks-server build",
-    "dev": "pnpm build:packages && next dev -p 4665",
+    "build": "next build",
+    "dev": "next dev -p 4665",
     "lint": "eslint",
     "start": "next start",
     "test": "vitest run",
     "typegen": "next typegen",
-    "typecheck": "pnpm typegen && pnpm build:packages && tsc --noEmit",
-    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm build"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@webhooks-lol/database": "workspace:*",

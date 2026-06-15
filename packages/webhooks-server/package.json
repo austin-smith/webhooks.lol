@@ -34,7 +34,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+    "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "watch": "tsc -b tsconfig.build.json --watch --preserveWatchOutput"
   },
   "dependencies": {
     "@webhooks-lol/database": "workspace:*",

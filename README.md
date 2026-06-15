@@ -40,6 +40,19 @@ Environment files live with the process that reads them:
 
 The local examples point each process at the same Docker PostgreSQL database.
 
+Workspace scripts are orchestrated with Turborepo. Internal packages are
+compiled packages with `dist` entrypoints; app dev commands run the relevant
+package compilers alongside the app process so local changes do not rely on
+stale build output.
+
+Use the root commands for app and worker workflows that depend on compiled
+workspace packages. Commands such as `pnpm web:build`, `pnpm web:verify`,
+`pnpm pgboss:build`, and `pnpm pgboss:verify` run through the Turbo graph and
+work from a clean checkout. Direct filtered app commands such as
+`pnpm --filter @webhooks-lol/web build` do not build ignored `packages/*/dist`
+outputs first, so they are not the supported interface for app builds or app
+verification.
+
 The local Postgres script runs a named Docker container, `webhooks-lol-postgres`, with a named volume, `webhooks-lol-postgres-data`. The local Redis script runs `webhooks-lol-redis` with a named volume, `webhooks-lol-redis-data`, for rate-limit state.
 
 To create the local Postgres container directly:
@@ -164,6 +177,7 @@ pnpm pgboss:build      # build the worker and package dependencies
 pnpm pgboss:start      # start the compiled PgBoss worker
 pnpm pgboss:verify     # verify database/core/server packages and worker app
 pnpm cli:verify        # verify the whlol CLI package
+pnpm docs:start        # start the built docs app
 pnpm docs:verify       # verify the docs app
 pnpm db:generate       # generate Drizzle migrations in packages/database
 pnpm db:local:start    # start local PostgreSQL with Docker

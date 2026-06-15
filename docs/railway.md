@@ -100,11 +100,10 @@ Each app service should report its expected `configFile` path.
 
 Then verify deployment behavior from the latest deployment details or logs:
 
-- `web` builds with `pnpm --filter @webhooks-lol/web build`.
-- `web` runs migrations with
-  `pnpm --filter @webhooks-lol/database db:migrate`.
-- `web` starts with `pnpm --filter @webhooks-lol/web start`.
-- `docs` builds with `pnpm --filter @webhooks-lol/docs build`.
-- `docs` starts with `pnpm --filter @webhooks-lol/docs start`.
-- `pgboss` builds with `pnpm --filter @webhooks-lol/pgboss build`.
-- `pgboss` starts with `pnpm --filter @webhooks-lol/pgboss start`.
+- `web` builds with `pnpm web:build`.
+- `web` runs migrations with `pnpm db:migrate`.
+- `web` starts with `pnpm web:start`.
+- `docs` builds with `pnpm docs:build`.
+- `docs` starts with `pnpm docs:start`.
+- `pgboss` builds with `pnpm pgboss:build`.
+- `pgboss` starts with `pnpm pgboss:start`.

@@ -2,11 +2,11 @@
   "$schema": "https://railway.com/railway.schema.json",
   "build": {
     "builder": "RAILPACK",
-    "buildCommand": "pnpm --filter @webhooks-lol/pgboss build",
+    "buildCommand": "pnpm pgboss:build",
     "watchPatterns": ["/**", "!/apps/cli/**", "!/apps/docs/**", "!/apps/web/**"]
   },
   "deploy": {
-    "startCommand": "pnpm --filter @webhooks-lol/pgboss start",
+    "startCommand": "pnpm pgboss:start",
     "runtime": "V2",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10,

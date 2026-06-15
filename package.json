@@ -9,20 +9,21 @@
     "node": "24.x"
   },
   "scripts": {
-    "dev": "pnpm --filter @webhooks-lol/web dev",
-    "web:build": "pnpm --filter @webhooks-lol/web build",
-    "web:dev": "pnpm --filter @webhooks-lol/web dev",
+    "dev": "turbo run dev --filter @webhooks-lol/web",
+    "web:build": "turbo run build --filter @webhooks-lol/web",
+    "web:dev": "turbo run dev --filter @webhooks-lol/web",
     "web:start": "pnpm --filter @webhooks-lol/web start",
-    "web:verify": "pnpm --filter @webhooks-lol/web verify",
-    "docs:build": "pnpm --filter @webhooks-lol/docs build",
-    "docs:dev": "pnpm --filter @webhooks-lol/docs dev",
-    "docs:verify": "pnpm --filter @webhooks-lol/docs verify",
-    "cli:build": "pnpm --filter whlol build",
-    "cli:verify": "pnpm --filter whlol verify",
-    "pgboss:build": "pnpm --filter @webhooks-lol/pgboss build",
-    "pgboss:dev": "pnpm --filter @webhooks-lol/pgboss dev",
+    "web:verify": "turbo run typecheck lint test build --filter @webhooks-lol/web...",
+    "docs:build": "turbo run build --filter @webhooks-lol/docs",
+    "docs:dev": "turbo run dev --filter @webhooks-lol/docs",
+    "docs:start": "pnpm --filter @webhooks-lol/docs start",
+    "docs:verify": "turbo run typecheck lint build --filter @webhooks-lol/docs",
+    "cli:build": "turbo run build --filter whlol",
+    "cli:verify": "turbo run typecheck lint test build --filter whlol",
+    "pgboss:build": "turbo run build --filter @webhooks-lol/pgboss",
+    "pgboss:dev": "turbo run dev --filter @webhooks-lol/pgboss",
     "pgboss:start": "pnpm --filter @webhooks-lol/pgboss start",
-    "pgboss:verify": "pnpm --filter @webhooks-lol/database verify && pnpm --filter @webhooks-lol/webhooks-core verify && pnpm --filter @webhooks-lol/webhooks-server verify && pnpm --filter @webhooks-lol/pgboss verify",
+    "pgboss:verify": "turbo run typecheck lint test build --filter @webhooks-lol/pgboss...",
     "db:generate": "pnpm --filter @webhooks-lol/database db:generate",
     "db:local:logs": "pnpm --filter @webhooks-lol/database db:local:logs",
     "db:local:start": "pnpm --filter @webhooks-lol/database db:local:start",
@@ -33,16 +34,17 @@
     "build": "pnpm web:build",
     "start": "pnpm web:start",
     "format": "prettier --write \"**/*.{ts,tsx,mts,mjs}\"",
-    "typecheck": "pnpm -r --sort run typecheck",
+    "typecheck": "turbo run typecheck",
     "redis:local:logs": "docker logs --follow webhooks-lol-redis",
     "redis:local:start": "docker start webhooks-lol-redis || docker run --name webhooks-lol-redis --detach --publish 6379:6379 --volume webhooks-lol-redis-data:/data redis:8 redis-server --appendonly yes",
     "redis:local:stop": "docker stop webhooks-lol-redis",
-    "verify": "pnpm --filter @webhooks-lol/database verify && pnpm --filter @webhooks-lol/webhooks-core verify && pnpm --filter @webhooks-lol/webhooks-server verify && pnpm --filter @webhooks-lol/pgboss verify && pnpm web:verify && pnpm cli:verify && pnpm docs:verify"
+    "verify": "turbo run typecheck lint test build"
   },
   "devDependencies": {
     "@types/node": "^25.9.2",
     "prettier": "^3.8.3",
     "prettier-plugin-tailwindcss": "^0.8.0",
+    "turbo": "^2.9.18",
     "typescript": "^5"
   }
 }
