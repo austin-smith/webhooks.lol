@@ -1,3 +1,5 @@
+import { isIP } from "node:net"
+
 import { CliError } from "../cli-error.js"
 
 export const DEFAULT_BASE_URL = "https://webhooks.lol"
@@ -109,15 +111,77 @@ function parseHttpUrl(value: string): URL | null {
 }
 
 function isLocalHostname(hostname: string): boolean {
+  if (hostname === "localhost" || hostname.endsWith(".localhost")) {
+    return true
+  }
+
+  const address = normalizeIpLiteral(hostname)
+
+  if (isIP(address) === 4) {
+    return isAllowedIpv4Target(address)
+  }
+
+  if (isIP(address) === 6) {
+    return isAllowedIpv6Target(address)
+  }
+
+  return false
+}
+
+function normalizeIpLiteral(hostname: string) {
+  return hostname.startsWith("[") && hostname.endsWith("]")
+    ? hostname.slice(1, -1)
+    : hostname
+}
+
+function isAllowedIpv4Target(address: string): boolean {
+  const octets = address.split(".").map((part) => Number(part))
+
+  if (
+    octets.length !== 4 ||
+    octets.some((part) => !Number.isInteger(part) || part < 0 || part > 255)
+  ) {
+    return false
+  }
+
+  const [first, second, third, fourth] = octets
+
   return (
-    hostname === "localhost" ||
-    hostname.endsWith(".localhost") ||
-    hostname === "127.0.0.1" ||
-    hostname === "0.0.0.0" ||
-    hostname === "::1" ||
-    hostname === "[::1]" ||
-    /^10\./.test(hostname) ||
-    /^192\.168\./.test(hostname) ||
-    /^172\.(1[6-9]|2\d|3[01])\./.test(hostname)
+    first === 10 ||
+    first === 127 ||
+    (first === 0 && second === 0 && third === 0 && fourth === 0) ||
+    (first === 172 && second >= 16 && second <= 31) ||
+    (first === 192 && second === 168)
   )
+}
+
+function isAllowedIpv6Target(address: string): boolean {
+  if (address === "::1") {
+    return true
+  }
+
+  const firstHextet = readFirstIpv6Hextet(address)
+
+  if (firstHextet === null) {
+    return false
+  }
+
+  return (
+    // fc00::/7 unique local addresses.
+    (firstHextet & 0xfe00) === 0xfc00 ||
+    // fe80::/10 link-local addresses.
+    (firstHextet & 0xffc0) === 0xfe80
+  )
+}
+
+function readFirstIpv6Hextet(address: string): number | null {
+  const [firstPart] = address.toLowerCase().split(":")
+
+  if (!firstPart) {
+    return 0
+  }
+
+  const parsed = Number.parseInt(firstPart, 16)
+
+  return Number.isFinite(parsed) ? parsed : null
 }

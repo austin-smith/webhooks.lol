@@ -42,10 +42,60 @@ describe("resolveTarget", () => {
     ).toBe("http://localhost:3000/hook")
   })
 
-  it("accepts private network ranges", () => {
-    expect(
-      resolveTarget({ to: "http://192.168.1.10/hook", allowRemote: false })
-    ).toContain("192.168.1.10")
+  it("accepts local and private IP literal targets", () => {
+    const targets = [
+      "http://127.0.0.1:3000/hook",
+      "http://0.0.0.0:3000/hook",
+      "http://10.1.2.3/hook",
+      "http://172.16.0.1/hook",
+      "http://172.31.255.255/hook",
+      "http://192.168.1.10/hook",
+      "http://[::1]:3000/hook",
+      "http://[fc00::1]/hook",
+      "http://[fd12:3456::1]/hook",
+      "http://[fe80::1]/hook",
+    ]
+
+    for (const to of targets) {
+      expect(resolveTarget({ to, allowRemote: false })).toContain("/hook")
+    }
+  })
+
+  it("rejects DNS names that only look like private IP ranges", () => {
+    const targets = [
+      "http://10.attacker.example/hook",
+      "http://172.16.attacker.example/hook",
+      "http://192.168.attacker.example/hook",
+      "http://127.0.0.1.attacker.example/hook",
+      "http://0.0.0.0.attacker.example/hook",
+    ]
+
+    for (const to of targets) {
+      expect(() => resolveTarget({ to, allowRemote: false })).toThrow(
+        /not local/
+      )
+    }
+  })
+
+  it("rejects public IP literal targets without --allow-remote", () => {
+    expect(() =>
+      resolveTarget({ to: "http://8.8.8.8/hook", allowRemote: false })
+    ).toThrow(/not local/)
+    expect(() =>
+      resolveTarget({ to: "http://0.1.2.3/hook", allowRemote: false })
+    ).toThrow(/not local/)
+    expect(() =>
+      resolveTarget({ to: "http://172.15.255.255/hook", allowRemote: false })
+    ).toThrow(/not local/)
+    expect(() =>
+      resolveTarget({ to: "http://172.32.0.0/hook", allowRemote: false })
+    ).toThrow(/not local/)
+    expect(() =>
+      resolveTarget({
+        to: "http://[2001:4860:4860::8888]/hook",
+        allowRemote: false,
+      })
+    ).toThrow(/not local/)
   })
 
   it("rejects a remote target without --allow-remote", () => {
