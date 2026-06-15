@@ -4,7 +4,7 @@
     "builder": "RAILPACK",
     "buildCommand": "pnpm docs:build",
     "watchPatterns": [
-      "/**",
+      "**",
       "!/apps/cli/**",
       "!/apps/pgboss/**",
       "!/apps/web/**"

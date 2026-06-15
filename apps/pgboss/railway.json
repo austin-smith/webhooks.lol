@@ -3,7 +3,7 @@
   "build": {
     "builder": "RAILPACK",
     "buildCommand": "pnpm pgboss:build",
-    "watchPatterns": ["/**", "!/apps/cli/**", "!/apps/docs/**", "!/apps/web/**"]
+    "watchPatterns": ["**", "!/apps/cli/**", "!/apps/docs/**", "!/apps/web/**"]
   },
   "deploy": {
     "startCommand": "pnpm pgboss:start",
