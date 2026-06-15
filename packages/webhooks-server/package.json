@@ -1,0 +1,56 @@
+{
+  "name": "@webhooks-lol/webhooks-server",
+  "version": "0.0.1",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./*": {
+      "types": "./dist/*.d.ts",
+      "import": "./dist/*.js"
+    },
+    "./endpoint-forwarding/*": {
+      "types": "./dist/endpoint-forwarding/*.d.ts",
+      "import": "./dist/endpoint-forwarding/*.js"
+    },
+    "./http/*": {
+      "types": "./dist/http/*.d.ts",
+      "import": "./dist/http/*.js"
+    },
+    "./rate-limits/*": {
+      "types": "./dist/rate-limits/*.d.ts",
+      "import": "./dist/rate-limits/*.js"
+    },
+    "./request-replay/*": {
+      "types": "./dist/request-replay/*.d.ts",
+      "import": "./dist/request-replay/*.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json",
+    "lint": "eslint",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "watch": "tsc -b tsconfig.build.json --watch --preserveWatchOutput"
+  },
+  "dependencies": {
+    "@webhooks-lol/database": "workspace:*",
+    "@webhooks-lol/webhooks-core": "workspace:*",
+    "drizzle-orm": "^0.45.2",
+    "pg-boss": "^12.18.2",
+    "redis": "^6.0.0",
+    "server-only": "^0.0.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@types/node": "^25.9.2",
+    "eslint": "^9.39.4",
+    "typescript": "^5",
+    "typescript-eslint": "^8.61.0",
+    "vitest": "^4.1.8"
+  }
+}

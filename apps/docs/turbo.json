@@ -1,0 +1,15 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["$TURBO_EXTENDS$", "typecheck"],
+      "outputs": [".next/**", "!.next/cache/**"]
+    },
+    "source": {
+      "outputs": [".source/**"]
+    },
+    "typecheck": {
+      "dependsOn": ["$TURBO_EXTENDS$", "source"]
+    }
+  }
+}

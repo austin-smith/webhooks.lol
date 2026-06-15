@@ -4,18 +4,18 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "build": "pnpm source && next build",
+    "build": "next build",
     "dev": "next dev -p 4666",
     "lint": "eslint",
     "source": "fumadocs-mdx",
     "start": "next start",
-    "typecheck": "pnpm source && tsc --noEmit",
-    "verify": "pnpm typecheck && pnpm lint && pnpm build"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "fumadocs-core": "16.9.3",
     "fumadocs-mdx": "15.0.10",
     "fumadocs-ui": "16.9.3",
+    "lucide-react": "^1.17.0",
     "next": "16.2.7",
     "react": "19.2.7",
     "react-dom": "19.2.7"

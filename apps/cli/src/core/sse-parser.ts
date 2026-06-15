@@ -1,0 +1,100 @@
+export interface SseEvent {
+  event: string
+  data: string
+  lastEventId: string
+}
+
+// Incremental Server-Sent Events parser. Feed it decoded text chunks of any
+// size; it buffers partial lines across chunks and returns whole events as
+// blank lines complete them. Handles LF and CRLF terminators.
+export class SseParser {
+  private buffer = ""
+  private dataBuffer = ""
+  private eventType = ""
+  private lastEventId = ""
+  private hasData = false
+
+  push(chunk: string): SseEvent[] {
+    this.buffer += chunk
+    const events: SseEvent[] = []
+
+    let newlineIndex = this.buffer.indexOf("\n")
+    while (newlineIndex !== -1) {
+      let line = this.buffer.slice(0, newlineIndex)
+      this.buffer = this.buffer.slice(newlineIndex + 1)
+
+      if (line.endsWith("\r")) {
+        line = line.slice(0, -1)
+      }
+
+      const event = this.processLine(line)
+      if (event) {
+        events.push(event)
+      }
+
+      newlineIndex = this.buffer.indexOf("\n")
+    }
+
+    return events
+  }
+
+  private processLine(line: string): SseEvent | null {
+    if (line === "") {
+      return this.dispatch()
+    }
+
+    if (line.startsWith(":")) {
+      return null
+    }
+
+    const colonIndex = line.indexOf(":")
+    const field = colonIndex === -1 ? line : line.slice(0, colonIndex)
+    let value = colonIndex === -1 ? "" : line.slice(colonIndex + 1)
+
+    if (value.startsWith(" ")) {
+      value = value.slice(1)
+    }
+
+    switch (field) {
+      case "event":
+        this.eventType = value
+        break
+      case "data":
+        this.dataBuffer += `${value}\n`
+        this.hasData = true
+        break
+      case "id":
+        if (!value.includes("\0")) {
+          this.lastEventId = value
+        }
+        break
+      default:
+        break
+    }
+
+    return null
+  }
+
+  private dispatch(): SseEvent | null {
+    if (!this.hasData) {
+      this.eventType = ""
+      return null
+    }
+
+    const data = this.dataBuffer.endsWith("\n")
+      ? this.dataBuffer.slice(0, -1)
+      : this.dataBuffer
+
+    const event: SseEvent = {
+      event: this.eventType || "message",
+      data,
+      lastEventId: this.lastEventId,
+    }
+
+    this.dataBuffer = ""
+    this.eventType = ""
+    this.hasData = false
+
+    return event
+  }
+}

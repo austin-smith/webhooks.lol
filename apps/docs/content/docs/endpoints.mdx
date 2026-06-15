@@ -37,8 +37,9 @@ Query strings are captured and parsed too, including repeated keys.
 Endpoints accept `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, and `HEAD`. The method
 is recorded with every captured request.
 
-Browser CORS preflight (`OPTIONS`) requests are answered automatically and are
-**not** saved, so requests sent from a browser do not clutter the list.
+Receive URLs return permissive CORS headers, so you can send requests to them
+from browser JavaScript. Browser preflight (`OPTIONS`) requests are answered
+automatically and are **not** saved, so they do not clutter the list.
 
 ## Naming an endpoint
 
@@ -57,8 +58,8 @@ recent first. From it you can:
 - **Create a new endpoint** with its own URL.
 
 <Callout type="warn">
-The switcher remembers your 50 most recently used endpoints, stored locally in
-the browser you opened the app in. The list is not tied to an account and does
-not sync across devices, and once you go past 50 endpoints the oldest ones are
-removed from it.
+  The switcher remembers your 50 most recently used endpoints, stored locally in
+  the browser you opened the app in. The list is not tied to an account and does
+  not sync across devices, and once you go past 50 endpoints the oldest ones are
+  removed from it.
 </Callout>

@@ -11,6 +11,7 @@ node_modules/
 
 # testing
 /coverage
+.turbo/
 
 # next.js
 /.next/
@@ -23,6 +24,9 @@ node_modules/
 
 # production
 /build
+/apps/*/dist/
+/packages/*/dist/
+*.tsbuildinfo
 
 # misc
 .DS_Store

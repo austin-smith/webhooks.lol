@@ -30,14 +30,14 @@ Open the response control in the header and switch from **Default** to
   or `text/plain`.
 - **Body**: The response body (up to 64 KiB).
 
-Save, and from then on every request to the endpoint receives your custom
+Save, and from then on every successfully captured request receives the custom
 response. Switch back to **Default** at any time to restore the standard
 acknowledgement.
 
 <Callout type="info">
-The custom response applies to all callers of the endpoint and persists until
-you change it. Bodies are sent verbatim for statuses that allow one (`204`,
-`205`, and `304` never include a body).
+  The custom response applies to all callers of the endpoint and persists until
+  you change it. Bodies are sent verbatim for statuses that allow one (`204`,
+  `205`, and `304` never include a body).
 </Callout>
 
 ## Template variables
@@ -45,18 +45,15 @@ you change it. Bodies are sent verbatim for statuses that allow one (`204`,
 The body supports two placeholders, replaced per request when the response is
 sent:
 
-| Variable           | Replaced with               |
-| ------------------ | --------------------------- |
-| `{{request.id}}`   | The captured request's ID   |
-| `{{endpoint.id}}`  | The endpoint's ID           |
+| Variable          | Replaced with             |
+| ----------------- | ------------------------- |
+| `{{request.id}}`  | The captured request's ID |
+| `{{endpoint.id}}` | The endpoint's ID         |
 
-For example, this body:
+For example, this response body includes the captured request ID:
 
 ```json
 { "received": "{{request.id}}" }
 ```
 
-returns the ID of each individual request that hits the endpoint. Use the
-**Variables** picker next to the body field to insert them.
-
-Custom response headers beyond `Content-Type` are not yet supported.
+Use the **Variables** picker next to the body field to insert placeholders.

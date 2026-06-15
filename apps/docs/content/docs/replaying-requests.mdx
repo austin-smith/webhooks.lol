@@ -1,0 +1,31 @@
+---
+title: Replaying Requests
+description: Create a fresh captured request from one already in the inspector.
+---
+
+Replay takes a captured request and records it again as a new request for the
+same endpoint. Use it when you want to re-run a webhook test case without asking
+the original sender to send the event again.
+
+## Replaying a request
+
+Select a captured request in the inspector, then click the replay button in the
+request detail header.
+
+The replayed request appears as a new item in the request list with a new
+request ID and receive time. Its method, path, query string, headers, content
+type, and body come from the original captured request.
+
+Replay uses the stored request. It does not call the original sender.
+
+## Forwarding
+
+Replay creates a fresh captured request from an existing one. If the endpoint
+has enabled [Forwarding Requests](/forwarding-requests) targets, the replayed
+request is queued for forwarding like any other newly captured request.
+
+## Limits
+
+Replay is rate limited like other endpoint actions, and the replayed body still
+counts against the endpoint's captured body volume. If the original request has
+rotated out of retention or was cleared, it cannot be replayed.

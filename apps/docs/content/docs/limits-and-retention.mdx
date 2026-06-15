@@ -1,6 +1,6 @@
 ---
 title: Limits & Retention
-description: How long requests are kept, payload size caps, rate limits, and CORS.
+description: How long requests are kept, payload size caps, and rate limits.
 ---
 
 webhooks.lol is a tool for testing and debugging, not durable storage. A few
@@ -27,21 +27,42 @@ and is not stored:
 
 ## Rate limits
 
-Requests are rate limited to keep one caller from overwhelming the service. When
-a limit is exceeded, the request is rejected with a `429` and a `Retry-After`
-header. The main limits:
+Rate limits keep one caller or endpoint from overwhelming the service. When a
+rate limit is exceeded, the request is rejected with a `429` and a
+`Retry-After` header.
 
-- **Creating endpoints**: up to 100 per hour from one client.
-- **Capturing requests**: up to 600 per minute per endpoint, and 1,200 per
-  minute per client across all endpoints.
-- **Captured volume**: up to 1 GiB of request bodies per endpoint per day.
-- **Live streams**: up to 3 concurrent live connections per endpoint (so an
-  endpoint can be open in a few tabs at once).
+Limits are checked by scope. For example, a captured request must fit under the
+per-endpoint, per-client, and global capture limits. The first exhausted scope
+wins.
 
-These ceilings are well above normal testing and debugging use.
+| Feature                      | Scope              | Limit                      |
+| ---------------------------- | ------------------ | -------------------------- |
+| Endpoint creation            | Per client         | 100 endpoints per hour     |
+| Endpoint creation            | Global             | 360,000 endpoints per hour |
+| Capturing requests           | Per endpoint       | 600 requests per minute    |
+| Capturing requests           | Per client         | 1,200 requests per minute  |
+| Capturing requests           | Global             | 60,000 requests per minute |
+| Captured request body volume | Per endpoint       | 1 GiB per day              |
+| Replaying requests           | Per endpoint       | 120 replays per minute     |
+| Replaying requests           | Per client         | 60 replays per minute      |
+| Replaying requests           | Per stored request | 60 replays per minute      |
+| Replaying requests           | Global             | 600 replays per minute     |
 
-## CORS
+A **client** is one caller of the service, such as the browser, script, or
+service sending the request.
 
-Capture endpoints return permissive CORS headers, so you can send requests to a
-receive URL from browser JavaScript. Preflight `OPTIONS` requests are answered
-automatically and are not recorded as captured traffic.
+A **stored request** is the original captured request you replay from. If request
+`abc123` is replayed several times, each replay counts against the replay limits
+above, including the `abc123` stored-request limit.
+
+## Configuration caps
+
+These caps apply to stored data and endpoint configuration.
+
+| Area                       | Limit                                                  |
+| -------------------------- | ------------------------------------------------------ |
+| Stored requests            | Latest 500 requests per endpoint                       |
+| Captured request body size | 1 MiB per request                                      |
+| Custom response body size  | 64 KiB                                                 |
+| Forwarding targets         | 5 enabled targets per endpoint                         |
+| Forwarding target rows     | 20 total rows per endpoint, including disabled targets |

@@ -1,12 +1,19 @@
 {
   "title": "webhooks.lol",
   "pages": [
+    "---Getting Started---",
     "index",
     "endpoints",
+    "---Captured Requests---",
     "inspecting-requests",
     "searching-requests",
+    "replaying-requests",
+    "---Endpoint Behavior---",
     "custom-responses",
-    "limits-and-retention",
-    "production-configuration"
+    "forwarding-requests",
+    "---Tools---",
+    "cli",
+    "---Reference---",
+    "limits-and-retention"
   ]
 }
