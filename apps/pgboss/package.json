@@ -1,0 +1,25 @@
+{
+  "name": "@webhooks-lol/pgboss",
+  "version": "0.0.1",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json",
+    "dev": "tsc -b tsconfig.build.json && tsx watch src/index.ts",
+    "lint": "eslint",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "verify": "pnpm lint && pnpm typecheck && pnpm build"
+  },
+  "dependencies": {
+    "@webhooks-lol/webhooks-server": "workspace:*"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@types/node": "^25.9.2",
+    "eslint": "^9.39.4",
+    "tsx": "^4.22.4",
+    "typescript": "^5",
+    "typescript-eslint": "^8.61.0"
+  }
+}

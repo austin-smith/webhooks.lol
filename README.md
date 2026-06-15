@@ -1,5 +1,5 @@
 <h1 align="center">
-  <img src="app/icon.png" alt="webhooks.lol icon" width="128" height="128">
+  <img src="apps/web/app/icon.png" alt="webhooks.lol icon" width="128" height="128">
   <br><span style="font-family: monospace;">webhooks.lol</span>
 </h1>
 
@@ -21,7 +21,9 @@ The app creates private endpoint URLs, captures requests sent to them, and shows
 
 ```bash
 pnpm install
-cp .env.example .env
+cp packages/database/.env.example packages/database/.env.local
+cp apps/web/.env.example apps/web/.env.local
+cp apps/pgboss/.env.example apps/pgboss/.env.local
 pnpm db:local:start
 pnpm redis:local:start
 pnpm db:migrate
@@ -29,6 +31,14 @@ pnpm dev
 ```
 
 The development server runs on [http://localhost:4665](http://localhost:4665). For real webhook delivery, deploy it behind a public HTTPS URL so external services can reach the receive endpoint.
+
+Environment files live with the process that reads them:
+
+- `packages/database/.env.local` is for Drizzle database tooling.
+- `apps/web/.env.local` is for the Next.js web app.
+- `apps/pgboss/.env.local` is for the PgBoss worker.
+
+The local examples point each process at the same Docker PostgreSQL database.
 
 The local Postgres script runs a named Docker container, `webhooks-lol-postgres`, with a named volume, `webhooks-lol-postgres-data`. The local Redis script runs `webhooks-lol-redis` with a named volume, `webhooks-lol-redis-data`, for rate-limit state.
 
@@ -55,13 +65,31 @@ docker run -d --name webhooks-lol-redis \
   redis:8 redis-server --appendonly yes
 ```
 
-For non-local environments, set `DATABASE_URL` to the target PostgreSQL database and `REDIS_URL` to the target Redis service. Run migrations before starting the app:
+For non-local environments, set service-level environment variables on each
+deployed process. The web app needs PostgreSQL, Redis, auth, and docs variables.
+The PgBoss worker needs PostgreSQL. Run migrations before starting the app:
 
 ```bash
 pnpm db:migrate
 ```
 
-For production, run it on a Node.js host with PostgreSQL available through `DATABASE_URL` and Redis available through `REDIS_URL`.
+For production, run the web app and the PgBoss worker as separate Node.js
+processes with their own service-level environment variables.
+
+### Railway
+
+Railway deployment settings are owned by app-local config-as-code files:
+
+- `apps/web/railway.json` configures the `web` service.
+- `apps/docs/railway.json` configures the `docs` service.
+- `apps/pgboss/railway.json` configures the `pgboss` worker service.
+
+Keep each Railway service rooted at the repository root so pnpm workspace
+packages resolve correctly. In Railway service settings, point each service at
+its app-local config file with the absolute repository path. Do not add a root
+`railway.json`; the services have different build, start, migration, and watch
+path requirements. See `docs/railway.md` for the rollout and verification
+runbook.
 
 ## Use
 
@@ -110,24 +138,43 @@ See `apps/cli/README.md` for all options.
 - Request bodies are capped at 1 MiB. Larger payloads return `413`.
 - Browser preflight requests return CORS headers and are not saved as webhook traffic.
 - Endpoint names help identify webhook endpoints in the endpoint switcher.
+- Endpoint forwarding deliveries are queued in PostgreSQL through PgBoss and
+  processed by the worker app in `apps/pgboss`.
+
+## Workspace
+
+```text
+apps/web              Next.js web app and API routes
+apps/pgboss           PgBoss endpoint-forwarding worker process
+apps/cli              whlol command-line client
+apps/docs             Documentation site
+packages/database     Drizzle schema and PostgreSQL connection
+packages/webhooks-core Shared webhook types, IDs, search helpers, and API contracts
+packages/webhooks-server Server workflows, repositories, rate limits, replay, and forwarding
+```
 
 ## Scripts
 
 ```bash
-pnpm dev        # start Next.js on port 4665
-pnpm db:generate # generate Drizzle migrations after schema changes
-pnpm db:local:start # start local PostgreSQL with Docker
-pnpm db:local:stop  # stop the local PostgreSQL container
-pnpm db:local:logs  # follow local PostgreSQL logs
+pnpm dev               # start apps/web on port 4665
+pnpm web:build         # production build for apps/web
+pnpm web:verify        # typegen, typecheck, lint, test, and build apps/web
+pnpm pgboss:dev        # run the PgBoss worker in development
+pnpm pgboss:build      # build the worker and package dependencies
+pnpm pgboss:start      # start the compiled PgBoss worker
+pnpm pgboss:verify     # verify database/core/server packages and worker app
+pnpm cli:verify        # verify the whlol CLI package
+pnpm docs:verify       # verify the docs app
+pnpm db:generate       # generate Drizzle migrations in packages/database
+pnpm db:local:start    # start local PostgreSQL with Docker
+pnpm db:local:stop     # stop the local PostgreSQL container
+pnpm db:local:logs     # follow local PostgreSQL logs
 pnpm redis:local:start # start local Redis with Docker
 pnpm redis:local:stop  # stop the local Redis container
 pnpm redis:local:logs  # follow local Redis logs
-pnpm db:migrate  # apply Drizzle migrations to DATABASE_URL
-pnpm db:push     # push schema directly for local prototyping
-pnpm typegen    # generate Next.js route types
-pnpm typecheck  # run TypeScript
-pnpm lint       # run ESLint
-pnpm test       # run Vitest
-pnpm build      # production build
-pnpm verify     # typegen, typecheck, lint, test, and build
+pnpm db:migrate        # apply packages/database Drizzle migrations
+pnpm db:push           # push schema directly for local prototyping
+pnpm typecheck         # run TypeScript checks for every workspace package
+pnpm build             # production build for apps/web
+pnpm verify            # full workspace verification
 ```

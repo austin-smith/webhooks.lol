@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "@webhooks-lol/database": ["packages/database/src/index.ts"],
+      "@webhooks-lol/database/*": ["packages/database/src/*"],
+      "@webhooks-lol/webhooks-core": ["packages/webhooks-core/src/index.ts"],
+      "@webhooks-lol/webhooks-core/*": ["packages/webhooks-core/src/*"],
+      "@webhooks-lol/webhooks-server": ["packages/webhooks-server/src/index.ts"],
+      "@webhooks-lol/webhooks-server/*": ["packages/webhooks-server/src/*"]
+    }
+  }
+}

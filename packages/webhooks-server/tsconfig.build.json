@@ -1,0 +1,20 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "rootDir": "src",
+    "outDir": "dist",
+    "paths": {
+      "@webhooks-lol/webhooks-server": ["src/index.ts"],
+      "@webhooks-lol/webhooks-server/*": ["src/*.ts"]
+    },
+    "sourceMap": false,
+    "declarationMap": false
+  },
+  "references": [
+    { "path": "../database/tsconfig.build.json" },
+    { "path": "../webhooks-core/tsconfig.build.json" }
+  ],
+  "include": ["src/**/*.ts"],
+  "exclude": ["dist", "node_modules", "tests"]
+}

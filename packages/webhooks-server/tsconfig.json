@@ -1,0 +1,27 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "paths": {
+      "@webhooks-lol/database": ["../database/src/index.ts"],
+      "@webhooks-lol/database/*": ["../database/src/*.ts"],
+      "@webhooks-lol/webhooks-core": ["../webhooks-core/src/index.ts"],
+      "@webhooks-lol/webhooks-core/*": ["../webhooks-core/src/*.ts"],
+      "@webhooks-lol/webhooks-server": ["src/index.ts"],
+      "@webhooks-lol/webhooks-server/*": ["src/*.ts"]
+    },
+    "types": ["node"]
+  },
+  "include": [
+    "src/**/*.ts",
+    "tests/**/*.ts",
+    "../database/src/**/*.ts",
+    "../webhooks-core/src/**/*.ts"
+  ],
+  "exclude": ["dist", "node_modules"]
+}

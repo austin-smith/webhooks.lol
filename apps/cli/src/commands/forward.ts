@@ -91,11 +91,7 @@ export async function runForward(options: ForwardOptions): Promise<void> {
   })) {
     switch (message.type) {
       case "ready": {
-        if (
-          !initialized &&
-          options.endpointId &&
-          !options.replayExisting
-        ) {
+        if (!initialized && options.endpointId && !options.replayExisting) {
           historicalCutoff = message.readyAt
         }
 

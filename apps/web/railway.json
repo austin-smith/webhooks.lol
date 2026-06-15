@@ -1,0 +1,25 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "builder": "RAILPACK",
+    "buildCommand": "pnpm --filter @webhooks-lol/web build",
+    "watchPatterns": [
+      "/**",
+      "!/apps/cli/**",
+      "!/apps/docs/**",
+      "!/apps/pgboss/**"
+    ]
+  },
+  "deploy": {
+    "startCommand": "pnpm --filter @webhooks-lol/web start",
+    "preDeployCommand": ["pnpm --filter @webhooks-lol/database db:migrate"],
+    "runtime": "V2",
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10,
+    "multiRegionConfig": {
+      "us-west2": {
+        "numReplicas": 1
+      }
+    }
+  }
+}

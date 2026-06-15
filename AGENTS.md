@@ -2,12 +2,14 @@
 
 ## Project Overview
 
-`webhooks.lol` is a small webhook endpoint inspector built with Next.js App Router,
-React, TypeScript, Tailwind CSS, shadcn/Radix UI, Drizzle ORM, PostgreSQL, Redis,
-PgBoss, and Vitest. It creates private endpoint URLs, captures inbound HTTP
-requests, stores them in PostgreSQL, streams live updates into a compact browser
-inspector, supports request replay and endpoint forwarding, and ships a `whlol`
-CLI under `apps/cli` for local forwarding, tailing, and replay.
+`webhooks.lol` is a pnpm workspace for a small webhook endpoint inspector built
+with Next.js App Router, React, TypeScript, Tailwind CSS, shadcn/Radix UI,
+Drizzle ORM, PostgreSQL, Redis, PgBoss, and Vitest. It creates private endpoint
+URLs, captures inbound HTTP requests, stores them in PostgreSQL, streams live
+updates into a compact browser inspector, supports request replay and endpoint
+forwarding, ships a `whlol` CLI under `apps/cli` for local forwarding, tailing,
+and replay, and runs queued endpoint forwarding from the PgBoss worker app under
+`apps/pgboss`.
 
 Important domain terms are defined in `CONTEXT.md`. Read it before changing
 webhook capture, persistence, event streaming, endpoint forwarding, request
@@ -35,6 +37,10 @@ code quality are expected for new code and touched code.
 ## Setup Commands
 
 - Install dependencies: `pnpm install`
+- Create database tooling env:
+  `cp packages/database/.env.example packages/database/.env.local`
+- Create web app env: `cp apps/web/.env.example apps/web/.env.local`
+- Create PgBoss worker env: `cp apps/pgboss/.env.example apps/pgboss/.env.local`
 - Start local PostgreSQL: `pnpm db:local:start`
 - Start local Redis: `pnpm redis:local:start`
 - Apply migrations: `pnpm db:migrate`
@@ -49,7 +55,8 @@ The dev server runs on `http://localhost:4665`.
 - Production build: `pnpm build`
 - Production start after build: `pnpm start`
 - Full local verification: `pnpm verify`
-- Endpoint forwarding worker: `pnpm forwarding:worker`
+- Endpoint forwarding PgBoss worker in development: `pnpm pgboss:dev`
+- Endpoint forwarding PgBoss worker after build: `pnpm pgboss:start`
 - Format TypeScript and TSX files: `pnpm format`
 
 Keep route handlers and server-only modules on the Node.js runtime when they use
@@ -58,12 +65,22 @@ database access, `Buffer`, streams, or other Node-specific APIs.
 The repository is a pnpm workspace. Use `pnpm --filter <package> <script>` for
 package-specific commands.
 
+Local env files live with the package or app that reads them. Put database
+tooling variables in `packages/database/.env.local`, web runtime variables in
+`apps/web/.env.local`, and PgBoss worker variables in `apps/pgboss/.env.local`.
+
+Railway deployments use app-local config-as-code files:
+`apps/web/railway.json`, `apps/docs/railway.json`, and
+`apps/pgboss/railway.json`. Keep Railway service roots at the repository root so
+pnpm workspace packages resolve correctly, and point each Railway service at its
+own config file path. Do not add a root `railway.json` for this monorepo.
+
 ## Database Workflow
 
-- Database table definitions live in `lib/database/auth-schema.ts` and
-  `lib/database/public-schema.ts`; `lib/database/schema.ts` re-exports both for
-  Drizzle and runtime setup.
-- Drizzle migrations live in `drizzle/`.
+- Database table definitions live in `packages/database/src/auth-schema.ts` and
+  `packages/database/src/public-schema.ts`; `packages/database/src/schema.ts`
+  re-exports both for Drizzle and runtime setup.
+- Drizzle migrations live in `packages/database/drizzle/`.
 - Generate migrations after schema changes with `pnpm db:generate`.
 - Apply migrations with `pnpm db:migrate`.
 - Use `pnpm db:push` only for local prototyping, not as a replacement for a
@@ -82,17 +99,20 @@ domain module.
   staying on the Better Auth Drizzle adapter. Standard Better Auth tables live
   in `auth` (`auth.user`, `auth.session`, `auth.account`, `auth.verification`);
   app-owned tables live in `public`.
-- Define Better Auth tables in `lib/database/auth-schema.ts` with
+- Define Better Auth tables in `packages/database/src/auth-schema.ts` with
   `authSchema.table(...)`. Define public app tables in
-  `lib/database/public-schema.ts` with `pgTable(...)`.
-- Keep `schemaFilter: ["public", "auth"]` in `drizzle.config.ts`, and pass the
-  schema object explicitly to `drizzleAdapter`.
+  `packages/database/src/public-schema.ts` with `pgTable(...)`.
+- Keep `schemaFilter: ["public", "auth"]` in
+  `packages/database/drizzle.config.ts`, and pass the schema object explicitly
+  to `drizzleAdapter`.
 - Do not add custom auth, role, setup-token, ownership, or bootstrap tables
   unless a Better Auth-supported feature and product design require it.
 - When Better Auth plugins change, generate CLI output as a table-shape
-  reference, then apply the relevant changes to `lib/database/auth-schema.ts`:
+  reference, then apply the relevant changes to
+  `packages/database/src/auth-schema.ts`:
 
   ```bash
+  cd apps/web
   pnpm dlx auth@latest generate \
     --config lib/auth/schema-generator.ts \
     --output .better-auth-schema.generated.ts \
@@ -104,18 +124,23 @@ domain module.
 
 ## Testing Instructions
 
-- Run all tests: `pnpm test`
-- Run one test file: `pnpm vitest run tests/path/to/file.test.ts`
-- Run tests by name: `pnpm vitest run -t "test name"`
+- Run all tests through package verification: `pnpm verify`
+- Run web tests: `pnpm --filter @webhooks-lol/web test`
+- Run webhook core tests: `pnpm --filter @webhooks-lol/webhooks-core test`
+- Run webhook server tests: `pnpm --filter @webhooks-lol/webhooks-server test`
+- Run one package test file: `pnpm --filter <package> vitest run path/to/file.test.ts`
+- Run package tests by name: `pnpm --filter <package> vitest run -t "test name"`
 - Run TypeScript checks: `pnpm typecheck`
-- Run lint: `pnpm lint`
+- Run package lint: `pnpm --filter <package> lint`
 - Run the full suite before finishing broad changes: `pnpm verify`
 
-Tests live under `tests/`, with webhook domain tests in `tests/lib/webhooks/`.
-Vitest runs in a Node environment. The Vitest config aliases `@/` to the repo
-root and maps `server-only` to `tests/server-only.ts`, so server modules can be
-tested without Next's runtime guard blocking imports. CLI tests live under
-`apps/cli/tests/` and run against the CLI package's separate Vitest config.
+Tests live next to the package or app that owns the behavior. Web tests live
+under `apps/web/tests/`, webhook core tests under `packages/webhooks-core/tests/`,
+webhook server tests under `packages/webhooks-server/tests/`, and CLI tests
+under `apps/cli/tests/`. Vitest runs in a Node environment. The web Vitest config
+aliases `@/` to `apps/web` and maps `server-only` to
+`apps/web/tests/server-only.ts`; the server package maps `server-only` to
+`packages/webhooks-server/tests/server-only.ts`.
 
 Add or update focused tests for changed behavior. Repository and route-boundary
 changes should cover persistence rules, request parsing, error responses, and
@@ -142,8 +167,23 @@ parsing, request shaping, local delivery, and terminal output.
 - Build CLI output: `pnpm --filter whlol build`
 
 Keep CLI-specific behavior inside `apps/cli/src/*` unless there is a durable
-shared server/client contract that belongs in `lib/webhooks/api-contracts.ts`.
+shared server/client contract that belongs in
+`packages/webhooks-core/src/api-contracts.ts`.
 Do not import browser endpoint-session code into the CLI.
+
+## PgBoss Worker App
+
+The endpoint forwarding PgBoss worker lives in `apps/pgboss`. It is a separate
+Node.js process that imports server-side forwarding behavior from
+`@webhooks-lol/webhooks-server/endpoint-forwarding/worker`.
+
+- Run the worker in development: `pnpm pgboss:dev`
+- Build the worker and its package dependencies: `pnpm pgboss:build`
+- Start the compiled worker: `pnpm pgboss:start`
+- Verify the worker app and package dependencies: `pnpm pgboss:verify`
+
+Do not put production worker entrypoints under `script/`. Runtime processes
+belong in `apps/*`; reusable implementation belongs in packages.
 
 ## Code Style
 
@@ -164,24 +204,29 @@ Do not import browser endpoint-session code into the CLI.
 
 ## Architecture
 
-- `app/api/**/route.ts` files are server boundaries. They should parse route
+- `apps/web/app/api/**/route.ts` files are server boundaries. They should parse route
   context, call dedicated server/domain modules, and shape HTTP responses.
-- `lib/webhooks/inbound-capture.ts` owns inbound request capture rules, body
-  limits, body parsing, captured-path/query/header extraction, and publication
-  after persistence succeeds.
-- `lib/webhooks/repository.ts` owns endpoint and captured-request persistence.
-- `lib/webhooks/endpoint-event-stream.ts` owns live endpoint event-stream behavior.
-- `lib/webhooks/api-contracts.ts` owns shared API response shapes used across
-  routes and client transport code.
-- `lib/webhooks/endpoint-forwarding/*` owns server-side forwarding policy,
-  target validation, delivery shaping, PgBoss queue integration, persistence,
-  transport, and worker processing.
-- `lib/webhooks/request-replay/*` owns replaying a stored captured request
+- `packages/webhooks-core/src/*` owns shared webhook vocabulary and dependency-light
+  contracts: endpoint IDs, captured request types, endpoint response shapes,
+  request search helpers, endpoint forwarding enums/types, and API contracts.
+- `packages/webhooks-server/src/inbound-capture.ts` owns inbound request capture
+  rules, body limits, body parsing, captured-path/query/header extraction, and
+  publication after persistence succeeds.
+- `packages/webhooks-server/src/repository.ts` owns endpoint and captured-request
+  persistence.
+- `packages/webhooks-server/src/endpoint-event-stream.ts` owns live endpoint
+  event-stream behavior.
+- `packages/webhooks-server/src/endpoint-forwarding/*` owns server-side forwarding
+  policy, target validation, delivery shaping, PgBoss queue integration,
+  persistence, transport, and worker processing.
+- `packages/webhooks-server/src/request-replay/*` owns replaying a stored captured request
   through the normal capture persistence/event publication path.
-- `components/webhook-inspector/endpoint-session/*` owns browser-side endpoint session
-  state, storage, transport, and event-stream handling.
+- `packages/database/src/*` owns Drizzle table definitions and PostgreSQL
+  connection setup.
+- `apps/web/components/webhook-inspector/endpoint-session/*` owns browser-side
+  endpoint session state, storage, transport, and event-stream handling.
 - `apps/cli/src/*` owns the `whlol` command-line client.
-- `components/ui/*` contains shadcn/Radix-derived primitives. Extend them
+- `apps/web/components/ui/*` contains shadcn/Radix-derived primitives. Extend them
   consistently instead of inventing incompatible UI primitives.
 
 Prefer the flow `Route Handler -> domain/server module -> repository` for
@@ -219,9 +264,9 @@ handlers when they belong in domain modules.
 - Redis-backed admission control protects endpoint creation, webhook capture
   request counts, captured body bytes, and live event-stream connection leases.
   Keep admission checks before expensive work such as body reads when possible.
-- Policies live in `lib/webhooks/policies.ts`, admission in
-  `lib/webhooks/admission-control.ts`, and Redis primitives in
-  `lib/rate-limits/*`.
+- Policies live in `packages/webhooks-server/src/policies.ts`, admission in
+  `packages/webhooks-server/src/admission-control.ts`, and Redis primitives in
+  `packages/webhooks-server/src/rate-limits/*`.
 - Event streams use Redis leases; renew with heartbeats and release on cleanup.
 - Preserve CORS and no-store response behavior for capture endpoints.
 - Browser preflight requests should not be saved as webhook traffic.
