@@ -1,13 +1,27 @@
 import * as React from "react"
 import {
+  CheckIcon,
   ChevronDownIcon,
+  Code2Icon,
   LoaderCircleIcon,
+  Repeat2Icon,
   RefreshCwIcon,
+  SquareTerminalIcon,
+  TerminalIcon,
   Trash2Icon,
   WebhookIcon,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuGroup,
+  ContextMenuItem,
+  ContextMenuLabel,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu"
 import {
   Empty,
   EmptyDescription,
@@ -40,6 +54,7 @@ import {
   formatRequestListPath,
   formatRequestTime,
 } from "./request-formatters"
+import { useRequestCopyAction } from "./use-request-copy-action"
 
 type EndpointPanelProps = {
   canRefresh: boolean
@@ -50,10 +65,13 @@ type EndpointPanelProps = {
   isLoadingOlderRequests: boolean
   requestSearch: RequestSearchCriteria
   requests: CapturedRequest[]
+  replayingRequestIds: ReadonlySet<string>
   selectedId: string | null
+  webhookUrl: string
   onClearEndpoint: () => void
   onLoadOlderRequests: () => void
   onRefreshEndpoint: () => void
+  onReplayRequest: (requestId: string) => Promise<void>
   onSearchRequests: (search: RequestSearchCriteria) => void
   onSelectRequest: (id: string) => void
 }
@@ -67,10 +85,13 @@ export function EndpointPanel({
   isLoadingOlderRequests,
   requestSearch,
   requests,
+  replayingRequestIds,
   selectedId,
+  webhookUrl,
   onClearEndpoint,
   onLoadOlderRequests,
   onRefreshEndpoint,
+  onReplayRequest,
   onSearchRequests,
   onSelectRequest,
 }: EndpointPanelProps) {
@@ -148,8 +169,11 @@ export function EndpointPanel({
                   className="animate-in duration-200 ease-out fade-in-0 slide-in-from-top-1 motion-reduce:animate-none"
                 >
                   <RequestListItem
+                    isReplaying={replayingRequestIds.has(request.id)}
                     request={request}
                     selected={request.id === selectedId}
+                    webhookUrl={webhookUrl}
+                    onReplayRequest={onReplayRequest}
                     onSelect={() => onSelectRequest(request.id)}
                   />
                 </li>
@@ -199,47 +223,140 @@ export function EndpointPanel({
 }
 
 function RequestListItem({
+  isReplaying,
+  onReplayRequest,
   request,
   selected,
   onSelect,
+  webhookUrl,
 }: {
+  isReplaying: boolean
+  onReplayRequest: (requestId: string) => Promise<void>
   request: CapturedRequest
   selected: boolean
   onSelect: () => void
+  webhookUrl: string
 }) {
   const path = formatRequestListPath(request)
   const receivedDate = formatRequestDate(request.receivedAt)
   const receivedAt = formatRequestDateTime(request.receivedAt)
   const receivedTime = formatRequestTime(request.receivedAt)
+  const { canCopy, copiedFormat, copyFormat, statusMessage } =
+    useRequestCopyAction({ request, webhookUrl })
+  const replayRequest = React.useCallback(async () => {
+    try {
+      await onReplayRequest(request.id)
+    } catch {
+      return
+    }
+  }, [onReplayRequest, request.id])
 
   return (
-    <button
-      type="button"
-      onClick={onSelect}
-      aria-current={selected ? "true" : undefined}
-      aria-label={`${request.method} ${path} received at ${receivedAt}`}
-      className={cn(
-        "grid h-12 w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 overflow-hidden rounded-md border bg-background px-3 text-left transition-colors hover:border-foreground/20 hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-ring/35 focus-visible:outline-none aria-current:border-foreground/35 aria-current:bg-muted/35",
-        selected && "border-foreground/35 bg-muted/35"
-      )}
+    <ContextMenu
+      onOpenChange={(open) => {
+        if (open) {
+          onSelect()
+        }
+      }}
     >
-      <RequestMethodBadge method={request.method} />
-      <span className="min-w-0">
-        <span className="block truncate text-xs font-medium text-foreground">
-          {path}
-        </span>
+      <ContextMenuTrigger asChild>
+        <button
+          type="button"
+          onClick={onSelect}
+          aria-current={selected ? "true" : undefined}
+          aria-label={`${request.method} ${path} received at ${receivedAt}`}
+          className={cn(
+            "grid h-12 w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 overflow-hidden rounded-md border bg-background px-3 text-left transition-colors hover:border-foreground/20 hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-ring/35 focus-visible:outline-none aria-current:border-foreground/35 aria-current:bg-muted/35 data-[state=open]:border-foreground/35 data-[state=open]:bg-muted/35",
+            selected && "border-foreground/35 bg-muted/35"
+          )}
+        >
+          <RequestMethodBadge method={request.method} />
+          <span className="min-w-0">
+            <span className="block truncate text-xs font-medium text-foreground">
+              {path}
+            </span>
+          </span>
+          <time
+            dateTime={request.receivedAt}
+            title={receivedAt}
+            className="flex shrink-0 flex-col items-end gap-0.5 text-[0.65rem] leading-none whitespace-nowrap text-muted-foreground"
+          >
+            <span>{receivedDate}</span>
+            <span className="text-muted-foreground/80 tabular-nums">
+              {receivedTime}
+            </span>
+          </time>
+        </button>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="min-w-40">
+        <ContextMenuLabel>Request actions</ContextMenuLabel>
+        <ContextMenuGroup>
+          <ContextMenuItem
+            disabled={!canCopy}
+            onSelect={() => {
+              void copyFormat("curl")
+            }}
+          >
+            {copiedFormat === "curl" ? (
+              <CheckIcon data-icon="inline-start" />
+            ) : (
+              <TerminalIcon data-icon="inline-start" />
+            )}
+            {copiedFormat === "curl" ? "Copied cURL" : "Copy as cURL"}
+          </ContextMenuItem>
+          <ContextMenuItem
+            disabled={!canCopy}
+            onSelect={() => {
+              void copyFormat("fetch")
+            }}
+          >
+            {copiedFormat === "fetch" ? (
+              <CheckIcon data-icon="inline-start" />
+            ) : (
+              <Code2Icon data-icon="inline-start" />
+            )}
+            {copiedFormat === "fetch" ? "Copied Fetch" : "Copy as Fetch"}
+          </ContextMenuItem>
+          <ContextMenuItem
+            disabled={!canCopy}
+            onSelect={() => {
+              void copyFormat("cli")
+            }}
+          >
+            {copiedFormat === "cli" ? (
+              <CheckIcon data-icon="inline-start" />
+            ) : (
+              <SquareTerminalIcon data-icon="inline-start" />
+            )}
+            {copiedFormat === "cli"
+              ? "Copied CLI command"
+              : "Copy as CLI command"}
+          </ContextMenuItem>
+        </ContextMenuGroup>
+        <ContextMenuSeparator />
+        <ContextMenuGroup>
+          <ContextMenuItem
+            disabled={isReplaying}
+            onSelect={() => {
+              void replayRequest()
+            }}
+          >
+            {isReplaying ? (
+              <LoaderCircleIcon
+                data-icon="inline-start"
+                className="animate-spin"
+              />
+            ) : (
+              <Repeat2Icon data-icon="inline-start" />
+            )}
+            {isReplaying ? "Replaying" : "Replay request"}
+          </ContextMenuItem>
+        </ContextMenuGroup>
+      </ContextMenuContent>
+      <span className="sr-only" role="status" aria-live="polite">
+        {statusMessage}
       </span>
-      <time
-        dateTime={request.receivedAt}
-        title={receivedAt}
-        className="flex shrink-0 flex-col items-end gap-0.5 text-[0.65rem] leading-none whitespace-nowrap text-muted-foreground"
-      >
-        <span>{receivedDate}</span>
-        <span className="text-muted-foreground/80 tabular-nums">
-          {receivedTime}
-        </span>
-      </time>
-    </button>
+    </ContextMenu>
   )
 }
 

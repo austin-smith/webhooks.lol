@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  formatRequestAsCliCommand,
+  formatRequestAsCurl,
+  formatRequestAsFetch,
+  formatWebhookRequestUrl,
+} from "@/components/webhook-inspector/request-copy-formatters"
+import {
   formatBytes,
   formatRelativeTime,
   formatRequestBodyDisplay,
@@ -138,5 +144,176 @@ describe("request formatters", () => {
     },
   ])("$name", ({ expected, request }) => {
     expect(formatRequestBodyDisplay(request)).toEqual(expected)
+  })
+
+  describe("copy formatters", () => {
+    const webhookUrl = "https://example.test/api/hook/endpoint-id"
+
+    it.each([
+      {
+        name: "root request",
+        request: createRequest({
+          url: "/",
+          path: "/",
+        }),
+        expected: webhookUrl,
+      },
+      {
+        name: "root query",
+        request: createRequest({
+          url: "/?signature=a%2Bb&signature=c",
+          path: "/",
+          query: { signature: ["a+b", "c"] },
+        }),
+        expected: `${webhookUrl}?signature=a%2Bb&signature=c`,
+      },
+      {
+        name: "captured subpath and raw query",
+        request: createRequest({
+          url: "/stripe/events?signature=a%2Bb&signature=c",
+          path: "/stripe/events",
+          query: { signature: ["a+b", "c"] },
+        }),
+        expected: `${webhookUrl}/stripe/events?signature=a%2Bb&signature=c`,
+      },
+      {
+        name: "legacy stored internal endpoint path",
+        request: createRequest({
+          url: "/api/hook/endpoint-id/stripe/events?signature=abc",
+          path: "/stripe/events",
+          query: { signature: ["abc"] },
+        }),
+        expected: `${webhookUrl}/stripe/events?signature=abc`,
+      },
+    ])("builds the copy URL for $name", ({ expected, request }) => {
+      expect(
+        formatWebhookRequestUrl({
+          request,
+          webhookUrl: `${webhookUrl}/`,
+        })
+      ).toBe(expected)
+    })
+
+    it("formats a text request as cURL", () => {
+      const request = createRequest({
+        url: "/stripe/events?signature=a%2Bb",
+        path: "/stripe/events",
+        headers: {
+          "content-length": "27",
+          "content-type": "application/json",
+          host: "example.test",
+          "stripe-signature": "t=1,v1=abc'def",
+        },
+        bodyText: '{"event":"payment.created"}',
+        bodyBase64: "eyJldmVudCI6InBheW1lbnQuY3JlYXRlZCJ9",
+        bodySize: 27,
+      })
+
+      expect(formatRequestAsCurl({ request, webhookUrl })).toBe(`curl \\
+  --request 'POST' \\
+  --url 'https://example.test/api/hook/endpoint-id/stripe/events?signature=a%2Bb' \\
+  --header 'content-type: application/json' \\
+  --header 'stripe-signature: t=1,v1=abc'\\''def' \\
+  --data-binary '{"event":"payment.created"}'`)
+    })
+
+    it("omits request bodies from GET cURL commands", () => {
+      const request = createRequest({
+        method: "GET",
+        url: "/events",
+        path: "/events",
+        headers: {
+          "content-length": "27",
+          "x-provider-signature": "abc",
+        },
+        bodyText: '{"ignored":true}',
+        bodyBase64: "eyJpZ25vcmVkIjp0cnVlfQ==",
+        bodySize: 16,
+      })
+
+      expect(formatRequestAsCurl({ request, webhookUrl })).toBe(`curl \\
+  --request 'GET' \\
+  --url 'https://example.test/api/hook/endpoint-id/events' \\
+  --header 'x-provider-signature: abc'`)
+    })
+
+    it("formats a binary request as cURL without using display text", () => {
+      const request = createRequest({
+        url: "/upload",
+        path: "/upload",
+        headers: {
+          "content-type": "application/octet-stream",
+        },
+        bodyText: "",
+        bodyBase64: "AAE=",
+        bodySize: 2,
+      })
+
+      expect(formatRequestAsCurl({ request, webhookUrl }))
+        .toBe(`printf %s 'AAE=' | base64 --decode | \\
+curl \\
+  --request 'POST' \\
+  --url 'https://example.test/api/hook/endpoint-id/upload' \\
+  --header 'content-type: application/octet-stream' \\
+  --data-binary @-`)
+    })
+
+    it("formats a text request as a fetch snippet", () => {
+      const request = createRequest({
+        url: "/stripe/events",
+        path: "/stripe/events",
+        headers: {
+          "content-length": "27",
+          "content-type": "application/json",
+          "stripe-signature": "t=1,v1=abc",
+        },
+        bodyText: '{"event":"payment.created"}',
+        bodyBase64: "eyJldmVudCI6InBheW1lbnQuY3JlYXRlZCJ9",
+        bodySize: 27,
+      })
+
+      expect(formatRequestAsFetch({ request, webhookUrl }))
+        .toBe(`await fetch("https://example.test/api/hook/endpoint-id/stripe/events", {
+  method: "POST",
+  headers: {
+    "content-type": "application/json",
+    "stripe-signature": "t=1,v1=abc",
+  },
+  body: "{\\"event\\":\\"payment.created\\"}"
+})`)
+    })
+
+    it("formats a binary request as a fetch snippet", () => {
+      const request = createRequest({
+        url: "/upload",
+        path: "/upload",
+        headers: {
+          "content-type": "application/octet-stream",
+        },
+        bodyText: "",
+        bodyBase64: "AAE=",
+        bodySize: 2,
+      })
+
+      expect(formatRequestAsFetch({ request, webhookUrl }))
+        .toBe(`await fetch("https://example.test/api/hook/endpoint-id/upload", {
+  method: "POST",
+  headers: {
+    "content-type": "application/octet-stream",
+  },
+  body: Uint8Array.from(atob("AAE="), (byte) => byte.charCodeAt(0))
+})`)
+    })
+
+    it("formats a request as a CLI replay command", () => {
+      const request = createRequest({
+        id: "018f8b0d-5640-7448-b4ca-1a0e9f3f6f19",
+        endpointId: "endpoint-with-'quote",
+      })
+
+      expect(formatRequestAsCliCommand({ request })).toBe(
+        "npx whlol replay 'endpoint-with-'\\''quote' --request '018f8b0d-5640-7448-b4ca-1a0e9f3f6f19'"
+      )
+    })
   })
 })

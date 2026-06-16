@@ -1092,6 +1092,7 @@ export function useBrowserEndpointSession(): Endpoint {
     responseConfig,
     requestSearch,
     requests,
+    replayingRequestIds,
     selectedRequest,
     endpointId,
   }

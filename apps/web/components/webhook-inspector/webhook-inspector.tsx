@@ -107,10 +107,13 @@ export function WebhookInspector({ docsUrl }: WebhookInspectorProps) {
           isLoadingOlderRequests={endpoint.isLoadingOlderRequests}
           requestSearch={endpoint.requestSearch}
           requests={endpoint.requests}
+          replayingRequestIds={endpoint.replayingRequestIds}
           selectedId={endpoint.selectedRequest?.id ?? null}
+          webhookUrl={webhookUrl}
           onClearEndpoint={endpoint.actions.clearEndpoint}
           onLoadOlderRequests={endpoint.actions.loadOlderRequests}
           onRefreshEndpoint={endpoint.actions.refreshEndpoint}
+          onReplayRequest={endpoint.actions.replayRequest}
           onSearchRequests={endpoint.actions.searchRequests}
           onSelectRequest={endpoint.actions.selectRequest}
         />

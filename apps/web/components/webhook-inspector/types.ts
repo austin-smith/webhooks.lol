@@ -61,6 +61,7 @@ export type EndpointState = {
   responseConfig: EndpointResponseConfig
   requestSearch: RequestSearchCriteria
   requests: CapturedRequest[]
+  replayingRequestIds: ReadonlySet<string>
   selectedRequest: CapturedRequest | null
   endpointId: string | null
 }

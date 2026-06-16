@@ -86,7 +86,7 @@ export function formatRawRequestBody(request: CapturedRequest) {
 }
 
 export function formatRawRequest(request: CapturedRequest) {
-  const requestTarget = getRequestTarget(request)
+  const requestTarget = formatRequestTarget(request)
   const startLine = `${request.method} ${requestTarget} HTTP/1.1`
   const headerLines = Object.entries(request.headers)
     .sort(([left], [right]) => left.localeCompare(right))
@@ -96,7 +96,7 @@ export function formatRawRequest(request: CapturedRequest) {
   return [startLine, ...headerLines, "", body].join("\n").trimEnd()
 }
 
-function getRequestTarget(request: CapturedRequest) {
+export function formatRequestTarget(request: CapturedRequest) {
   const url = request.url || request.path || "/"
   const internalPrefix = `/api/hook/${request.endpointId}`
 
