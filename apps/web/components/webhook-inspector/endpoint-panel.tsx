@@ -266,7 +266,7 @@ function RequestListItem({
           aria-current={selected ? "true" : undefined}
           aria-label={`${request.method} ${path} received at ${receivedAt}`}
           className={cn(
-            "grid h-12 w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 overflow-hidden rounded-md border bg-background px-3 text-left transition-colors hover:border-foreground/20 hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-ring/35 focus-visible:outline-none aria-current:border-foreground/35 aria-current:bg-muted/35 data-[state=open]:border-foreground/35 data-[state=open]:bg-muted/35",
+            "grid h-12 w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 overflow-hidden rounded-md border bg-background px-3 text-left transition-colors hover:border-foreground/20 hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring/35 focus-visible:outline-none aria-current:border-foreground/35 aria-current:bg-muted/35 data-[state=open]:border-foreground/35 data-[state=open]:bg-muted/35",
             selected && "border-foreground/35 bg-muted/35"
           )}
         >
