@@ -13,9 +13,12 @@
   <img alt="Redis 8" src="https://img.shields.io/badge/Redis%208-FF4438?logo=redis&logoColor=white">
 </p>
 
-A small webhook endpoint for receiving and inspecting HTTP requests.
+A small webhook endpoint for receiving and inspecting HTTP requests. The app creates private endpoint URLs, captures requests sent to them, and shows the latest traffic in a compact inspector. It is intentionally simple: a request list, a detail pane, and a small remembered-endpoint switcher for moving between URLs you have created.
 
-The app creates private endpoint URLs, captures requests sent to them, and shows the latest traffic in a compact inspector. It is intentionally simple: a request list, a detail pane, and a small remembered-endpoint switcher for moving between URLs you have created.
+<p align="center">
+  <img src="./docs/screenshots/screen-grab-light.png" alt="webhooks.lol inspector in light mode" width="49%" />
+  <img src="./docs/screenshots/screen-grab-dark.png" alt="webhooks.lol inspector in dark mode" width="49%" />
+</p>
 
 ## Run
 
