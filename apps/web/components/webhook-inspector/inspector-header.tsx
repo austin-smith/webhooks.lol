@@ -239,7 +239,7 @@ function HeaderLink({
   return (
     <Tooltip>
       <TooltipTrigger asChild>{link}</TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
+      <TooltipContent className="sm:hidden">{label}</TooltipContent>
     </Tooltip>
   )
 }
