@@ -14,10 +14,15 @@
     ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas,
     "Liberation Mono", monospace;
   --brand: oklch(0.58 0.236 356);
+  --color-fd-primary: var(--brand);
+  --color-fd-primary-foreground: oklch(0.99 0 0);
+  --color-fd-ring: var(--brand);
 }
 
 .dark {
   --brand: oklch(0.7 0.175 356);
+  --color-fd-primary: var(--brand);
+  --color-fd-primary-foreground: oklch(0.16 0 0);
 }
 
 html {
