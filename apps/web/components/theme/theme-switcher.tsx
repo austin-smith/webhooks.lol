@@ -33,13 +33,40 @@ const appearanceLabels: Record<AppearanceTheme, string> = {
 export function ThemeSwitcher() {
   const { appTheme, setAppTheme } = useAppTheme()
   const { theme, setTheme } = useTheme()
+  const [open, setOpen] = React.useState(false)
+  const [tooltipOpen, setTooltipOpen] = React.useState(false)
+  const [suppressTooltip, setSuppressTooltip] = React.useState(false)
   const neutralThemeSwitchId = React.useId()
   const appearanceTheme = normalizeAppearanceTheme(theme)
   const neutralThemeEnabled = appTheme === "neutral"
 
+  const changeMenuOpen = React.useCallback((nextOpen: boolean) => {
+    setTooltipOpen(false)
+    setSuppressTooltip(!nextOpen)
+    setOpen(nextOpen)
+  }, [])
+
+  const changeTooltipOpen = React.useCallback(
+    (nextOpen: boolean) => {
+      if (!nextOpen) {
+        setTooltipOpen(false)
+        return
+      }
+
+      if (!open && !suppressTooltip) {
+        setTooltipOpen(true)
+      }
+    },
+    [open, suppressTooltip]
+  )
+
+  const clearTooltipSuppression = React.useCallback(() => {
+    setSuppressTooltip(false)
+  }, [])
+
   return (
-    <DropdownMenu>
-      <Tooltip>
+    <DropdownMenu open={open} onOpenChange={changeMenuOpen}>
+      <Tooltip open={tooltipOpen} onOpenChange={changeTooltipOpen}>
         <TooltipTrigger asChild>
           <DropdownMenuTrigger asChild>
             <Button
@@ -48,6 +75,9 @@ export function ThemeSwitcher() {
               size="sm"
               aria-label="Theme"
               className="h-7 rounded-md px-2 text-[0.68rem] tracking-wide text-muted-foreground hover:text-foreground"
+              onBlur={clearTooltipSuppression}
+              onPointerEnter={clearTooltipSuppression}
+              onPointerLeave={clearTooltipSuppression}
             >
               <SunIcon data-icon="inline-start" className="dark:hidden" />
               <MoonIcon
@@ -71,6 +101,7 @@ export function ThemeSwitcher() {
             checked={neutralThemeEnabled}
             onCheckedChange={(checked) => {
               setAppTheme(checked ? "neutral" : "branded")
+              changeMenuOpen(false)
             }}
             aria-label="Neutral theme"
           />
