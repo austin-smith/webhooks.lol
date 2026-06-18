@@ -2,12 +2,22 @@
 @import "fumadocs-ui/css/neutral.css";
 @import "fumadocs-ui/css/preset.css";
 
+@theme inline {
+  --font-heading: var(--font-mono);
+  --color-brand: var(--brand);
+}
+
 :root {
   --font-sans:
     ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
   --font-mono:
     ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas,
     "Liberation Mono", monospace;
+  --brand: oklch(0.58 0.236 356);
+}
+
+.dark {
+  --brand: oklch(0.7 0.175 356);
 }
 
 html {
