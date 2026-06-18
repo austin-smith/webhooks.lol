@@ -5,8 +5,10 @@ import { AppThemeProvider } from "@/components/theme/app-theme-provider"
 import { ThemeKeyboardShortcut } from "@/components/theme/theme-keyboard-shortcut"
 import { ThemeProvider } from "@/components/theme/theme-provider"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { readAppUrl } from "@/lib/app-urls"
 
 export const metadata: Metadata = {
+  metadataBase: readAppUrl(),
   title: "webhooks.lol",
   description:
     "A simple webhook endpoint for receiving and inspecting requests.",
