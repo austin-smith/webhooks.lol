@@ -230,9 +230,9 @@ function HeaderLink({
 }
 
 const connectionDotStyles: Record<ConnectionState, string> = {
-  live: "bg-emerald-500 dark:bg-emerald-400",
-  connecting: "bg-amber-500 dark:bg-amber-400",
-  offline: "bg-rose-500 dark:bg-rose-400",
+  live: "bg-status-live",
+  connecting: "bg-status-connecting",
+  offline: "bg-status-offline",
 }
 
 function ConnectionStatus({ state }: { state: ConnectionState }) {

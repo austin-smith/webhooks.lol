@@ -13,16 +13,57 @@
   --font-mono:
     ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas,
     "Liberation Mono", monospace;
+  --background: oklch(0.987 0.002 300);
+  --foreground: oklch(0.165 0.018 285);
+  --card: oklch(0.998 0.001 300);
+  --card-foreground: oklch(0.165 0.018 285);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.165 0.018 285);
+  --secondary: oklch(0.953 0.006 300);
+  --secondary-foreground: oklch(0.21 0.024 285);
+  --muted: oklch(0.958 0.004 300);
+  --muted-foreground: oklch(0.46 0.018 285);
+  --accent: oklch(0.94 0.01 326);
+  --accent-foreground: oklch(0.205 0.026 285);
+  --border: oklch(0.865 0.008 300);
   --brand: oklch(0.58 0.236 356);
+  --color-fd-background: var(--background);
+  --color-fd-foreground: var(--foreground);
+  --color-fd-card: var(--card);
+  --color-fd-card-foreground: var(--card-foreground);
+  --color-fd-popover: var(--popover);
+  --color-fd-popover-foreground: var(--popover-foreground);
+  --color-fd-secondary: var(--secondary);
+  --color-fd-secondary-foreground: var(--secondary-foreground);
+  --color-fd-muted: var(--muted);
+  --color-fd-muted-foreground: var(--muted-foreground);
+  --color-fd-accent: var(--accent);
+  --color-fd-accent-foreground: var(--accent-foreground);
+  --color-fd-border: var(--border);
   --color-fd-primary: var(--brand);
   --color-fd-primary-foreground: oklch(0.99 0 0);
   --color-fd-ring: var(--brand);
+  --color-fd-error: oklch(0.56 0.21 27);
 }
 
 .dark {
+  --background: oklch(0.135 0.028 285);
+  --foreground: oklch(0.985 0.008 326);
+  --card: oklch(0.185 0.03 285);
+  --card-foreground: oklch(0.985 0.008 326);
+  --popover: oklch(0.19 0.034 285);
+  --popover-foreground: oklch(0.985 0.008 326);
+  --secondary: oklch(0.25 0.036 292);
+  --secondary-foreground: oklch(0.985 0.008 326);
+  --muted: oklch(0.235 0.032 292);
+  --muted-foreground: oklch(0.72 0.04 316);
+  --accent: oklch(0.285 0.052 316);
+  --accent-foreground: oklch(0.985 0.008 326);
+  --border: oklch(1 0 0 / 12%);
   --brand: oklch(0.7 0.175 356);
   --color-fd-primary: var(--brand);
   --color-fd-primary-foreground: oklch(0.16 0 0);
+  --color-fd-error: oklch(0.74 0.19 27);
 }
 
 html {

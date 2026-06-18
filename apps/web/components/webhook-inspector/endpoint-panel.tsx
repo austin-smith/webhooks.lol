@@ -207,7 +207,7 @@ export function EndpointPanel({
             <EmptyHeader>
               <EmptyMedia
                 variant="icon"
-                className="size-9 rounded-md border border-brand/30 bg-brand/10 text-brand dark:border-foreground/15 dark:bg-foreground/[0.04]"
+                className="size-9 rounded-md border border-brand/30 bg-brand/10 text-brand"
               >
                 <WebhookIcon />
               </EmptyMedia>
