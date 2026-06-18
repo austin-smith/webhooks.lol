@@ -1,6 +1,6 @@
 export const APP_THEME_STORAGE_KEY = "webhooks.lol:app-theme"
 
-export const APP_THEMES = ["branded", "simple"] as const
+export const APP_THEMES = ["branded", "neutral"] as const
 
 export type AppTheme = (typeof APP_THEMES)[number]
 
@@ -8,7 +8,7 @@ export const DEFAULT_APP_THEME: AppTheme = "branded"
 
 export const APP_THEME_LABELS: Record<AppTheme, string> = {
   branded: "Branded",
-  simple: "Simple",
+  neutral: "Neutral",
 }
 
 export function isAppTheme(value: unknown): value is AppTheme {

@@ -99,7 +99,7 @@
   --sidebar-ring: var(--ring);
 }
 
-:root[data-app-theme="simple"] {
+:root[data-app-theme="neutral"] {
   --background: oklch(0.985 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(0.998 0 0);
@@ -186,7 +186,7 @@
   --sidebar-ring: var(--ring);
 }
 
-.dark[data-app-theme="simple"] {
+.dark[data-app-theme="neutral"] {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.18 0 0);

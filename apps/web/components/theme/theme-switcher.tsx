@@ -33,9 +33,9 @@ const appearanceLabels: Record<AppearanceTheme, string> = {
 export function ThemeSwitcher() {
   const { appTheme, setAppTheme } = useAppTheme()
   const { theme, setTheme } = useTheme()
-  const simpleThemeSwitchId = React.useId()
+  const neutralThemeSwitchId = React.useId()
   const appearanceTheme = normalizeAppearanceTheme(theme)
-  const simpleThemeEnabled = appTheme === "simple"
+  const neutralThemeEnabled = appTheme === "neutral"
 
   return (
     <DropdownMenu>
@@ -62,17 +62,17 @@ export function ThemeSwitcher() {
       <DropdownMenuContent align="end" className="w-44">
         <DropdownMenuLabel>Appearance</DropdownMenuLabel>
         <div className="flex items-center justify-between gap-3 rounded-sm px-2 py-1.5 text-xs">
-          <label htmlFor={simpleThemeSwitchId} className="cursor-pointer">
-            Simple
+          <label htmlFor={neutralThemeSwitchId} className="cursor-pointer">
+            Neutral
           </label>
           <Switch
-            id={simpleThemeSwitchId}
+            id={neutralThemeSwitchId}
             size="sm"
-            checked={simpleThemeEnabled}
+            checked={neutralThemeEnabled}
             onCheckedChange={(checked) => {
-              setAppTheme(checked ? "simple" : "branded")
+              setAppTheme(checked ? "neutral" : "branded")
             }}
-            aria-label="Simple theme"
+            aria-label="Neutral theme"
           />
         </div>
         <DropdownMenuSeparator />

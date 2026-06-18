@@ -32,8 +32,9 @@ class ThrowingStorage {
 
 describe("app theme storage", () => {
   it("normalizes unknown app themes to the default", () => {
-    expect(normalizeAppTheme("simple")).toBe("simple")
+    expect(normalizeAppTheme("neutral")).toBe("neutral")
     expect(normalizeAppTheme("branded")).toBe("branded")
+    expect(normalizeAppTheme("simple")).toBe(DEFAULT_APP_THEME)
     expect(normalizeAppTheme("dark")).toBe(DEFAULT_APP_THEME)
     expect(normalizeAppTheme(null)).toBe(DEFAULT_APP_THEME)
   })
@@ -41,9 +42,9 @@ describe("app theme storage", () => {
   it("reads a valid stored app theme", () => {
     const storage = new MemoryStorage()
 
-    storage.setItem(APP_THEME_STORAGE_KEY, "simple")
+    storage.setItem(APP_THEME_STORAGE_KEY, "neutral")
 
-    expect(readAppThemeFromStorage(storage)).toBe("simple")
+    expect(readAppThemeFromStorage(storage)).toBe("neutral")
   })
 
   it("falls back when stored app theme storage is invalid or unavailable", () => {
@@ -60,9 +61,9 @@ describe("app theme storage", () => {
   it("writes app themes without surfacing storage failures", () => {
     const storage = new MemoryStorage()
 
-    writeAppThemeToStorage(storage, "simple")
+    writeAppThemeToStorage(storage, "neutral")
     writeAppThemeToStorage(new ThrowingStorage(), "branded")
 
-    expect(storage.getItem(APP_THEME_STORAGE_KEY)).toBe("simple")
+    expect(storage.getItem(APP_THEME_STORAGE_KEY)).toBe("neutral")
   })
 })
