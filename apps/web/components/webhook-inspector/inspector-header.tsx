@@ -126,9 +126,9 @@ export function InspectorHeader({
           className="flex shrink-0 items-center gap-0.5"
         >
           {docsUrl ? (
-            <HeaderLink href={docsUrl} icon={BookTextIcon} label="Docs" />
+            <HeaderLink href={docsUrl} icon={BookTextIcon} label="DOCS" />
           ) : null}
-          <HeaderLink href={GITHUB_URL} icon={GithubIcon} label="GitHub" />
+          <HeaderLink href={GITHUB_URL} icon={GithubIcon} label="GITHUB" />
           <ThemeSwitcher />
           <span aria-hidden="true" className="mx-1 h-3.5 w-px bg-border" />
           <ConnectionStatus state={connectionState} />
