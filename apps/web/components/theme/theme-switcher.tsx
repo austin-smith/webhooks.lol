@@ -1,0 +1,112 @@
+"use client"
+
+import * as React from "react"
+import { MonitorIcon, MoonIcon, SunIcon } from "lucide-react"
+import { useTheme } from "next-themes"
+
+import { useAppTheme } from "@/components/theme/app-theme-provider"
+import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Switch } from "@/components/ui/switch"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+
+type AppearanceTheme = "system" | "light" | "dark"
+
+const appearanceLabels: Record<AppearanceTheme, string> = {
+  system: "System",
+  light: "Light",
+  dark: "Dark",
+}
+
+export function ThemeSwitcher() {
+  const { appTheme, setAppTheme } = useAppTheme()
+  const { theme, setTheme } = useTheme()
+  const simpleThemeSwitchId = React.useId()
+  const appearanceTheme = normalizeAppearanceTheme(theme)
+  const simpleThemeEnabled = appTheme === "simple"
+
+  return (
+    <DropdownMenu>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              aria-label="Theme"
+              className="h-7 rounded-md px-2 text-[0.68rem] tracking-wide text-muted-foreground hover:text-foreground"
+            >
+              <SunIcon data-icon="inline-start" className="dark:hidden" />
+              <MoonIcon
+                data-icon="inline-start"
+                className="hidden dark:block"
+              />
+            </Button>
+          </DropdownMenuTrigger>
+        </TooltipTrigger>
+        <TooltipContent>Theme</TooltipContent>
+      </Tooltip>
+      <DropdownMenuContent align="end" className="w-44">
+        <DropdownMenuLabel>Appearance</DropdownMenuLabel>
+        <div className="flex items-center justify-between gap-3 rounded-sm px-2 py-1.5 text-xs">
+          <label htmlFor={simpleThemeSwitchId} className="cursor-pointer">
+            Simple
+          </label>
+          <Switch
+            id={simpleThemeSwitchId}
+            size="sm"
+            checked={simpleThemeEnabled}
+            onCheckedChange={(checked) => {
+              setAppTheme(checked ? "simple" : "branded")
+            }}
+            aria-label="Simple theme"
+          />
+        </div>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel>Theme</DropdownMenuLabel>
+        <DropdownMenuRadioGroup
+          value={appearanceTheme}
+          onValueChange={(value) => {
+            if (isAppearanceTheme(value)) {
+              setTheme(value)
+            }
+          }}
+        >
+          <DropdownMenuRadioItem value="system">
+            <MonitorIcon data-icon="inline-start" />
+            {appearanceLabels.system}
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="light">
+            <SunIcon data-icon="inline-start" />
+            {appearanceLabels.light}
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="dark">
+            <MoonIcon data-icon="inline-start" />
+            {appearanceLabels.dark}
+          </DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+function normalizeAppearanceTheme(theme: string | undefined): AppearanceTheme {
+  return isAppearanceTheme(theme) ? theme : "system"
+}
+
+function isAppearanceTheme(value: unknown): value is AppearanceTheme {
+  return value === "system" || value === "light" || value === "dark"
+}
