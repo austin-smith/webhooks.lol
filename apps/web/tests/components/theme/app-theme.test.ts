@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import {
   APP_THEME_STORAGE_KEY,
   DEFAULT_APP_THEME,
+  getAppThemeStorage,
   normalizeAppTheme,
   readAppThemeFromStorage,
   writeAppThemeToStorage,
@@ -27,6 +28,12 @@ class ThrowingStorage {
 
   setItem(): void {
     throw new Error("storage unavailable")
+  }
+}
+
+class ThrowingStorageSource {
+  get localStorage(): never {
+    throw new Error("storage blocked")
   }
 }
 
@@ -56,6 +63,17 @@ describe("app theme storage", () => {
     expect(readAppThemeFromStorage(new ThrowingStorage())).toBe(
       DEFAULT_APP_THEME
     )
+  })
+
+  it("returns null when local storage access is blocked", () => {
+    expect(getAppThemeStorage(new ThrowingStorageSource())).toBeNull()
+    expect(getAppThemeStorage(null)).toBeNull()
+  })
+
+  it("returns available local storage", () => {
+    const storage = new MemoryStorage()
+
+    expect(getAppThemeStorage({ localStorage: storage })).toBe(storage)
   })
 
   it("writes app themes without surfacing storage failures", () => {

@@ -7,6 +7,7 @@ import {
   APP_THEMES,
   DEFAULT_APP_THEME,
   type AppTheme,
+  getAppThemeStorage,
   normalizeAppTheme,
   readAppThemeFromStorage,
   writeAppThemeToStorage,
@@ -42,7 +43,7 @@ export function AppThemeProvider({ children }: { children: React.ReactNode }) {
       return DEFAULT_APP_THEME
     }
 
-    return readAppThemeFromStorage(window.localStorage)
+    return readAppThemeFromStorage(getAppThemeStorage())
   })
 
   React.useEffect(() => {
@@ -67,7 +68,7 @@ export function AppThemeProvider({ children }: { children: React.ReactNode }) {
   const setAppTheme = React.useCallback((theme: AppTheme) => {
     setAppThemeState(theme)
     applyAppTheme(theme)
-    writeAppThemeToStorage(window.localStorage, theme)
+    writeAppThemeToStorage(getAppThemeStorage(), theme)
   }, [])
 
   const contextValue = React.useMemo(

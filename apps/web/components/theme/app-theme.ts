@@ -11,12 +11,39 @@ export const APP_THEME_LABELS: Record<AppTheme, string> = {
   neutral: "Neutral",
 }
 
+export type AppThemeStorage = Pick<Storage, "getItem" | "setItem">
+
+type AppThemeStorageSource = {
+  readonly localStorage: AppThemeStorage
+}
+
 export function isAppTheme(value: unknown): value is AppTheme {
   return typeof value === "string" && APP_THEMES.includes(value as AppTheme)
 }
 
 export function normalizeAppTheme(value: unknown): AppTheme {
   return isAppTheme(value) ? value : DEFAULT_APP_THEME
+}
+
+export function getAppThemeStorage(
+  source?: AppThemeStorageSource | null
+): AppThemeStorage | null {
+  const storageSource =
+    source === undefined
+      ? typeof window === "undefined"
+        ? null
+        : window
+      : source
+
+  if (!storageSource) {
+    return null
+  }
+
+  try {
+    return storageSource.localStorage
+  } catch {
+    return null
+  }
 }
 
 export function readAppThemeFromStorage(
