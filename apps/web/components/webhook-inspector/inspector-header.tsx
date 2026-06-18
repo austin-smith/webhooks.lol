@@ -111,8 +111,8 @@ export function InspectorHeader({
               priority
             />
           </div>
-          <h1 className="font-heading text-sm font-medium text-muted-foreground">
-            WEBHOOKS.LOL
+          <h1 className="font-heading text-sm font-semibold tracking-tight text-foreground">
+            WEBHOOKS<span className="text-brand">.LOL</span>
           </h1>
         </div>
         <nav

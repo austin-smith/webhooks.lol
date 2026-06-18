@@ -103,8 +103,8 @@ export function EndpointPanel({
 
   return (
     <section className="flex h-[min(42svh,28rem)] min-h-[220px] min-w-0 flex-col overflow-hidden border-b bg-card sm:h-auto sm:min-h-0 sm:border-r sm:border-b-0">
-      <header className="border-b bg-muted/20">
-        <div className="grid h-14 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4">
+      <header className="bg-muted/20">
+        <div className="grid h-14 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b px-4">
           <div className="min-w-0">
             <h2 className="text-sm font-semibold">REQUESTS</h2>
             <div className="min-h-4 text-[0.68rem] text-muted-foreground">
@@ -139,7 +139,7 @@ export function EndpointPanel({
           </div>
         </div>
         {hasActiveSearch ? (
-          <div className="border-t px-4 py-2">
+          <div className="border-b px-4 py-2">
             <RequestSearchChips
               className="mt-0"
               disabled={!canRefresh}
@@ -203,9 +203,12 @@ export function EndpointPanel({
             ) : null}
           </ScrollArea>
         ) : (
-          <Empty className="h-full animate-in rounded-sm border border-dashed bg-background/60 p-4 duration-200 fade-in-0 motion-reduce:animate-none">
+          <Empty className="h-full animate-in rounded-md border border-dashed bg-background/50 p-4 duration-200 fade-in-0 motion-reduce:animate-none">
             <EmptyHeader>
-              <EmptyMedia variant="icon" className="rounded-sm">
+              <EmptyMedia
+                variant="icon"
+                className="size-9 rounded-md border border-brand/30 bg-brand/10 text-brand dark:border-foreground/15 dark:bg-foreground/[0.04]"
+              >
                 <WebhookIcon />
               </EmptyMedia>
               <EmptyTitle>
@@ -266,8 +269,9 @@ function RequestListItem({
           aria-current={selected ? "true" : undefined}
           aria-label={`${request.method} ${path} received at ${receivedAt}`}
           className={cn(
-            "grid h-12 w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 overflow-hidden rounded-md border bg-background px-3 text-left transition-colors hover:border-foreground/20 hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring/35 focus-visible:outline-none aria-current:border-foreground/35 aria-current:bg-muted/35 data-[state=open]:border-foreground/35 data-[state=open]:bg-muted/35",
-            selected && "border-foreground/35 bg-muted/35"
+            "grid h-12 w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 overflow-hidden rounded-md border bg-background px-3 text-left transition-colors hover:border-foreground/25 hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none aria-current:border-[var(--request-active-border)] aria-current:bg-[var(--request-active-surface)] data-[state=open]:border-[var(--request-active-border)] data-[state=open]:bg-[var(--request-active-surface)]",
+            selected &&
+              "border-[var(--request-active-border)] bg-[var(--request-active-surface)]"
           )}
         >
           <RequestMethodBadge method={request.method} />
