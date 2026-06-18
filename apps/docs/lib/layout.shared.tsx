@@ -15,7 +15,9 @@ export function baseOptions(): BaseLayoutProps {
             aria-hidden="true"
             className="size-[18px]"
           />
-          <span>webhooks.lol</span>
+          <span className="text-fd-foreground font-heading text-sm font-semibold tracking-tight">
+            WEBHOOKS<span className="text-brand">.LOL</span>
+          </span>
         </span>
       ),
     },

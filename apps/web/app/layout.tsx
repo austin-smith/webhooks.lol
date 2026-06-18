@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 
 import "./globals.css"
+import { AppThemeProvider } from "@/components/theme/app-theme-provider"
 import { ThemeKeyboardShortcut } from "@/components/theme/theme-keyboard-shortcut"
 import { ThemeProvider } from "@/components/theme/theme-provider"
 import { TooltipProvider } from "@/components/ui/tooltip"
@@ -19,16 +20,18 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className="font-mono antialiased">
       <body>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-          storageKey="webhooks.lol:theme"
-        >
-          <ThemeKeyboardShortcut />
-          <TooltipProvider>{children}</TooltipProvider>
-        </ThemeProvider>
+        <AppThemeProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+            storageKey="webhooks.lol:theme"
+          >
+            <ThemeKeyboardShortcut />
+            <TooltipProvider>{children}</TooltipProvider>
+          </ThemeProvider>
+        </AppThemeProvider>
       </body>
     </html>
   )

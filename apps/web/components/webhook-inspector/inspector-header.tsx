@@ -5,8 +5,14 @@ import type { ComponentType, SVGProps } from "react"
 import { BookTextIcon, CheckIcon, CopyIcon } from "lucide-react"
 
 import { GithubIcon } from "@/components/icons/github-icon"
+import { ThemeSwitcher } from "@/components/theme/theme-switcher"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import type {
   EndpointResponseConfig,
   EndpointResponseOverrideInput,
@@ -111,8 +117,8 @@ export function InspectorHeader({
               priority
             />
           </div>
-          <h1 className="font-heading text-sm font-medium text-muted-foreground">
-            WEBHOOKS.LOL
+          <h1 className="font-heading text-sm font-semibold tracking-tight text-foreground">
+            WEBHOOKS<span className="text-brand">.LOL</span>
           </h1>
         </div>
         <nav
@@ -123,6 +129,7 @@ export function InspectorHeader({
             <HeaderLink href={docsUrl} icon={BookTextIcon} label="DOCS" />
           ) : null}
           <HeaderLink href={GITHUB_URL} icon={GithubIcon} label="GITHUB" />
+          <ThemeSwitcher />
           <span aria-hidden="true" className="mx-1 h-3.5 w-px bg-border" />
           <ConnectionStatus state={connectionState} />
         </nav>
@@ -216,23 +223,31 @@ function HeaderLink({
   icon: ComponentType<SVGProps<SVGSVGElement>>
   label: string
 }) {
-  return (
+  const link = (
     <a
       href={href}
       target="_blank"
       rel="noopener noreferrer"
+      aria-label={label}
       className="inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-[0.68rem] font-medium tracking-wide text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none dark:hover:bg-muted/50"
     >
       <Icon className="size-3.5" aria-hidden="true" />
-      {label}
+      <span className="hidden sm:inline">{label}</span>
     </a>
+  )
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{link}</TooltipTrigger>
+      <TooltipContent className="sm:hidden">{label}</TooltipContent>
+    </Tooltip>
   )
 }
 
 const connectionDotStyles: Record<ConnectionState, string> = {
-  live: "bg-emerald-500 dark:bg-emerald-400",
-  connecting: "bg-amber-500 dark:bg-amber-400",
-  offline: "bg-rose-500 dark:bg-rose-400",
+  live: "bg-status-live",
+  connecting: "bg-status-connecting",
+  offline: "bg-status-offline",
 }
 
 function ConnectionStatus({ state }: { state: ConnectionState }) {

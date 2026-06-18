@@ -46,9 +46,12 @@ export function RequestDetail({
       <section className="flex min-h-[420px] min-w-0 animate-in flex-col bg-card duration-200 fade-in-0 motion-reduce:animate-none sm:min-h-0">
         <RequestDetailHeader title="REQUEST" description="No selection" />
         <div className="flex min-h-0 flex-1 p-3 sm:p-4">
-          <Empty className="h-full rounded-sm border border-dashed bg-background/60 p-4">
+          <Empty className="h-full rounded-md border border-dashed bg-background/50 p-4">
             <EmptyHeader>
-              <EmptyMedia variant="icon" className="rounded-sm">
+              <EmptyMedia
+                variant="icon"
+                className="size-9 rounded-md border border-brand/30 bg-brand/10 text-brand"
+              >
                 <BracesIcon />
               </EmptyMedia>
               <EmptyTitle>NOTHING CAPTURED</EmptyTitle>
@@ -224,9 +227,13 @@ function RequestMetric({
   value: string
 }) {
   return (
-    <div className={cn("min-w-0 px-3 py-1.5", className)}>
-      <dt className="text-[0.68rem] text-muted-foreground">{label}</dt>
-      <dd className="truncate text-xs">{value}</dd>
+    <div className={cn("min-w-0 px-3 py-2", className)}>
+      <dt className="text-[0.64rem] tracking-wide text-muted-foreground">
+        {label}
+      </dt>
+      <dd className="truncate text-[0.8rem] font-medium tabular-nums">
+        {value}
+      </dd>
     </div>
   )
 }
@@ -263,7 +270,7 @@ function RequestPayloadTabs({ request }: { request: CapturedRequest }) {
       <div className="border-b pb-2">
         <TabsList
           variant="line"
-          className="justify-start rounded-none [&_[data-slot=tabs-trigger]]:text-xs"
+          className="justify-start rounded-none [&_[data-slot=tabs-trigger]]:text-xs [&_[data-slot=tabs-trigger]]:after:bg-brand!"
         >
           <TabsTrigger value="detail" className="flex-none px-3">
             Detail
