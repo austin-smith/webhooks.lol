@@ -269,7 +269,7 @@ function RequestListItem({
           aria-current={selected ? "true" : undefined}
           aria-label={`${request.method} ${path} received at ${receivedAt}`}
           className={cn(
-            "grid h-12 w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 overflow-hidden rounded-md border bg-background px-3 text-left transition-colors hover:border-foreground/25 hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none aria-current:border-[var(--request-active-border)] aria-current:bg-[var(--request-active-surface)] data-[state=open]:border-[var(--request-active-border)] data-[state=open]:bg-[var(--request-active-surface)]",
+            "grid h-12 w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 overflow-hidden rounded-md border bg-background px-3 text-left transition-colors hover:border-foreground/25 hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none aria-current:border-[var(--request-active-border)] aria-current:bg-[var(--request-active-surface)] aria-current:hover:border-[color-mix(in_oklch,var(--request-active-border),var(--foreground)_18%)] aria-current:hover:bg-[color-mix(in_oklch,var(--request-active-surface),var(--foreground)_6%)] data-[state=open]:border-[var(--request-active-border)] data-[state=open]:bg-[var(--request-active-surface)]",
             selected &&
               "border-[var(--request-active-border)] bg-[var(--request-active-surface)]"
           )}
