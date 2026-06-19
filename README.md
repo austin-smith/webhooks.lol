@@ -26,6 +26,7 @@ A small webhook endpoint for receiving and inspecting HTTP requests. The app cre
 pnpm install
 cp packages/database/.env.example packages/database/.env.local
 cp apps/web/.env.example apps/web/.env.local
+cp apps/docs/.env.example apps/docs/.env.local
 cp apps/pgboss/.env.example apps/pgboss/.env.local
 pnpm db:local:start
 pnpm redis:local:start
@@ -39,6 +40,7 @@ Environment files live with the process that reads them:
 
 - `packages/database/.env.local` is for Drizzle database tooling.
 - `apps/web/.env.local` is for the Next.js web app.
+- `apps/docs/.env.local` is for the Next.js docs app.
 - `apps/pgboss/.env.local` is for the PgBoss worker.
 
 The local examples point each process at the same Docker PostgreSQL database.

@@ -40,6 +40,7 @@ code quality are expected for new code and touched code.
 - Create database tooling env:
   `cp packages/database/.env.example packages/database/.env.local`
 - Create web app env: `cp apps/web/.env.example apps/web/.env.local`
+- Create docs app env: `cp apps/docs/.env.example apps/docs/.env.local`
 - Create PgBoss worker env: `cp apps/pgboss/.env.example apps/pgboss/.env.local`
 - Start local PostgreSQL: `pnpm db:local:start`
 - Start local Redis: `pnpm redis:local:start`
@@ -84,7 +85,8 @@ the relevant dependency build graph has run.
 
 Local env files live with the package or app that reads them. Put database
 tooling variables in `packages/database/.env.local`, web runtime variables in
-`apps/web/.env.local`, and PgBoss worker variables in `apps/pgboss/.env.local`.
+`apps/web/.env.local`, docs runtime variables in `apps/docs/.env.local`, and
+PgBoss worker variables in `apps/pgboss/.env.local`.
 
 Railway deployments use app-local config-as-code files:
 `apps/web/railway.json`, `apps/docs/railway.json`, and
