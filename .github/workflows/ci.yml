@@ -24,6 +24,8 @@ jobs:
       CI: true
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/webhooks-lol
       NEXT_TELEMETRY_DISABLED: 1
+      NEXT_PUBLIC_APP_URL: http://localhost:4665
+      NEXT_PUBLIC_DOCS_URL: http://localhost:4666
 
     services:
       postgres:
