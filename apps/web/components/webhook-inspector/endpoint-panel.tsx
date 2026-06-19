@@ -12,6 +12,17 @@ import {
   WebhookIcon,
 } from "lucide-react"
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import {
   ContextMenu,
@@ -30,6 +41,11 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import type { CapturedRequest } from "@webhooks-lol/webhooks-core/types"
 import {
   requestSearchIsActive,
@@ -129,12 +145,9 @@ export function EndpointPanel({
               icon={RefreshCwIcon}
               variant="ghost"
             />
-            <InspectorIconButton
-              label="Clear"
+            <ClearRequestsButton
               disabled={!canRefresh || isClearing}
-              onClick={onClearEndpoint}
-              icon={Trash2Icon}
-              variant="ghost"
+              onClearEndpoint={onClearEndpoint}
             />
           </div>
         </div>
@@ -225,6 +238,57 @@ export function EndpointPanel({
   )
 }
 
+function ClearRequestsButton({
+  disabled,
+  onClearEndpoint,
+}: {
+  disabled: boolean
+  onClearEndpoint: () => void
+}) {
+  return (
+    <AlertDialog>
+      <Tooltip>
+        <AlertDialogTrigger asChild>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost-destructive"
+              size="icon"
+              className="rounded-md"
+              disabled={disabled}
+              aria-label="Clear captured requests"
+            >
+              <Trash2Icon data-icon="inline-start" />
+              <span className="sr-only">Clear</span>
+            </Button>
+          </TooltipTrigger>
+        </AlertDialogTrigger>
+        <TooltipContent>Clear</TooltipContent>
+      </Tooltip>
+      <AlertDialogContent size="default" className="gap-3">
+        <AlertDialogHeader className="place-items-start text-left">
+          <AlertDialogTitle className="text-sm leading-snug">
+            Clear captured requests?
+          </AlertDialogTitle>
+          <AlertDialogDescription className="text-xs leading-relaxed">
+            This removes the captured request history for this endpoint.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel size="sm">Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            variant="destructive"
+            size="sm"
+            onClick={onClearEndpoint}
+          >
+            Clear requests
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
+}
+
 function RequestListItem({
   isReplaying,
   onReplayRequest,
@@ -263,7 +327,7 @@ function RequestListItem({
           aria-current={selected ? "true" : undefined}
           aria-label={`${request.method} ${path} received at ${receivedAt}`}
           className={cn(
-            "grid h-12 w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 overflow-hidden rounded-md border bg-background px-3 text-left transition-colors hover:border-foreground/25 hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none aria-current:border-[var(--request-active-border)] aria-current:bg-[var(--request-active-surface)] aria-current:hover:border-[color-mix(in_oklch,var(--request-active-border),var(--foreground)_18%)] aria-current:hover:bg-[color-mix(in_oklch,var(--request-active-surface),var(--foreground)_6%)] data-[state=open]:border-foreground/25 data-[state=open]:bg-accent/60 aria-current:data-[state=open]:border-[color-mix(in_oklch,var(--request-active-border),var(--foreground)_18%)] aria-current:data-[state=open]:bg-[color-mix(in_oklch,var(--request-active-surface),var(--foreground)_6%)]",
+            "grid h-12 w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 overflow-hidden rounded-md border bg-background px-3 text-left transition-colors hover:border-foreground/25 hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none aria-current:border-[var(--request-active-border)] aria-current:bg-[var(--request-active-surface)] aria-current:hover:border-[color-mix(in_oklch,var(--request-active-border),var(--brand)_24%)] aria-current:hover:bg-[color-mix(in_oklch,var(--request-active-surface),var(--brand)_9%)] data-[state=open]:border-foreground/25 data-[state=open]:bg-accent/60 aria-current:data-[state=open]:border-[color-mix(in_oklch,var(--request-active-border),var(--brand)_24%)] aria-current:data-[state=open]:bg-[color-mix(in_oklch,var(--request-active-surface),var(--brand)_9%)]",
             selected &&
               "border-[var(--request-active-border)] bg-[var(--request-active-surface)]"
           )}
