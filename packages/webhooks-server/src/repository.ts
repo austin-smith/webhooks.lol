@@ -6,6 +6,7 @@ import {
   eq,
   inArray,
   lt,
+  max,
   notInArray,
   or,
   sql,
@@ -67,6 +68,12 @@ export type EndpointStats = {
   lastActivityAt: string
 }
 
+export type AccountWebhookStats = {
+  endpointCount: number
+  requestCount: number
+  lastActivityAt: string | null
+}
+
 export type RequestPageCursor = {
   id: string
   receivedAt: Date
@@ -114,6 +121,44 @@ export async function listEndpointsForUser(userId: string) {
     .orderBy(desc(endpoints.lastActivityAt), desc(endpoints.id))
 
   return rows.map(mapEndpointRow)
+}
+
+export async function getAccountWebhookStats(
+  userId: string
+): Promise<AccountWebhookStats> {
+  const db = getDatabase()
+
+  const [endpointStats, requestStats] = await Promise.all([
+    db
+      .select({
+        endpointCount: sql<number>`cast(count(*) as integer)`.as(
+          "endpoint_count"
+        ),
+      })
+      .from(endpoints)
+      .where(eq(endpoints.ownerUserId, userId)),
+    db
+      .select({
+        requestCount: sql<number>`cast(count(*) as integer)`.as(
+          "request_count"
+        ),
+        lastRequestAt: max(capturedRequests.receivedAt).as("last_request_at"),
+      })
+      .from(capturedRequests)
+      .innerJoin(endpoints, eq(capturedRequests.endpointId, endpoints.id))
+      .where(
+        and(
+          eq(endpoints.ownerUserId, userId),
+          eq(capturedRequests.deleteAfterForwarding, false)
+        )
+      ),
+  ])
+
+  return {
+    endpointCount: Number(endpointStats[0]?.endpointCount ?? 0),
+    requestCount: Number(requestStats[0]?.requestCount ?? 0),
+    lastActivityAt: requestStats[0]?.lastRequestAt?.toISOString() ?? null,
+  }
 }
 
 export async function getEndpoint(endpointId: string) {

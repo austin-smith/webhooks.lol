@@ -3,11 +3,12 @@ import { afterEach, describe, expect, it } from "vitest"
 
 import { getDatabase } from "@webhooks-lol/database/client"
 import { user } from "@webhooks-lol/database/auth-schema"
-import { endpoints } from "@webhooks-lol/database/schema"
+import { capturedRequests, endpoints } from "@webhooks-lol/database/schema"
 import {
   assertEndpointAccessibleToActor,
   createEndpoint,
   EndpointNotFoundError,
+  getAccountWebhookStats,
   getEndpointForActor,
   listEndpointsForUser,
   listRequests,
@@ -100,6 +101,97 @@ describe("webhook repository request search", () => {
     await expect(
       getEndpointForActor(endpoint.endpointId, { userId: owner.id })
     ).rejects.toBeInstanceOf(EndpointNotFoundError)
+  })
+
+  it("returns empty account webhook stats for users without endpoints", async () => {
+    const owner = await createTrackedUser("owner")
+
+    await expect(getAccountWebhookStats(owner.id)).resolves.toEqual({
+      endpointCount: 0,
+      requestCount: 0,
+      lastActivityAt: null,
+    })
+  })
+
+  it("counts owned endpoints and reports no activity without requests", async () => {
+    const owner = await createTrackedUser("owner")
+    const otherUser = await createTrackedUser("other")
+
+    await createTrackedEndpoint({
+      ownerUserId: owner.id,
+      now: new Date("2026-06-01T12:00:00.000Z"),
+    })
+    await createTrackedEndpoint({
+      ownerUserId: owner.id,
+      now: new Date("2026-06-02T12:00:00.000Z"),
+    })
+    await createTrackedEndpoint({
+      ownerUserId: otherUser.id,
+      now: new Date("2026-06-03T12:00:00.000Z"),
+    })
+    await createTrackedEndpoint({
+      now: new Date("2026-06-04T12:00:00.000Z"),
+    })
+
+    await expect(getAccountWebhookStats(owner.id)).resolves.toEqual({
+      endpointCount: 2,
+      requestCount: 0,
+      lastActivityAt: null,
+    })
+  })
+
+  it("counts visible account webhook requests for owned endpoints only", async () => {
+    const owner = await createTrackedUser("owner")
+    const otherUser = await createTrackedUser("other")
+    const ownedEndpoint = await createTrackedEndpoint({
+      ownerUserId: owner.id,
+    })
+    const otherOwnedEndpoint = await createTrackedEndpoint({
+      ownerUserId: owner.id,
+    })
+    const otherUserEndpoint = await createTrackedEndpoint({
+      ownerUserId: otherUser.id,
+    })
+    const anonymousEndpoint = await createTrackedEndpoint()
+
+    const visibleRequest = await saveTrackedRequest({
+      endpointId: ownedEndpoint.endpointId,
+      method: "POST",
+      url: "/visible",
+      path: "/visible",
+      bodyText: "visible",
+    })
+    const pendingDeletionRequest = await saveTrackedRequest({
+      endpointId: otherOwnedEndpoint.endpointId,
+      method: "POST",
+      url: "/pending-deletion",
+      path: "/pending-deletion",
+      bodyText: "pending deletion",
+    })
+    await saveTrackedRequest({
+      endpointId: otherUserEndpoint.endpointId,
+      method: "POST",
+      url: "/other-user",
+      path: "/other-user",
+      bodyText: "other user",
+    })
+    await saveTrackedRequest({
+      endpointId: anonymousEndpoint.endpointId,
+      method: "POST",
+      url: "/anonymous",
+      path: "/anonymous",
+      bodyText: "anonymous",
+    })
+    await getDatabase()
+      .update(capturedRequests)
+      .set({ deleteAfterForwarding: true })
+      .where(eq(capturedRequests.id, pendingDeletionRequest.id))
+
+    await expect(getAccountWebhookStats(owner.id)).resolves.toMatchObject({
+      endpointCount: 2,
+      requestCount: 1,
+      lastActivityAt: visibleRequest.receivedAt,
+    })
   })
 
   it("searches each supported field against persisted requests", async () => {
