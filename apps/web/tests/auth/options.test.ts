@@ -111,10 +111,10 @@ describe("auth options", () => {
     expect(options.account.accountLinking.enabled).toBe(false)
   })
 
-  it("sends reset password email with text and escaped html bodies", async () => {
-    const sendAuthEmail = vi.fn().mockResolvedValue(undefined)
+  it("sends reset password email with rendered html and text bodies", async () => {
+    const sendEmail = vi.fn().mockResolvedValue(undefined)
     const options = createOptions(
-      sendAuthEmail,
+      sendEmail,
       createDatabaseWithUserCount(1, { hasCredentialAccount: true })
     )
     const url = "https://webhooks.lol/reset?token=abc&next=%22home%22"
@@ -124,21 +124,27 @@ describe("auth options", () => {
       user: createAuthUser({ email: "owner@example.com", id: "user-id" }),
     })
 
-    expect(sendAuthEmail).toHaveBeenCalledWith({
-      html:
-        "<p>Use this link to reset your webhooks.lol password:</p>" +
-        '<p><a href="https://webhooks.lol/reset?token=abc&amp;next=%22home%22">Reset your password</a></p>' +
-        "<p>If you did not request this, you can ignore this email.</p>",
-      subject: "Reset your webhooks.lol password",
-      text: `Use this link to reset your webhooks.lol password:\n\n${url}\n\nIf you did not request this, you can ignore this email.`,
-      to: "owner@example.com",
-    })
+    expect(sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        html: expect.stringContaining("Reset your password"),
+        subject: "Reset your webhooks.lol password",
+        text: expect.stringContaining(url),
+        to: "owner@example.com",
+      })
+    )
+    expect(sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        html: expect.stringContaining(
+          "https://webhooks.lol/reset?token=abc&amp;next=%22home%22"
+        ),
+      })
+    )
   })
 
   it("does not send reset password email for social-only users", async () => {
-    const sendAuthEmail = vi.fn().mockResolvedValue(undefined)
+    const sendEmail = vi.fn().mockResolvedValue(undefined)
     const options = createOptions(
-      sendAuthEmail,
+      sendEmail,
       createDatabaseWithUserCount(1, { hasCredentialAccount: false })
     )
 
@@ -147,32 +153,30 @@ describe("auth options", () => {
       user: createAuthUser({ email: "owner@example.com", id: "user-id" }),
     })
 
-    expect(sendAuthEmail).not.toHaveBeenCalled()
+    expect(sendEmail).not.toHaveBeenCalled()
   })
 
   it("sends notification email after password reset", async () => {
-    const sendAuthEmail = vi.fn().mockResolvedValue(undefined)
-    const options = createOptions(sendAuthEmail)
+    const sendEmail = vi.fn().mockResolvedValue(undefined)
+    const options = createOptions(sendEmail)
 
     await options.emailAndPassword.onPasswordReset({
       user: createAuthUser({ email: "owner@example.com", id: "user-id" }),
     })
 
-    expect(sendAuthEmail).toHaveBeenCalledWith({
-      html:
-        "<p>Your webhooks.lol password was reset.</p>" +
-        "<p>If you did not reset your password, request a new reset link immediately.</p>",
+    await waitForMockCall(sendEmail)
+
+    expect(sendEmail).toHaveBeenCalledWith({
+      html: expect.stringContaining("Your password was reset"),
       subject: "Your webhooks.lol password was reset",
-      text:
-        "Your webhooks.lol password was reset.\n\n" +
-        "If you did not reset your password, request a new reset link immediately.",
+      text: expect.stringContaining("Your webhooks.lol password was reset"),
       to: "owner@example.com",
     })
   })
 
-  it("sends verification email with text and escaped html bodies", async () => {
-    const sendAuthEmail = vi.fn().mockResolvedValue(undefined)
-    const options = createOptions(sendAuthEmail)
+  it("sends verification email with rendered html and text bodies", async () => {
+    const sendEmail = vi.fn().mockResolvedValue(undefined)
+    const options = createOptions(sendEmail)
     const url = "https://webhooks.lol/verify?token=abc&next=%22home%22"
 
     await options.emailVerification.sendVerificationEmail({
@@ -180,24 +184,42 @@ describe("auth options", () => {
       user: createAuthUser({ email: "owner@example.com", id: "user-id" }),
     })
 
-    expect(sendAuthEmail).toHaveBeenCalledWith({
-      html:
-        "<p>Use this link to verify your webhooks.lol email address:</p>" +
-        '<p><a href="https://webhooks.lol/verify?token=abc&amp;next=%22home%22">Verify your email address</a></p>' +
-        "<p>If you did not create an account, you can ignore this email.</p>",
-      subject: "Verify your webhooks.lol email address",
-      text: `Use this link to verify your webhooks.lol email address:\n\n${url}\n\nIf you did not create an account, you can ignore this email.`,
-      to: "owner@example.com",
-    })
+    expect(sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        html: expect.stringContaining("Verify your email address"),
+        subject: "Verify your webhooks.lol email address",
+        text: expect.stringContaining(url),
+        to: "owner@example.com",
+      })
+    )
+    expect(sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        html: expect.stringContaining(
+          "https://webhooks.lol/verify?token=abc&amp;next=%22home%22"
+        ),
+      })
+    )
   })
 })
 
-type SendAuthEmailSpy = (input: {
+type SendEmailSpy = (input: {
   html: string
   subject: string
   text: string
   to: string
 }) => Promise<void>
+
+async function waitForMockCall(mock: ReturnType<typeof vi.fn>) {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    if (mock.mock.calls.length > 0) {
+      return
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 10))
+  }
+
+  throw new Error("Expected mock to be called.")
+}
 
 function createAuthUser({ email, id }: { email: string; id: string }) {
   const now = new Date("2026-01-01T00:00:00.000Z")
@@ -214,16 +236,14 @@ function createAuthUser({ email, id }: { email: string; id: string }) {
 }
 
 function createOptions(
-  sendAuthEmail: SendAuthEmailSpy | undefined = vi
-    .fn()
-    .mockResolvedValue(undefined),
+  sendEmail: SendEmailSpy | undefined = vi.fn().mockResolvedValue(undefined),
   database: DrizzleDatabase = createDatabaseWithUserCount(0)
 ) {
   vi.stubEnv("GITHUB_CLIENT_ID", "github-client-id")
   vi.stubEnv("GITHUB_CLIENT_SECRET", "github-client-secret")
 
   return createAuthOptions(database, {
-    sendAuthEmail,
+    sendEmail,
   }) as AuthOptionsUnderTest
 }
 

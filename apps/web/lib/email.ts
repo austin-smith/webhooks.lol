@@ -1,6 +1,6 @@
 import "server-only"
 
-export type TransactionalEmail = {
+export type OutboundEmail = {
   html: string
   subject: string
   text: string
@@ -43,12 +43,12 @@ const CLOUDFLARE_EMAIL_SEND_URL =
 const PRODUCT_EMAIL_SENDER_NAME = "webhooks.lol"
 const PRODUCTION_APP_ENV = "production"
 
-export async function sendTransactionalEmail({
+export async function sendOutboundEmail({
   html,
   subject,
   text,
   to,
-}: TransactionalEmail) {
+}: OutboundEmail) {
   const response = await fetch(buildCloudflareEmailSendUrl(), {
     body: JSON.stringify({
       from: {

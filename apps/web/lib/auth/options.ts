@@ -6,24 +6,29 @@ import { and, eq } from "drizzle-orm"
 import * as schema from "@webhooks-lol/database/schema"
 import { account } from "@webhooks-lol/database/schema"
 import {
+  createPasswordResetNoticeEmailMessage,
+  createResetPasswordEmailMessage,
+  createVerifyEmailMessage,
+} from "./email-messages"
+import {
   resolveRoleForNewUser,
   STANDARD_USER_ROLE,
 } from "./first-user-role-policy"
 import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from "./password-policy"
 import type { DrizzleDatabase } from "./types"
 
-type AuthEmailUser = {
+type EmailUser = {
   email: string
   id: string
 }
 
-type AuthEmailUrlInput = {
+type EmailUrlInput = {
   url: string
-  user: AuthEmailUser
+  user: EmailUser
 }
 
-type AuthEmailUserInput = {
-  user: AuthEmailUser
+type EmailUserInput = {
+  user: EmailUser
 }
 
 type SyntheticUserInput = {
@@ -32,7 +37,7 @@ type SyntheticUserInput = {
   id: string
 }
 
-type SendAuthEmailInput = {
+type SendEmailInput = {
   html: string
   subject: string
   text: string
@@ -40,14 +45,14 @@ type SendAuthEmailInput = {
 }
 
 type AuthRuntimeHooks = {
-  sendAuthEmail?: (input: SendAuthEmailInput) => Promise<void>
+  sendEmail?: (input: SendEmailInput) => Promise<void>
 }
 
 export function createAuthOptions(
   database: DrizzleDatabase,
   runtimeHooks: AuthRuntimeHooks = {}
 ): BetterAuthOptions {
-  const sendAuthEmail = runtimeHooks.sendAuthEmail ?? missingAuthEmailSender
+  const sendEmail = runtimeHooks.sendEmail ?? missingEmailSender
 
   return {
     appName: "webhooks.lol",
@@ -77,38 +82,26 @@ export function createAuthOptions(
       resetPasswordTokenExpiresIn: 60 * 60,
       revokeSessionsOnPasswordReset: true,
       requireEmailVerification: true,
-      async onPasswordReset({ user }: AuthEmailUserInput) {
-        void sendAuthEmail({
-          html: createNoticeEmailHtml({
-            intro: "Your webhooks.lol password was reset.",
-            outro:
-              "If you did not reset your password, request a new reset link immediately.",
-          }),
-          subject: "Your webhooks.lol password was reset",
-          text:
-            "Your webhooks.lol password was reset.\n\n" +
-            "If you did not reset your password, request a new reset link immediately.",
+      async onPasswordReset({ user }: EmailUserInput) {
+        void createPasswordResetNoticeEmailMessage({
           to: user.email,
-        }).catch((error: unknown) => {
-          console.error("Could not send password reset notification.", error)
         })
+          .then(sendEmail)
+          .catch((error: unknown) => {
+            console.error("Could not send password reset notification.", error)
+          })
       },
-      async sendResetPassword({ user, url }: AuthEmailUrlInput) {
+      async sendResetPassword({ user, url }: EmailUrlInput) {
         if (!(await userHasCredentialAccount(database, user.id))) {
           return
         }
 
-        await sendAuthEmail({
-          html: createActionEmailHtml({
-            actionLabel: "Reset your password",
-            actionUrl: url,
-            intro: "Use this link to reset your webhooks.lol password:",
-            outro: "If you did not request this, you can ignore this email.",
-          }),
-          subject: "Reset your webhooks.lol password",
-          text: `Use this link to reset your webhooks.lol password:\n\n${url}\n\nIf you did not request this, you can ignore this email.`,
-          to: user.email,
-        })
+        await sendEmail(
+          await createResetPasswordEmailMessage({
+            to: user.email,
+            url,
+          })
+        )
       },
       customSyntheticUser: ({
         additionalFields,
@@ -127,19 +120,13 @@ export function createAuthOptions(
     emailVerification: {
       sendOnSignUp: true,
       sendOnSignIn: false,
-      async sendVerificationEmail({ user, url }: AuthEmailUrlInput) {
-        await sendAuthEmail({
-          html: createActionEmailHtml({
-            actionLabel: "Verify your email address",
-            actionUrl: url,
-            intro: "Use this link to verify your webhooks.lol email address:",
-            outro:
-              "If you did not create an account, you can ignore this email.",
-          }),
-          subject: "Verify your webhooks.lol email address",
-          text: `Use this link to verify your webhooks.lol email address:\n\n${url}\n\nIf you did not create an account, you can ignore this email.`,
-          to: user.email,
-        })
+      async sendVerificationEmail({ user, url }: EmailUrlInput) {
+        await sendEmail(
+          await createVerifyEmailMessage({
+            to: user.email,
+            url,
+          })
+        )
       },
     },
     plugins: [admin()],
@@ -183,8 +170,8 @@ function readRequiredEnv(name: string) {
   return value
 }
 
-async function missingAuthEmailSender() {
-  throw new Error("Auth email sender is not configured.")
+async function missingEmailSender() {
+  throw new Error("Email sender is not configured.")
 }
 
 async function userHasCredentialAccount(
@@ -200,43 +187,4 @@ async function userHasCredentialAccount(
     .limit(1)
 
   return rows.length > 0
-}
-
-function createActionEmailHtml({
-  actionLabel,
-  actionUrl,
-  intro,
-  outro,
-}: {
-  actionLabel: string
-  actionUrl: string
-  intro: string
-  outro: string
-}) {
-  const escapedUrl = escapeHtml(actionUrl)
-
-  return (
-    `<p>${escapeHtml(intro)}</p>` +
-    `<p><a href="${escapedUrl}">${escapeHtml(actionLabel)}</a></p>` +
-    `<p>${escapeHtml(outro)}</p>`
-  )
-}
-
-function createNoticeEmailHtml({
-  intro,
-  outro,
-}: {
-  intro: string
-  outro: string
-}) {
-  return `<p>${escapeHtml(intro)}</p><p>${escapeHtml(outro)}</p>`
-}
-
-function escapeHtml(value: string) {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;")
 }

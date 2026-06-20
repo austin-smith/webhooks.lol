@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { sendAuthEmail } from "@/lib/auth/email"
+import { sendEmail } from "@/lib/auth/email"
 
 const authEmail = {
   html: "<p>Verify your email.</p>",
@@ -14,8 +14,8 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe("sendAuthEmail", () => {
-  it("sends auth email through the Cloudflare Email Sending REST API", async () => {
+describe("sendEmail", () => {
+  it("sends email through the Cloudflare Email Sending REST API", async () => {
     const fetchMock = stubFetch(
       createCloudflareResponse({
         result: {
@@ -29,7 +29,7 @@ describe("sendAuthEmail", () => {
 
     stubCloudflareEmailEnv()
 
-    await sendAuthEmail(authEmail)
+    await sendEmail(authEmail)
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
 
@@ -55,7 +55,7 @@ describe("sendAuthEmail", () => {
     })
   })
 
-  it("labels non-production auth email by APP_ENV", async () => {
+  it("labels non-production email by APP_ENV", async () => {
     const fetchMock = stubFetch(
       createCloudflareResponse({
         result: {
@@ -69,7 +69,7 @@ describe("sendAuthEmail", () => {
 
     stubCloudflareEmailEnv({ appEnv: "staging" })
 
-    await sendAuthEmail(authEmail)
+    await sendEmail(authEmail)
 
     const [, init] = getFetchCall(fetchMock)
 
@@ -93,7 +93,7 @@ describe("sendAuthEmail", () => {
 
     stubCloudflareEmailEnv({ appEnv: "review_branch" })
 
-    await sendAuthEmail(authEmail)
+    await sendEmail(authEmail)
 
     const [, init] = getFetchCall(fetchMock)
 
@@ -115,7 +115,7 @@ describe("sendAuthEmail", () => {
     )
     stubCloudflareEmailEnv()
 
-    await expect(sendAuthEmail(authEmail)).resolves.toBeUndefined()
+    await expect(sendEmail(authEmail)).resolves.toBeUndefined()
   })
 
   it("requires APP_ENV before sending", async () => {
@@ -134,7 +134,7 @@ describe("sendAuthEmail", () => {
     vi.stubEnv("CLOUDFLARE_EMAIL_API_TOKEN", "cloudflare-email-token")
     vi.stubEnv("EMAIL_FROM_ADDRESS", "no-reply@webhooks.lol")
 
-    await expect(sendAuthEmail(authEmail)).rejects.toThrow(
+    await expect(sendEmail(authEmail)).rejects.toThrow(
       "APP_ENV is required to send email."
     )
     expect(fetchMock).not.toHaveBeenCalled()
@@ -154,7 +154,7 @@ describe("sendAuthEmail", () => {
 
     stubCloudflareEmailEnv({ appEnv: " " })
 
-    await expect(sendAuthEmail(authEmail)).rejects.toThrow(
+    await expect(sendEmail(authEmail)).rejects.toThrow(
       "APP_ENV is required to send email."
     )
     expect(fetchMock).not.toHaveBeenCalled()
@@ -174,7 +174,7 @@ describe("sendAuthEmail", () => {
 
     stubCloudflareEmailEnv({ appEnv: "staging\nbcc" })
 
-    await expect(sendAuthEmail(authEmail)).rejects.toThrow(
+    await expect(sendEmail(authEmail)).rejects.toThrow(
       "APP_ENV must not contain control characters."
     )
     expect(fetchMock).not.toHaveBeenCalled()
@@ -196,7 +196,7 @@ describe("sendAuthEmail", () => {
     vi.stubEnv("CLOUDFLARE_ACCOUNT_ID", "account-id")
     vi.stubEnv("CLOUDFLARE_EMAIL_API_TOKEN", "cloudflare-email-token")
 
-    await expect(sendAuthEmail(authEmail)).rejects.toThrow(
+    await expect(sendEmail(authEmail)).rejects.toThrow(
       "EMAIL_FROM_ADDRESS is required to send email."
     )
     expect(fetchMock).not.toHaveBeenCalled()
@@ -222,7 +222,7 @@ describe("sendAuthEmail", () => {
 
     let error: unknown
     try {
-      await sendAuthEmail(authEmail)
+      await sendEmail(authEmail)
     } catch (caughtError) {
       error = caughtError
     }
@@ -247,7 +247,7 @@ describe("sendAuthEmail", () => {
     )
     stubCloudflareEmailEnv()
 
-    await expect(sendAuthEmail(authEmail)).rejects.toThrow(
+    await expect(sendEmail(authEmail)).rejects.toThrow(
       "Could not send email. Cloudflare reported a permanent bounce for the recipient."
     )
   })
@@ -265,7 +265,7 @@ describe("sendAuthEmail", () => {
     )
     stubCloudflareEmailEnv()
 
-    await expect(sendAuthEmail(authEmail)).rejects.toThrow(
+    await expect(sendEmail(authEmail)).rejects.toThrow(
       "Could not send email. Cloudflare did not report the recipient as delivered or queued."
     )
   })
@@ -274,7 +274,7 @@ describe("sendAuthEmail", () => {
     stubFetch(new Response(JSON.stringify({ success: true }), { status: 200 }))
     stubCloudflareEmailEnv()
 
-    await expect(sendAuthEmail(authEmail)).rejects.toThrow(
+    await expect(sendEmail(authEmail)).rejects.toThrow(
       "Could not send email. Cloudflare returned an unexpected response."
     )
   })
