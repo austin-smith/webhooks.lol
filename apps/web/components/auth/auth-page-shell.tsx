@@ -40,7 +40,7 @@ export function AuthPageShell({
           </Link>
           <ThemeSwitcher />
         </header>
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2">
           <p className="font-mono text-[0.68rem] tracking-wide text-muted-foreground">
             {eyebrow}
           </p>

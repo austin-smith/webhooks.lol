@@ -33,7 +33,7 @@ export function GithubAuthButton({ callbackPath }: GithubAuthButtonProps) {
   }
 
   return (
-    <div className="space-y-2">
+    <div className="flex flex-col gap-2">
       <Button
         type="button"
         variant="outline"

@@ -30,7 +30,7 @@ export function AuthMethodPanel({ callbackPath, mode }: AuthMethodPanelProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       <GithubAuthButton callbackPath={callbackPath} />
       <AuthDivider />
       <EmailAuthForm

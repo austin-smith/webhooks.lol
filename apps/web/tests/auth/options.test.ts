@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { createAuthOptions } from "@/lib/auth/options"
+import {
+  MAX_PASSWORD_LENGTH,
+  MIN_PASSWORD_LENGTH,
+} from "@/lib/auth/password-policy"
 import type { DrizzleDatabase } from "@/lib/auth/types"
 
 type AuthOptionsUnderTest = ReturnType<typeof createAuthOptions> & {
@@ -14,11 +18,12 @@ type AuthOptionsUnderTest = ReturnType<typeof createAuthOptions> & {
     }
   }
   emailAndPassword: {
-    onExistingUserSignUp(input: { user: { email: string } }): Promise<void>
+    maxPasswordLength: number
+    minPasswordLength: number
     requireEmailVerification: boolean
     sendResetPassword(input: {
       url: string
-      user: { email: string }
+      user: { email: string; id: string }
     }): Promise<void>
   }
   emailVerification: {
@@ -50,6 +55,8 @@ describe("auth options", () => {
     const options = createOptions()
 
     expect(options.emailAndPassword.requireEmailVerification).toBe(true)
+    expect(options.emailAndPassword.minPasswordLength).toBe(MIN_PASSWORD_LENGTH)
+    expect(options.emailAndPassword.maxPasswordLength).toBe(MAX_PASSWORD_LENGTH)
     expect(options.emailVerification.sendOnSignUp).toBe(true)
     expect(options.emailVerification.sendOnSignIn).toBe(false)
   })
@@ -94,41 +101,20 @@ describe("auth options", () => {
     expect(options.socialProviders.github).not.toHaveProperty(
       "mapProfileToUser"
     )
-    expect(options.account.accountLinking.enabled).toBe(true)
-  })
-
-  it("uses neutral duplicate-signup email copy", async () => {
-    const sendAuthEmail = vi.fn().mockResolvedValue(undefined)
-    const options = createOptions(sendAuthEmail)
-
-    await options.emailAndPassword.onExistingUserSignUp({
-      user: { email: "owner@example.com" },
-    })
-
-    expect(sendAuthEmail).toHaveBeenCalledWith({
-      html:
-        "<p>We received a webhooks.lol signup request for this email address.</p>" +
-        "<p>If you own this address, use the sign-in page to continue. " +
-        "If your email still needs verification, signing in with your password will send a fresh verification link.</p>" +
-        "<p>If this was not you, no action is needed.</p>",
-      subject: "Check your email for webhooks.lol",
-      text:
-        "We received a webhooks.lol signup request for this email address.\n\n" +
-        "If you own this address, use the sign-in page to continue. " +
-        "If your email still needs verification, signing in with your password will send a fresh verification link.\n\n" +
-        "If this was not you, no action is needed.",
-      to: "owner@example.com",
-    })
+    expect(options.account.accountLinking.enabled).toBe(false)
   })
 
   it("sends reset password email with text and escaped html bodies", async () => {
     const sendAuthEmail = vi.fn().mockResolvedValue(undefined)
-    const options = createOptions(sendAuthEmail)
+    const options = createOptions(
+      sendAuthEmail,
+      createDatabaseWithUserCount(1, { hasCredentialAccount: true })
+    )
     const url = "https://webhooks.lol/reset?token=abc&next=%22home%22"
 
     await options.emailAndPassword.sendResetPassword({
       url,
-      user: { email: "owner@example.com" },
+      user: createAuthUser({ email: "owner@example.com", id: "user-id" }),
     })
 
     expect(sendAuthEmail).toHaveBeenCalledWith({
@@ -142,6 +128,21 @@ describe("auth options", () => {
     })
   })
 
+  it("does not send reset password email for social-only users", async () => {
+    const sendAuthEmail = vi.fn().mockResolvedValue(undefined)
+    const options = createOptions(
+      sendAuthEmail,
+      createDatabaseWithUserCount(1, { hasCredentialAccount: false })
+    )
+
+    await options.emailAndPassword.sendResetPassword({
+      url: "https://webhooks.lol/reset?token=abc",
+      user: createAuthUser({ email: "owner@example.com", id: "user-id" }),
+    })
+
+    expect(sendAuthEmail).not.toHaveBeenCalled()
+  })
+
   it("sends verification email with text and escaped html bodies", async () => {
     const sendAuthEmail = vi.fn().mockResolvedValue(undefined)
     const options = createOptions(sendAuthEmail)
@@ -149,7 +150,7 @@ describe("auth options", () => {
 
     await options.emailVerification.sendVerificationEmail({
       url,
-      user: { email: "owner@example.com" },
+      user: createAuthUser({ email: "owner@example.com", id: "user-id" }),
     })
 
     expect(sendAuthEmail).toHaveBeenCalledWith({
@@ -171,6 +172,20 @@ type SendAuthEmailSpy = (input: {
   to: string
 }) => Promise<void>
 
+function createAuthUser({ email, id }: { email: string; id: string }) {
+  const now = new Date("2026-01-01T00:00:00.000Z")
+
+  return {
+    createdAt: now,
+    email,
+    emailVerified: true,
+    id,
+    image: null,
+    name: email,
+    updatedAt: now,
+  }
+}
+
 function createOptions(
   sendAuthEmail: SendAuthEmailSpy | undefined = vi
     .fn()
@@ -185,11 +200,26 @@ function createOptions(
   }) as AuthOptionsUnderTest
 }
 
-function createDatabaseWithUserCount(userCount: number) {
+function createDatabaseWithUserCount(
+  userCount: number,
+  { hasCredentialAccount = true }: { hasCredentialAccount?: boolean } = {}
+) {
   return {
     execute: vi.fn().mockResolvedValue(undefined),
-    select: vi.fn(() => ({
-      from: vi.fn(async () => [{ value: userCount }]),
+    select: vi.fn((selection?: Record<string, unknown>) => ({
+      from: vi.fn(() => {
+        if (selection && "id" in selection) {
+          return {
+            where: vi.fn(() => ({
+              limit: vi.fn(async () =>
+                hasCredentialAccount ? [{ id: "account-id" }] : []
+              ),
+            })),
+          }
+        }
+
+        return Promise.resolve([{ value: userCount }])
+      }),
     })),
   } as unknown as DrizzleDatabase
 }

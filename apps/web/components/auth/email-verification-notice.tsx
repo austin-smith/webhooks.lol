@@ -31,7 +31,9 @@ export function EmailVerificationNotice({
       })
 
       if (result.error) {
-        setMessage(result.error.message ?? "Could not resend verification email.")
+        setMessage(
+          result.error.message ?? "Could not resend verification email."
+        )
         return
       }
 
@@ -42,15 +44,15 @@ export function EmailVerificationNotice({
   }
 
   return (
-    <div className="space-y-4" role="status">
-      <div className="space-y-2 text-center">
+    <div className="flex flex-col gap-4" role="status">
+      <div className="flex flex-col gap-2 text-center">
         <h2 className="font-heading text-base">Check your email</h2>
         <p className="text-[0.68rem] leading-relaxed text-muted-foreground">
-          A verification link was sent to{" "}
+          Look for a verification link at{" "}
           <span className="text-foreground">{email}</span>.
         </p>
       </div>
-      <div className="space-y-3">
+      <div className="flex flex-col gap-3">
         <Button
           type="button"
           variant="outline"

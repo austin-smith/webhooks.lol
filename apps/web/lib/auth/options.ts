@@ -1,16 +1,20 @@
 import type { BetterAuthOptions } from "better-auth/minimal"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
 import { admin } from "better-auth/plugins/admin"
+import { and, eq } from "drizzle-orm"
 
 import * as schema from "@webhooks-lol/database/schema"
+import { account } from "@webhooks-lol/database/schema"
 import {
   resolveRoleForNewUser,
   STANDARD_USER_ROLE,
 } from "./first-user-role-policy"
+import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from "./password-policy"
 import type { DrizzleDatabase } from "./types"
 
 type AuthEmailUser = {
   email: string
+  id: string
 }
 
 type AuthEmailUrlInput = {
@@ -64,26 +68,14 @@ export function createAuthOptions(
     },
     emailAndPassword: {
       enabled: true,
+      maxPasswordLength: MAX_PASSWORD_LENGTH,
+      minPasswordLength: MIN_PASSWORD_LENGTH,
       requireEmailVerification: true,
-      async onExistingUserSignUp({ user }: { user: AuthEmailUser }) {
-        const text =
-          "We received a webhooks.lol signup request for this email address.\n\n" +
-          "If you own this address, use the sign-in page to continue. " +
-          "If your email still needs verification, signing in with your password will send a fresh verification link.\n\n" +
-          "If this was not you, no action is needed."
-
-        await sendAuthEmail({
-          html:
-            "<p>We received a webhooks.lol signup request for this email address.</p>" +
-            "<p>If you own this address, use the sign-in page to continue. " +
-            "If your email still needs verification, signing in with your password will send a fresh verification link.</p>" +
-            "<p>If this was not you, no action is needed.</p>",
-          subject: "Check your email for webhooks.lol",
-          text,
-          to: user.email,
-        })
-      },
       async sendResetPassword({ user, url }: AuthEmailUrlInput) {
+        if (!(await userHasCredentialAccount(database, user.id))) {
+          return
+        }
+
         await sendAuthEmail({
           html: createActionEmailHtml({
             actionLabel: "Reset your password",
@@ -138,7 +130,7 @@ export function createAuthOptions(
     },
     account: {
       accountLinking: {
-        enabled: true,
+        enabled: false,
       },
       encryptOAuthTokens: true,
       storeStateStrategy: "database" as const,
@@ -166,6 +158,21 @@ function readRequiredEnv(name: string) {
 
 async function missingAuthEmailSender() {
   throw new Error("Auth email sender is not configured.")
+}
+
+async function userHasCredentialAccount(
+  database: DrizzleDatabase,
+  userId: string
+) {
+  const rows = await database
+    .select({ id: account.id })
+    .from(account)
+    .where(
+      and(eq(account.userId, userId), eq(account.providerId, "credential"))
+    )
+    .limit(1)
+
+  return rows.length > 0
 }
 
 function createActionEmailHtml({
