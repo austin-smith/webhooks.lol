@@ -18,7 +18,10 @@ import {
   type EmailAuthFieldErrors,
   validateEmailAuthInput,
 } from "@/lib/auth/email-auth-validation"
-import { EMAIL_VERIFICATION_CALLBACK_PATH } from "@/lib/auth/redirects"
+import {
+  EMAIL_VERIFICATION_CALLBACK_PATH,
+  FORGOT_PASSWORD_PATH,
+} from "@/lib/auth/redirects"
 
 type EmailAuthMode = "login" | "sign-up"
 
@@ -189,12 +192,12 @@ export function EmailAuthForm({
         {isSignUp ? "Create account" : "Sign in"}
       </Button>
       <p className="text-center text-[0.68rem] text-muted-foreground">
-        {isSignUp ? "Already have an account?" : "Need an account?"}{" "}
+        {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
         <Link
           href={switchAuthHref}
           className="font-medium text-foreground underline-offset-4 hover:underline"
         >
-          {isSignUp ? "Sign in" : "Create account"}
+          {isSignUp ? "Sign in" : "Sign up"}
         </Link>
       </p>
       {message ? (
@@ -203,6 +206,16 @@ export function EmailAuthForm({
           role="status"
         >
           {message}
+        </p>
+      ) : null}
+      {!isSignUp ? (
+        <p className="text-center text-[0.68rem] text-muted-foreground">
+          <Link
+            href={createForgotPasswordHref(callbackPath)}
+            className="font-medium text-foreground underline-offset-4 hover:underline"
+          >
+            Forgot your password?
+          </Link>
         </p>
       ) : null}
     </form>
@@ -230,4 +243,12 @@ function createSwitchAuthHref({
   }
 
   return `${pathname}?next=${encodeURIComponent(callbackPath)}`
+}
+
+function createForgotPasswordHref(callbackPath: string) {
+  if (callbackPath === "/") {
+    return FORGOT_PASSWORD_PATH
+  }
+
+  return `${FORGOT_PASSWORD_PATH}?next=${encodeURIComponent(callbackPath)}`
 }

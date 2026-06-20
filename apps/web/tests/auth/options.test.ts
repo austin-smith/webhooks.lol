@@ -20,6 +20,11 @@ type AuthOptionsUnderTest = ReturnType<typeof createAuthOptions> & {
   emailAndPassword: {
     maxPasswordLength: number
     minPasswordLength: number
+    onPasswordReset(input: {
+      user: { email: string; id: string }
+    }): Promise<void>
+    resetPasswordTokenExpiresIn: number
+    revokeSessionsOnPasswordReset: boolean
     requireEmailVerification: boolean
     sendResetPassword(input: {
       url: string
@@ -57,6 +62,8 @@ describe("auth options", () => {
     expect(options.emailAndPassword.requireEmailVerification).toBe(true)
     expect(options.emailAndPassword.minPasswordLength).toBe(MIN_PASSWORD_LENGTH)
     expect(options.emailAndPassword.maxPasswordLength).toBe(MAX_PASSWORD_LENGTH)
+    expect(options.emailAndPassword.resetPasswordTokenExpiresIn).toBe(60 * 60)
+    expect(options.emailAndPassword.revokeSessionsOnPasswordReset).toBe(true)
     expect(options.emailVerification.sendOnSignUp).toBe(true)
     expect(options.emailVerification.sendOnSignIn).toBe(false)
   })
@@ -141,6 +148,26 @@ describe("auth options", () => {
     })
 
     expect(sendAuthEmail).not.toHaveBeenCalled()
+  })
+
+  it("sends notification email after password reset", async () => {
+    const sendAuthEmail = vi.fn().mockResolvedValue(undefined)
+    const options = createOptions(sendAuthEmail)
+
+    await options.emailAndPassword.onPasswordReset({
+      user: createAuthUser({ email: "owner@example.com", id: "user-id" }),
+    })
+
+    expect(sendAuthEmail).toHaveBeenCalledWith({
+      html:
+        "<p>Your webhooks.lol password was reset.</p>" +
+        "<p>If you did not reset your password, request a new reset link immediately.</p>",
+      subject: "Your webhooks.lol password was reset",
+      text:
+        "Your webhooks.lol password was reset.\n\n" +
+        "If you did not reset your password, request a new reset link immediately.",
+      to: "owner@example.com",
+    })
   })
 
   it("sends verification email with text and escaped html bodies", async () => {

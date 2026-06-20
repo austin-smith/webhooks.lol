@@ -22,6 +22,10 @@ type AuthEmailUrlInput = {
   user: AuthEmailUser
 }
 
+type AuthEmailUserInput = {
+  user: AuthEmailUser
+}
+
 type SyntheticUserInput = {
   additionalFields: Record<string, unknown>
   coreFields: Record<string, unknown>
@@ -70,7 +74,25 @@ export function createAuthOptions(
       enabled: true,
       maxPasswordLength: MAX_PASSWORD_LENGTH,
       minPasswordLength: MIN_PASSWORD_LENGTH,
+      resetPasswordTokenExpiresIn: 60 * 60,
+      revokeSessionsOnPasswordReset: true,
       requireEmailVerification: true,
+      async onPasswordReset({ user }: AuthEmailUserInput) {
+        void sendAuthEmail({
+          html: createNoticeEmailHtml({
+            intro: "Your webhooks.lol password was reset.",
+            outro:
+              "If you did not reset your password, request a new reset link immediately.",
+          }),
+          subject: "Your webhooks.lol password was reset",
+          text:
+            "Your webhooks.lol password was reset.\n\n" +
+            "If you did not reset your password, request a new reset link immediately.",
+          to: user.email,
+        }).catch((error: unknown) => {
+          console.error("Could not send password reset notification.", error)
+        })
+      },
       async sendResetPassword({ user, url }: AuthEmailUrlInput) {
         if (!(await userHasCredentialAccount(database, user.id))) {
           return
@@ -141,6 +163,11 @@ export function createAuthOptions(
       storeSessionInDatabase: true,
     },
     advanced: {
+      backgroundTasks: {
+        handler(promise) {
+          void promise
+        },
+      },
       useSecureCookies: process.env.NODE_ENV === "production",
     },
   }
@@ -193,6 +220,16 @@ function createActionEmailHtml({
     `<p><a href="${escapedUrl}">${escapeHtml(actionLabel)}</a></p>` +
     `<p>${escapeHtml(outro)}</p>`
   )
+}
+
+function createNoticeEmailHtml({
+  intro,
+  outro,
+}: {
+  intro: string
+  outro: string
+}) {
+  return `<p>${escapeHtml(intro)}</p><p>${escapeHtml(outro)}</p>`
 }
 
 function escapeHtml(value: string) {
