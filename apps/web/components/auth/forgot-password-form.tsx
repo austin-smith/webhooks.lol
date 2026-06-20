@@ -17,6 +17,10 @@ import {
   validateForgotPasswordInput,
 } from "@/lib/auth/password-reset-validation"
 import { RESET_PASSWORD_PATH } from "@/lib/auth/redirects"
+import {
+  AuthFormFeedback,
+  type AuthFormFeedbackState,
+} from "./auth-form-feedback"
 import { TurnstileField, type TurnstileFieldHandle } from "./turnstile-field"
 
 const PASSWORD_RESET_REQUESTED_MESSAGE =
@@ -34,12 +38,14 @@ export function ForgotPasswordForm({ callbackPath }: ForgotPasswordFormProps) {
   )
   const [fieldErrors, setFieldErrors] =
     React.useState<ForgotPasswordFieldErrors>({})
-  const [message, setMessage] = React.useState<string | null>(null)
+  const [feedback, setFeedback] = React.useState<AuthFormFeedbackState | null>(
+    null
+  )
   const [isSubmitting, setIsSubmitting] = React.useState(false)
 
   async function requestPasswordReset(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setMessage(null)
+    setFeedback(null)
 
     const emailAddress = email.trim()
     const validationErrors = validateForgotPasswordInput({
@@ -53,7 +59,10 @@ export function ForgotPasswordForm({ callbackPath }: ForgotPasswordFormProps) {
     }
 
     if (!turnstileToken) {
-      setMessage("Complete the security check.")
+      setFeedback({
+        title: "Complete the security check.",
+        tone: "error",
+      })
       return
     }
 
@@ -71,13 +80,19 @@ export function ForgotPasswordForm({ callbackPath }: ForgotPasswordFormProps) {
       })
 
       if (result.error) {
-        setMessage("Could not request password reset.")
+        setFeedback({
+          title: "Could not request password reset.",
+          tone: "error",
+        })
         return
       }
 
       setEmail("")
       setFieldErrors({})
-      setMessage(PASSWORD_RESET_REQUESTED_MESSAGE)
+      setFeedback({
+        title: PASSWORD_RESET_REQUESTED_MESSAGE,
+        tone: "success",
+      })
     } finally {
       turnstileRef.current?.reset()
       setIsSubmitting(false)
@@ -90,6 +105,7 @@ export function ForgotPasswordForm({ callbackPath }: ForgotPasswordFormProps) {
     setValue: (value: string) => void
   ) {
     setValue(value)
+    setFeedback(null)
     setFieldErrors((currentErrors) => {
       if (!currentErrors[field]) {
         return currentErrors
@@ -137,6 +153,13 @@ export function ForgotPasswordForm({ callbackPath }: ForgotPasswordFormProps) {
           </FieldError>
         </Field>
       </FieldGroup>
+      {feedback ? (
+        <AuthFormFeedback
+          description={feedback.description}
+          title={feedback.title}
+          tone={feedback.tone}
+        />
+      ) : null}
       <TurnstileField
         ref={turnstileRef}
         disabled={isSubmitting}
@@ -149,14 +172,6 @@ export function ForgotPasswordForm({ callbackPath }: ForgotPasswordFormProps) {
       >
         Send reset link
       </Button>
-      {message ? (
-        <p
-          className="text-center text-[0.68rem] leading-relaxed text-muted-foreground"
-          role="status"
-        >
-          {message}
-        </p>
-      ) : null}
     </form>
   )
 }

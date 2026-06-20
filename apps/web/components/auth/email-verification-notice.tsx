@@ -6,6 +6,10 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { authClient } from "@/lib/auth/client"
 import { EMAIL_VERIFICATION_CALLBACK_PATH } from "@/lib/auth/redirects"
+import {
+  AuthFormFeedback,
+  type AuthFormFeedbackState,
+} from "./auth-form-feedback"
 
 type EmailVerificationNoticeProps = {
   callbackPath: string
@@ -16,13 +20,15 @@ export function EmailVerificationNotice({
   callbackPath,
   email,
 }: EmailVerificationNoticeProps) {
-  const [message, setMessage] = React.useState<string | null>(null)
+  const [feedback, setFeedback] = React.useState<AuthFormFeedbackState | null>(
+    null
+  )
   const [isResending, setIsResending] = React.useState(false)
   const loginHref = createLoginHref(callbackPath)
 
   async function resendVerificationEmail() {
     setIsResending(true)
-    setMessage(null)
+    setFeedback(null)
 
     try {
       const result = await authClient.sendVerificationEmail({
@@ -31,20 +37,24 @@ export function EmailVerificationNotice({
       })
 
       if (result.error) {
-        setMessage(
-          result.error.message ?? "Could not resend verification email."
-        )
+        setFeedback({
+          title: result.error.message ?? "Could not resend verification email.",
+          tone: "error",
+        })
         return
       }
 
-      setMessage("Verification email sent.")
+      setFeedback({
+        title: "Verification email sent.",
+        tone: "success",
+      })
     } finally {
       setIsResending(false)
     }
   }
 
   return (
-    <div className="flex flex-col gap-4" role="status">
+    <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-2 text-center">
         <h2 className="font-heading text-base">Check your email</h2>
         <p className="text-[0.68rem] leading-relaxed text-muted-foreground">
@@ -66,10 +76,12 @@ export function EmailVerificationNotice({
           <Link href={loginHref}>Sign in</Link>
         </Button>
       </div>
-      {message ? (
-        <p className="text-center text-[0.68rem] text-muted-foreground">
-          {message}
-        </p>
+      {feedback ? (
+        <AuthFormFeedback
+          description={feedback.description}
+          title={feedback.title}
+          tone={feedback.tone}
+        />
       ) : null}
     </div>
   )

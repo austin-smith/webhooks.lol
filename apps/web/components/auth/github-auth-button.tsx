@@ -5,6 +5,7 @@ import * as React from "react"
 import { GithubIcon } from "@/components/icons/github-icon"
 import { Button } from "@/components/ui/button"
 import { authClient } from "@/lib/auth/client"
+import { AuthFormFeedback } from "./auth-form-feedback"
 
 type GithubAuthButtonProps = {
   callbackPath: string
@@ -41,17 +42,10 @@ export function GithubAuthButton({ callbackPath }: GithubAuthButtonProps) {
         disabled={isSubmitting}
         onClick={continueWithGithub}
       >
-        <GithubIcon className="size-4" aria-hidden="true" />
+        <GithubIcon data-icon="inline-start" aria-hidden="true" />
         Continue with GitHub
       </Button>
-      {message ? (
-        <p
-          className="text-center text-[0.68rem] text-muted-foreground"
-          role="status"
-        >
-          {message}
-        </p>
-      ) : null}
+      {message ? <AuthFormFeedback title={message} tone="error" /> : null}
     </div>
   )
 }

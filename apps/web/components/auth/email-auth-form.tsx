@@ -18,10 +18,15 @@ import {
   type EmailAuthFieldErrors,
   validateEmailAuthInput,
 } from "@/lib/auth/email-auth-validation"
+import { getSignInFailureMessage } from "@/lib/auth/sign-in-failure-message"
 import {
   EMAIL_VERIFICATION_CALLBACK_PATH,
   FORGOT_PASSWORD_PATH,
 } from "@/lib/auth/redirects"
+import {
+  AuthFormFeedback,
+  type AuthFormFeedbackState,
+} from "./auth-form-feedback"
 import { TurnstileField, type TurnstileFieldHandle } from "./turnstile-field"
 
 type EmailAuthMode = "login" | "sign-up"
@@ -47,12 +52,14 @@ export function EmailAuthForm({
     null
   )
   const [fieldErrors, setFieldErrors] = React.useState<EmailAuthFieldErrors>({})
-  const [message, setMessage] = React.useState<string | null>(null)
+  const [feedback, setFeedback] = React.useState<AuthFormFeedbackState | null>(
+    null
+  )
   const [isSubmitting, setIsSubmitting] = React.useState(false)
 
   async function submitEmailAuth(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setMessage(null)
+    setFeedback(null)
 
     const emailAddress = email.trim()
     const validationErrors = validateEmailAuthInput({
@@ -67,7 +74,10 @@ export function EmailAuthForm({
     }
 
     if (!turnstileToken) {
-      setMessage("Complete the security check.")
+      setFeedback({
+        title: "Complete the security check.",
+        tone: "error",
+      })
       return
     }
 
@@ -98,12 +108,12 @@ export function EmailAuthForm({
           })
 
       if (result.error) {
-        if (!isSignUp && isEmailNotVerifiedError(result.error)) {
-          await sendVerificationEmail(emailAddress)
-          return
-        }
-
-        setMessage(result.error.message ?? "Authentication failed.")
+        setFeedback({
+          title: isSignUp
+            ? (result.error.message ?? "Authentication failed.")
+            : getSignInFailureMessage(result.error),
+          tone: "error",
+        })
         return
       }
 
@@ -120,26 +130,13 @@ export function EmailAuthForm({
     }
   }
 
-  async function sendVerificationEmail(emailAddress: string) {
-    const result = await authClient.sendVerificationEmail({
-      callbackURL: EMAIL_VERIFICATION_CALLBACK_PATH,
-      email: emailAddress,
-    })
-
-    if (result.error) {
-      setMessage(result.error.message ?? "Could not send verification email.")
-      return
-    }
-
-    setMessage("Verification email sent.")
-  }
-
   function updateField(
     field: EmailAuthField,
     value: string,
     setValue: (value: string) => void
   ) {
     setValue(value)
+    setFeedback(null)
     setFieldErrors((currentErrors) => {
       if (!currentErrors[field]) {
         return currentErrors
@@ -205,6 +202,13 @@ export function EmailAuthForm({
           <FieldError id="password-error">{fieldErrors.password}</FieldError>
         </Field>
       </FieldGroup>
+      {feedback ? (
+        <AuthFormFeedback
+          description={feedback.description}
+          title={feedback.title}
+          tone={feedback.tone}
+        />
+      ) : null}
       <TurnstileField
         ref={turnstileRef}
         disabled={isSubmitting}
@@ -226,14 +230,6 @@ export function EmailAuthForm({
           {isSignUp ? "Sign in" : "Sign up"}
         </Link>
       </p>
-      {message ? (
-        <p
-          className="text-center text-[0.68rem] text-muted-foreground"
-          role="status"
-        >
-          {message}
-        </p>
-      ) : null}
       {!isSignUp ? (
         <p className="text-center text-[0.68rem] text-muted-foreground">
           <Link
@@ -245,13 +241,6 @@ export function EmailAuthForm({
         </p>
       ) : null}
     </form>
-  )
-}
-
-function isEmailNotVerifiedError(error: { code?: string; message?: string }) {
-  return (
-    error.code === "EMAIL_NOT_VERIFIED" ||
-    error.message === "Email not verified"
   )
 }
 

@@ -12,7 +12,7 @@ import {
   createVerifyEmailMessage,
 } from "./email-messages"
 import {
-  resolveRoleForNewUser,
+  promoteUserToAdminIfNoAdminExists,
   STANDARD_USER_ROLE,
 } from "./first-user-role-policy"
 import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from "./password-policy"
@@ -35,6 +35,10 @@ type EmailUserInput = {
 type SyntheticUserInput = {
   additionalFields: Record<string, unknown>
   coreFields: Record<string, unknown>
+  id: string
+}
+
+type CreatedAuthUser = {
   id: string
 }
 
@@ -69,9 +73,12 @@ export function createAuthOptions(
             return {
               data: {
                 ...newUser,
-                role: await resolveRoleForNewUser(database),
+                role: STANDARD_USER_ROLE,
               },
             }
+          },
+          async after(newUser: CreatedAuthUser) {
+            await promoteUserToAdminIfNoAdminExists(database, newUser.id)
           },
         },
       },

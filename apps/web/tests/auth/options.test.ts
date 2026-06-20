@@ -14,6 +14,7 @@ type AuthOptionsUnderTest = ReturnType<typeof createAuthOptions> & {
         before(newUser: Record<string, unknown>): Promise<{
           data: Record<string, unknown>
         }>
+        after(newUser: { id: string }): Promise<void>
       }
     }
   }
@@ -72,7 +73,7 @@ describe("auth options", () => {
     expect(options.emailVerification.sendOnSignIn).toBe(false)
   })
 
-  it("assigns the first new user as admin", async () => {
+  it("creates new users with the standard role before first-user promotion", async () => {
     const options = createOptions(undefined, createDatabaseWithUserCount(0))
 
     await expect(
@@ -82,25 +83,18 @@ describe("auth options", () => {
     ).resolves.toMatchObject({
       data: {
         email: "owner@example.com",
-        role: "admin",
+        role: "user",
       },
     })
   })
 
-  it("keeps later new users as standard users", async () => {
-    const options = createOptions(undefined, createDatabaseWithUserCount(1))
+  it("promotes newly created users through the first-user role policy", async () => {
+    const database = createDatabaseWithUserCount(0)
+    const options = createOptions(undefined, database)
 
-    await expect(
-      options.databaseHooks.user.create.before({
-        email: "user@example.com",
-        role: "admin",
-      })
-    ).resolves.toMatchObject({
-      data: {
-        email: "user@example.com",
-        role: "user",
-      },
-    })
+    await options.databaseHooks.user.create.after({ id: "new-user" })
+
+    expect(database.transaction).toHaveBeenCalledOnce()
   })
 
   it("keeps GitHub as a normal social provider", () => {
@@ -281,6 +275,24 @@ function createDatabaseWithUserCount(
   userCount: number,
   { hasCredentialAccount = true }: { hasCredentialAccount?: boolean } = {}
 ) {
+  const transaction = {
+    execute: vi.fn().mockResolvedValue(undefined),
+    select: vi.fn(() => ({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          limit: vi.fn(async () =>
+            userCount === 0 ? [] : [{ id: "admin-user" }]
+          ),
+        })),
+      })),
+    })),
+    update: vi.fn(() => ({
+      set: vi.fn(() => ({
+        where: vi.fn().mockResolvedValue(undefined),
+      })),
+    })),
+  }
+
   return {
     execute: vi.fn().mockResolvedValue(undefined),
     select: vi.fn((selection?: Record<string, unknown>) => ({
@@ -298,5 +310,6 @@ function createDatabaseWithUserCount(
         return Promise.resolve([{ value: userCount }])
       }),
     })),
+    transaction: vi.fn(async (callback) => callback(transaction)),
   } as unknown as DrizzleDatabase
 }

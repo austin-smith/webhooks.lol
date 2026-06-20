@@ -1,4 +1,4 @@
-import { count, sql } from "drizzle-orm"
+import { eq, sql } from "drizzle-orm"
 
 import { user } from "@webhooks-lol/database/auth-schema"
 
@@ -7,12 +7,30 @@ import type { DrizzleDatabase } from "./types"
 export const ADMIN_ROLE = "admin"
 export const STANDARD_USER_ROLE = "user"
 
-export async function resolveRoleForNewUser(database: DrizzleDatabase) {
-  await database.execute(
-    sql`select pg_advisory_xact_lock(hashtext('webhooks.lol:first-user-admin'))`
-  )
+const ADMIN_ROLE_PATTERN = String.raw`(^|,)\s*admin\s*(,|$)`
 
-  const [row] = await database.select({ value: count() }).from(user)
+export async function promoteUserToAdminIfNoAdminExists(
+  database: DrizzleDatabase,
+  userId: string
+) {
+  await database.transaction(async (transaction: DrizzleDatabase) => {
+    await transaction.execute(
+      sql`select pg_advisory_xact_lock(hashtext('webhooks.lol:first-user-admin'))`
+    )
 
-  return Number(row?.value ?? 0) === 0 ? ADMIN_ROLE : STANDARD_USER_ROLE
+    const [existingAdmin] = await transaction
+      .select({ id: user.id })
+      .from(user)
+      .where(sql`${user.role} ~ ${ADMIN_ROLE_PATTERN}`)
+      .limit(1)
+
+    if (existingAdmin) {
+      return
+    }
+
+    await transaction
+      .update(user)
+      .set({ role: ADMIN_ROLE })
+      .where(eq(user.id, userId))
+  })
 }
