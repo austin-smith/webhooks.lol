@@ -55,6 +55,10 @@ export type EndpointMetadata = {
   name: string | null
 }
 
+export type EndpointAccessActor = {
+  userId: string | null
+}
+
 export type EndpointStats = {
   endpointId: string
   requestCount: number
@@ -77,6 +81,7 @@ export type RequestPageOptions = {
 export type CreateEndpointOptions = {
   creatorKeyHash?: string | null
   now?: Date
+  ownerUserId?: string | null
 }
 
 export async function createEndpoint(options: CreateEndpointOptions = {}) {
@@ -87,6 +92,7 @@ export async function createEndpoint(options: CreateEndpointOptions = {}) {
     .values({
       id: endpointId,
       creatorKeyHash: options.creatorKeyHash ?? null,
+      ownerUserId: options.ownerUserId ?? null,
       createdAt: now,
       lastActivityAt: now,
     })
@@ -95,6 +101,19 @@ export async function createEndpoint(options: CreateEndpointOptions = {}) {
     endpointId,
     name: null,
   } satisfies EndpointMetadata
+}
+
+export async function listEndpointsForUser(userId: string) {
+  const rows = await getDatabase()
+    .select({
+      id: endpoints.id,
+      name: endpoints.name,
+    })
+    .from(endpoints)
+    .where(eq(endpoints.ownerUserId, userId))
+    .orderBy(desc(endpoints.lastActivityAt), desc(endpoints.id))
+
+  return rows.map(mapEndpointRow)
 }
 
 export async function getEndpoint(endpointId: string) {
@@ -110,6 +129,41 @@ export async function getEndpoint(endpointId: string) {
   assertEndpointRowIsActive(endpointId, row)
 
   return mapEndpointRow(row)
+}
+
+export async function getEndpointForActor(
+  endpointId: string,
+  actor: EndpointAccessActor
+) {
+  const [row] = await getDatabase()
+    .select({
+      id: endpoints.id,
+      name: endpoints.name,
+      ownerUserId: endpoints.ownerUserId,
+    })
+    .from(endpoints)
+    .where(eq(endpoints.id, endpointId))
+    .limit(1)
+
+  assertEndpointRowIsVisibleToActor(endpointId, row, actor)
+
+  return mapEndpointRow(row)
+}
+
+export async function assertEndpointAccessibleToActor(
+  endpointId: string,
+  actor: EndpointAccessActor
+) {
+  const [row] = await getDatabase()
+    .select({
+      id: endpoints.id,
+      ownerUserId: endpoints.ownerUserId,
+    })
+    .from(endpoints)
+    .where(eq(endpoints.id, endpointId))
+    .limit(1)
+
+  assertEndpointRowIsVisibleToActor(endpointId, row, actor)
 }
 
 export async function getEndpointStats(endpointId: string) {
@@ -502,8 +556,20 @@ async function assertEndpointExists(endpointId: string) {
 function assertEndpointRowIsActive(
   endpointId: string,
   row: { id?: string } | undefined
-) {
+): asserts row is { id?: string } {
   if (!row) {
+    throw new EndpointNotFoundError(endpointId)
+  }
+}
+
+function assertEndpointRowIsVisibleToActor(
+  endpointId: string,
+  row: { id?: string; ownerUserId: string | null } | undefined,
+  actor: EndpointAccessActor
+) {
+  assertEndpointRowIsActive(endpointId, row)
+
+  if (row.ownerUserId && row.ownerUserId !== actor.userId) {
     throw new EndpointNotFoundError(endpointId)
   }
 }

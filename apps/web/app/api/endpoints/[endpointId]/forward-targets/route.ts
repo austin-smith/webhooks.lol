@@ -1,3 +1,4 @@
+import { getEndpointAccessActor } from "@/lib/auth/endpoint-access"
 import { NO_STORE_HEADERS } from "@webhooks-lol/webhooks-server/http/headers"
 import {
   readBoundedTextBody,
@@ -19,6 +20,10 @@ import {
   createEndpointNotFoundResponse,
   createInvalidEndpointResponse,
 } from "@webhooks-lol/webhooks-server/endpoint-route-responses"
+import {
+  assertEndpointAccessibleToActor,
+  isEndpointUnavailableError,
+} from "@webhooks-lol/webhooks-server/repository"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -26,7 +31,7 @@ export const dynamic = "force-dynamic"
 export const MAX_ENDPOINT_FORWARD_TARGET_REQUEST_BYTES = 4096
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: RouteContext<"/api/endpoints/[endpointId]/forward-targets">
 ) {
   const { endpointId: rawEndpointId } = await context.params
@@ -37,6 +42,10 @@ export async function GET(
   }
 
   try {
+    await assertEndpointAccessibleToActor(
+      endpointId,
+      await getEndpointAccessActor(request)
+    )
     const response = {
       endpointId,
       targets: await listEndpointForwardTargets(endpointId),
@@ -44,7 +53,10 @@ export async function GET(
 
     return Response.json(response, { headers: NO_STORE_HEADERS })
   } catch (error) {
-    if (isEndpointForwardingEndpointUnavailableError(error)) {
+    if (
+      isEndpointForwardingEndpointUnavailableError(error) ||
+      isEndpointUnavailableError(error)
+    ) {
       return createEndpointNotFoundResponse()
     }
 
@@ -70,6 +82,10 @@ export async function POST(
   }
 
   try {
+    await assertEndpointAccessibleToActor(
+      endpointId,
+      await getEndpointAccessActor(request)
+    )
     const response = {
       endpointId,
       target: await createEndpointForwardTarget({
@@ -84,7 +100,10 @@ export async function POST(
       status: 201,
     })
   } catch (error) {
-    if (isEndpointForwardingEndpointUnavailableError(error)) {
+    if (
+      isEndpointForwardingEndpointUnavailableError(error) ||
+      isEndpointUnavailableError(error)
+    ) {
       return createEndpointNotFoundResponse()
     }
 

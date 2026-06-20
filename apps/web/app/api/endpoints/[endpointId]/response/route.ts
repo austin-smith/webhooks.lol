@@ -1,3 +1,4 @@
+import { getEndpointAccessActor } from "@/lib/auth/endpoint-access"
 import { NO_STORE_HEADERS } from "@webhooks-lol/webhooks-server/http/headers"
 import {
   readBoundedTextBody,
@@ -11,6 +12,7 @@ import {
   parseEndpointResponseOverrideInput,
 } from "@webhooks-lol/webhooks-core/endpoint-response"
 import {
+  assertEndpointAccessibleToActor,
   clearEndpointResponseOverride,
   getEndpointResponseConfig,
   isEndpointUnavailableError,
@@ -25,7 +27,7 @@ export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: RouteContext<"/api/endpoints/[endpointId]/response">
 ) {
   const { endpointId: rawEndpointId } = await context.params
@@ -38,6 +40,10 @@ export async function GET(
   let response: EndpointResponseConfigResponse
 
   try {
+    await assertEndpointAccessibleToActor(
+      endpointId,
+      await getEndpointAccessActor(request)
+    )
     response = {
       endpointId,
       response: await getEndpointResponseConfig(endpointId),
@@ -92,6 +98,10 @@ export async function PUT(
   }
 
   try {
+    await assertEndpointAccessibleToActor(
+      endpointId,
+      await getEndpointAccessActor(request)
+    )
     const override = parseEndpointResponseOverrideInput(body)
     const response = {
       endpointId,
@@ -136,6 +146,10 @@ export async function DELETE(
   let response: EndpointResponseConfigResponse
 
   try {
+    await assertEndpointAccessibleToActor(
+      endpointId,
+      await getEndpointAccessActor(request)
+    )
     response = {
       endpointId,
       response: await clearEndpointResponseOverride(endpointId),

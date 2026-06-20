@@ -15,6 +15,10 @@ export type EndpointMetadataResponse = {
   name: string | null
 }
 
+export type EndpointsResponse = {
+  endpoints: EndpointMetadataResponse[]
+}
+
 export type EndpointStatsResponse = {
   endpointId: string
   requestCount: number

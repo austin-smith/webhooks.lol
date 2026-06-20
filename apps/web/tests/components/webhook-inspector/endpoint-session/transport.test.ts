@@ -321,6 +321,39 @@ describe("endpoint transport", () => {
     )
   })
 
+  it("loads signed-in user endpoints through the fetch adapter", async () => {
+    const fetcher = vi.fn().mockResolvedValueOnce(
+      createResponse({
+        endpoints: [
+          {
+            endpointId: ENDPOINT_ID,
+            name: "Stripe",
+          },
+          {
+            endpointId: NEW_ENDPOINT_ID,
+            name: null,
+          },
+        ],
+      })
+    )
+    const transport = createFetchEndpointTransport(fetcher)
+
+    await expect(transport.listOwnedEndpoints()).resolves.toEqual([
+      {
+        endpointId: ENDPOINT_ID,
+        name: "Stripe",
+      },
+      {
+        endpointId: NEW_ENDPOINT_ID,
+        name: null,
+      },
+    ])
+
+    expect(fetcher).toHaveBeenCalledWith("/api/endpoints", {
+      cache: "no-store",
+    })
+  })
+
   it("manages endpoint forward targets through the fetch adapter", async () => {
     const createdTarget = createForwardTarget()
     const updatedTarget = createForwardTarget({
@@ -518,6 +551,9 @@ describe("endpoint transport", () => {
     )
     await expect(transport.loadEndpoint(ENDPOINT_ID)).rejects.toThrow(
       "Could not load endpoint."
+    )
+    await expect(transport.listOwnedEndpoints()).rejects.toThrow(
+      "Could not load endpoints."
     )
     await expect(transport.loadEndpointStats(ENDPOINT_ID)).rejects.toThrow(
       "Could not load endpoint details."

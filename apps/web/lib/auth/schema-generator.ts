@@ -1,12 +1,12 @@
 import { betterAuth } from "better-auth/minimal"
 import { drizzle } from "drizzle-orm/postgres-js"
-import { loadEnvConfig } from "@next/env"
+import nextEnv from "@next/env"
 import postgres from "postgres"
 
 import * as schema from "@webhooks-lol/database/schema"
 import { createAuthOptions } from "./options"
 
-loadEnvConfig(process.cwd())
+nextEnv.loadEnvConfig(process.cwd())
 
 const client = postgres(readDatabaseUrl(), {
   prepare: false,

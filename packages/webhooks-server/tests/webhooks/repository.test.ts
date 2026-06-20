@@ -1,10 +1,15 @@
-import { inArray } from "drizzle-orm"
+import { eq, inArray } from "drizzle-orm"
 import { afterEach, describe, expect, it } from "vitest"
 
 import { getDatabase } from "@webhooks-lol/database/client"
+import { user } from "@webhooks-lol/database/auth-schema"
 import { endpoints } from "@webhooks-lol/database/schema"
 import {
+  assertEndpointAccessibleToActor,
   createEndpoint,
+  EndpointNotFoundError,
+  getEndpointForActor,
+  listEndpointsForUser,
   listRequests,
   saveCapturedRequest,
 } from "@webhooks-lol/webhooks-server/repository"
@@ -15,17 +20,86 @@ import type {
 } from "@webhooks-lol/webhooks-core/types"
 
 const createdEndpointIds: string[] = []
+const createdUserIds: string[] = []
 
 describe("webhook repository request search", () => {
   afterEach(async () => {
-    if (createdEndpointIds.length === 0) {
-      return
+    if (createdEndpointIds.length > 0) {
+      await getDatabase()
+        .delete(endpoints)
+        .where(inArray(endpoints.id, [...createdEndpointIds]))
+      createdEndpointIds.length = 0
     }
 
-    await getDatabase()
-      .delete(endpoints)
-      .where(inArray(endpoints.id, [...createdEndpointIds]))
-    createdEndpointIds.length = 0
+    if (createdUserIds.length > 0) {
+      await getDatabase()
+        .delete(user)
+        .where(inArray(user.id, [...createdUserIds]))
+      createdUserIds.length = 0
+    }
+  })
+
+  it("creates user-owned endpoints and lists only the owner's endpoints", async () => {
+    const owner = await createTrackedUser("owner")
+    const otherUser = await createTrackedUser("other")
+    const ownedEndpoint = await createTrackedEndpoint({
+      ownerUserId: owner.id,
+    })
+    await createTrackedEndpoint({
+      ownerUserId: otherUser.id,
+    })
+    await createTrackedEndpoint()
+
+    await expect(listEndpointsForUser(owner.id)).resolves.toEqual([
+      ownedEndpoint,
+    ])
+  })
+
+  it("allows anonymous access to anonymous endpoints", async () => {
+    const endpoint = await createTrackedEndpoint()
+
+    await expect(
+      getEndpointForActor(endpoint.endpointId, { userId: null })
+    ).resolves.toEqual(endpoint)
+    await expect(
+      assertEndpointAccessibleToActor(endpoint.endpointId, { userId: null })
+    ).resolves.toBeUndefined()
+  })
+
+  it("hides user-owned endpoints from anonymous users and other users", async () => {
+    const owner = await createTrackedUser("owner")
+    const otherUser = await createTrackedUser("other")
+    const endpoint = await createTrackedEndpoint({
+      ownerUserId: owner.id,
+    })
+
+    await expect(
+      getEndpointForActor(endpoint.endpointId, { userId: null })
+    ).rejects.toBeInstanceOf(EndpointNotFoundError)
+    await expect(
+      assertEndpointAccessibleToActor(endpoint.endpointId, {
+        userId: otherUser.id,
+      })
+    ).rejects.toBeInstanceOf(EndpointNotFoundError)
+    await expect(
+      getEndpointForActor(endpoint.endpointId, { userId: owner.id })
+    ).resolves.toEqual(endpoint)
+  })
+
+  it("deletes user-owned endpoints when the owner user is deleted", async () => {
+    const owner = await createTrackedUser("owner")
+    const endpoint = await createTrackedEndpoint({
+      ownerUserId: owner.id,
+    })
+
+    await getDatabase().delete(user).where(eq(user.id, owner.id))
+
+    await expect(
+      getEndpointForActor(endpoint.endpointId, { userId: null })
+    ).rejects.toBeInstanceOf(EndpointNotFoundError)
+    await expect(
+      getEndpointForActor(endpoint.endpointId, { userId: owner.id })
+    ).rejects.toBeInstanceOf(EndpointNotFoundError)
   })
 
   it("searches each supported field against persisted requests", async () => {
@@ -359,10 +433,28 @@ describe("webhook repository request search", () => {
   })
 })
 
-async function createTrackedEndpoint() {
-  const endpoint = await createEndpoint()
+async function createTrackedEndpoint(
+  options: Parameters<typeof createEndpoint>[0] = {}
+) {
+  const endpoint = await createEndpoint(options)
   createdEndpointIds.push(endpoint.endpointId)
   return endpoint
+}
+
+async function createTrackedUser(label: string) {
+  const id = `test-${label}-${crypto.randomUUID()}`
+
+  await getDatabase()
+    .insert(user)
+    .values({
+      id,
+      email: `${id}@example.com`,
+      emailVerified: true,
+      name: label,
+    })
+  createdUserIds.push(id)
+
+  return { id }
 }
 
 async function saveTrackedRequest(

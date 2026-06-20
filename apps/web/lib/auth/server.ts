@@ -3,6 +3,7 @@ import { nextCookies } from "better-auth/next-js"
 
 import { createAuthOptions } from "@/lib/auth/options"
 import { getDatabase } from "@webhooks-lol/database/client"
+import { sendAuthEmail } from "./email"
 
 type ServerAuth = ReturnType<typeof createAuth>
 
@@ -14,11 +15,13 @@ export function getAuth() {
 }
 
 function createAuth() {
-  const authOptions = createAuthOptions(getDatabase())
+  const authOptions = createAuthOptions(getDatabase(), {
+    sendAuthEmail,
+  })
 
   return betterAuth({
     ...authOptions,
-    plugins: [...authOptions.plugins, nextCookies()],
+    plugins: [...(authOptions.plugins ?? []), nextCookies()],
   })
 }
 

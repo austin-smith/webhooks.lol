@@ -1,14 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const {
+  assertEndpointAccessibleToActor,
   checkEndpointCreateAdmission,
   createEndpoint,
+  getEndpointAccessActor,
   getEndpoint,
+  getEndpointForActor,
+  listEndpointsForUser,
+  requireEndpointUserId,
   updateEndpointName,
 } = vi.hoisted(() => ({
+  assertEndpointAccessibleToActor: vi.fn(),
   checkEndpointCreateAdmission: vi.fn(),
   createEndpoint: vi.fn(),
+  getEndpointAccessActor: vi.fn(),
   getEndpoint: vi.fn(),
+  getEndpointForActor: vi.fn(),
+  listEndpointsForUser: vi.fn(),
+  requireEndpointUserId: vi.fn(),
   updateEndpointName: vi.fn(),
 }))
 
@@ -20,17 +30,26 @@ vi.mock("@webhooks-lol/webhooks-server/repository", async (importOriginal) => ({
   ...(await importOriginal<
     typeof import("@webhooks-lol/webhooks-server/repository")
   >()),
+  assertEndpointAccessibleToActor,
   createEndpoint,
   getEndpoint,
+  getEndpointForActor,
+  listEndpointsForUser,
   updateEndpointName,
 }))
 
-import { POST } from "@/app/api/endpoints/route"
+vi.mock("@/lib/auth/endpoint-access", () => ({
+  getEndpointAccessActor,
+  requireEndpointUserId,
+}))
+
+import { GET as LIST_ENDPOINTS, POST } from "@/app/api/endpoints/route"
 import {
   GET,
   MAX_ENDPOINT_METADATA_REQUEST_BYTES,
   PATCH,
 } from "@/app/api/endpoints/[endpointId]/route"
+import { AuthenticationRequiredError } from "@/lib/auth/session"
 import { MissingClientIdentityHeaderError } from "@webhooks-lol/webhooks-server/rate-limits/client-identity"
 
 const ENDPOINT_ID = "11111111-1111-4111-8111-111111111111"
@@ -71,8 +90,15 @@ describe("endpoint route", () => {
   beforeEach(() => {
     checkEndpointCreateAdmission.mockReset()
     checkEndpointCreateAdmission.mockResolvedValue(createAllowedAdmission())
+    assertEndpointAccessibleToActor.mockReset()
     createEndpoint.mockReset()
+    getEndpointAccessActor.mockReset()
+    getEndpointAccessActor.mockResolvedValue({ userId: null })
     getEndpoint.mockReset()
+    getEndpointForActor.mockReset()
+    listEndpointsForUser.mockReset()
+    requireEndpointUserId.mockReset()
+    requireEndpointUserId.mockResolvedValue("user-1")
     updateEndpointName.mockReset()
   })
 
@@ -95,7 +121,65 @@ describe("endpoint route", () => {
     })
     expect(createEndpoint).toHaveBeenCalledWith({
       creatorKeyHash: "client-hash",
+      ownerUserId: null,
     })
+  })
+
+  it("creates signed-in endpoints for the current user", async () => {
+    getEndpointAccessActor.mockResolvedValueOnce({ userId: "user-1" })
+    createEndpoint.mockResolvedValueOnce({
+      endpointId: NEW_ENDPOINT_ID,
+      name: null,
+    })
+
+    const response = await POST(
+      new Request("https://hooks.example.com/api/endpoints", {
+        method: "POST",
+      })
+    )
+
+    expect(response.status).toBe(200)
+    expect(createEndpoint).toHaveBeenCalledWith({
+      creatorKeyHash: "client-hash",
+      ownerUserId: "user-1",
+    })
+  })
+
+  it("lists endpoints for the signed-in user", async () => {
+    listEndpointsForUser.mockResolvedValueOnce([
+      {
+        endpointId: ENDPOINT_ID,
+        name: "Stripe",
+      },
+    ])
+
+    const response = await LIST_ENDPOINTS()
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({
+      endpoints: [
+        {
+          endpointId: ENDPOINT_ID,
+          name: "Stripe",
+        },
+      ],
+    })
+    expect(listEndpointsForUser).toHaveBeenCalledWith("user-1")
+  })
+
+  it("requires authentication before listing account endpoints", async () => {
+    requireEndpointUserId.mockRejectedValueOnce(
+      new AuthenticationRequiredError()
+    )
+
+    const response = await LIST_ENDPOINTS()
+
+    expect(response.status).toBe(401)
+    await expect(response.json()).resolves.toEqual({
+      ok: false,
+      error: "Authentication is required.",
+    })
+    expect(listEndpointsForUser).not.toHaveBeenCalled()
   })
 
   it("rejects endpoint creation when the create policy is exhausted", async () => {
@@ -137,7 +221,7 @@ describe("endpoint route", () => {
   })
 
   it("returns endpoint metadata", async () => {
-    getEndpoint.mockResolvedValueOnce({
+    getEndpointForActor.mockResolvedValueOnce({
       endpointId: ENDPOINT_ID,
       name: "Stripe",
     })
@@ -152,7 +236,9 @@ describe("endpoint route", () => {
       endpointId: ENDPOINT_ID,
       name: "Stripe",
     })
-    expect(getEndpoint).toHaveBeenCalledWith(ENDPOINT_ID)
+    expect(getEndpointForActor).toHaveBeenCalledWith(ENDPOINT_ID, {
+      userId: null,
+    })
   })
 
   it("rejects malformed endpoint IDs before querying", async () => {
@@ -166,7 +252,7 @@ describe("endpoint route", () => {
       ok: false,
       error: "Invalid endpoint ID.",
     })
-    expect(getEndpoint).not.toHaveBeenCalled()
+    expect(getEndpointForActor).not.toHaveBeenCalled()
   })
 
   it("updates endpoint names", async () => {

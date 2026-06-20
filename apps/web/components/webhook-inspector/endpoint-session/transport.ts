@@ -7,6 +7,7 @@ import type {
   EndpointMetadataResponse,
   EndpointResponseConfigResponse,
   EndpointStatsResponse,
+  EndpointsResponse,
   ReplayRequestResponse,
   RequestsResponse,
   UpdateEndpointForwardTargetRequest,
@@ -39,6 +40,7 @@ export type EndpointTransport = {
   createEndpoint: () => Promise<EndpointMetadata>
   deleteForwardTarget: (endpointId: string, targetId: string) => Promise<void>
   listForwardTargets: (endpointId: string) => Promise<EndpointForwardTarget[]>
+  listOwnedEndpoints: () => Promise<EndpointMetadata[]>
   loadEndpoint: (endpointId: string) => Promise<EndpointMetadata>
   loadEndpointStats: (endpointId: string) => Promise<EndpointStats>
   loadEndpointResponseConfig: (
@@ -177,6 +179,21 @@ export function createFetchEndpointTransport(
           await readResponseError(response, "Could not delete forward target.")
         )
       }
+    },
+    async listOwnedEndpoints() {
+      const response = await fetcher("/api/endpoints", {
+        cache: "no-store",
+      })
+
+      if (!response.ok) {
+        throw new Error(
+          await readResponseError(response, "Could not load endpoints.")
+        )
+      }
+
+      const data = (await response.json()) as EndpointsResponse
+
+      return data.endpoints.map(mapEndpointMetadata)
     },
     async listForwardTargets(endpointId) {
       const encodedEndpointId = encodeEndpointId(endpointId)

@@ -4,6 +4,7 @@ import Image from "next/image"
 import type { ComponentType, SVGProps } from "react"
 import { BookTextIcon, CheckIcon, CopyIcon } from "lucide-react"
 
+import { AppAuthLink } from "@/components/auth/app-auth-link"
 import { GithubIcon } from "@/components/icons/github-icon"
 import { ThemeSwitcher } from "@/components/theme/theme-switcher"
 import { Input } from "@/components/ui/input"
@@ -130,6 +131,7 @@ export function InspectorHeader({
           ) : null}
           <HeaderLink href={GITHUB_URL} icon={GithubIcon} label="GITHUB" />
           <ThemeSwitcher />
+          <AppAuthLink />
           <span aria-hidden="true" className="mx-1 h-3.5 w-px bg-border" />
           <ConnectionStatus state={connectionState} />
         </nav>

@@ -1,6 +1,6 @@
 import type React from "react"
 
-import { AuthStatus } from "@/components/auth/auth-status"
+import { AdminAuthStatus } from "@/components/auth/admin-auth-status"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { RequestMethodBadge } from "@/components/webhook-inspector/request-method-badge"
 import { getAdminDashboardData } from "@/lib/admin/dashboard"
@@ -29,7 +29,7 @@ export default async function AdminPage() {
     return (
       <AdminAccessGate
         title="Access denied"
-        description="This GitHub account is signed in, but it does not have Better Auth admin access."
+        description="This account does not have admin access."
       />
     )
   }
@@ -148,7 +148,7 @@ function AdminShell({ children }: { children: React.ReactNode }) {
             App-wide activity
           </p>
         </div>
-        <AuthStatus />
+        <AdminAuthStatus />
       </header>
       {children}
     </main>
@@ -170,7 +170,7 @@ function AdminAccessGate({
       </div>
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">{description}</p>
-        <AuthStatus />
+        <AdminAuthStatus />
       </div>
     </main>
   )

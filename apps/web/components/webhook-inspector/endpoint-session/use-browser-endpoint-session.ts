@@ -14,6 +14,7 @@ import {
 } from "@webhooks-lol/webhooks-core/request-search"
 import type { CapturedRequest } from "@webhooks-lol/webhooks-core/types"
 
+import { authClient } from "@/lib/auth/client"
 import type {
   ConnectionState,
   EndpointActions,
@@ -48,7 +49,12 @@ type EndpointRenameSaveState = {
 }
 
 export function useBrowserEndpointSession(): Endpoint {
-  const storage = React.useMemo(() => createBrowserEndpointSessionStorage(), [])
+  const authSession = authClient.useSession()
+  const sessionUserId = authSession.data?.user.id ?? null
+  const storage = React.useMemo(
+    () => createBrowserEndpointSessionStorage({ userId: sessionUserId }),
+    [sessionUserId]
+  )
   const transport = React.useMemo(() => createFetchEndpointTransport(), [])
   const eventStream = React.useMemo(
     () => createBrowserEndpointEventStream(),
@@ -150,6 +156,37 @@ export function useBrowserEndpointSession(): Endpoint {
     setRequestSearch(EMPTY_REQUEST_SEARCH)
   }, [])
 
+  const resetEndpointLoadState = React.useCallback(() => {
+    setRequestState({
+      hasMoreRequests: false,
+      nextCursor: null,
+      requests: [],
+      selectedId: null,
+    })
+    setForwardTargets([])
+    forwardTargetListVersion.current += 1
+    replayingRequestIdsRef.current = new Set()
+    setReplayingRequestIds(replayingRequestIdsRef.current)
+    requestListVersion.current += 1
+    resetRequestSearch()
+    setResponseConfig(DEFAULT_ENDPOINT_RESPONSE_CONFIG)
+    setConnectionState("connecting")
+    setIsLoadingOlderRequests(false)
+    setIsLoadingForwardTargets(false)
+    isSavingForwardTargetRef.current = false
+    setIsSavingForwardTarget(false)
+  }, [resetRequestSearch])
+
+  const clearEndpointSessionForRestore = React.useCallback(() => {
+    activeEndpointIdRef.current = null
+    setEndpointId(null)
+    setEndpointNames({})
+    setRecentEndpointIds([])
+    resetEndpointLoadState()
+    setErrorMessage(null)
+    setIsLoading(true)
+  }, [resetEndpointLoadState])
+
   const rememberActiveEndpointId = React.useCallback(
     (nextEndpointId: string) => {
       setRecentEndpointIds((current) =>
@@ -203,31 +240,14 @@ export function useBrowserEndpointSession(): Endpoint {
       rememberActiveEndpointId(nextEndpointId)
       updateEndpointId(nextEndpointId)
       applyEndpointMetadata(metadata)
-      setRequestState({
-        hasMoreRequests: false,
-        nextCursor: null,
-        requests: [],
-        selectedId: null,
-      })
-      setForwardTargets([])
-      forwardTargetListVersion.current += 1
-      replayingRequestIdsRef.current = new Set()
-      setReplayingRequestIds(replayingRequestIdsRef.current)
-      requestListVersion.current += 1
-      resetRequestSearch()
-      setResponseConfig(DEFAULT_ENDPOINT_RESPONSE_CONFIG)
+      resetEndpointLoadState()
       setErrorMessage(null)
-      setConnectionState("connecting")
-      setIsLoadingOlderRequests(false)
-      setIsLoadingForwardTargets(false)
-      isSavingForwardTargetRef.current = false
-      setIsSavingForwardTarget(false)
       setIsLoading(false)
     },
     [
       applyEndpointMetadata,
       rememberActiveEndpointId,
-      resetRequestSearch,
+      resetEndpointLoadState,
       updateEndpointId,
     ]
   )
@@ -240,23 +260,107 @@ export function useBrowserEndpointSession(): Endpoint {
 
   React.useEffect(() => {
     let isActive = true
+    hasLoadedStorage.current = false
 
     queueMicrotask(() => {
       if (!isActive) {
         return
       }
 
+      clearEndpointSessionForRestore()
+
+      if (authSession.isPending) {
+        return
+      }
+
       const storedSession = storage.read()
-      const activeEndpointId = storedSession.activeEndpointId
 
       hasLoadedStorage.current = true
+
+      if (sessionUserId) {
+        void (async () => {
+          try {
+            const ownedEndpoints = await transport.listOwnedEndpoints()
+
+            if (!isActive) {
+              return
+            }
+
+            const ownedEndpointIds = ownedEndpoints.map(
+              (metadata) => metadata.endpointId
+            )
+            const activeEndpoint =
+              ownedEndpoints.find(
+                (metadata) =>
+                  metadata.endpointId === storedSession.activeEndpointId
+              ) ??
+              ownedEndpoints[0] ??
+              null
+
+            applyEndpointMetadataList(ownedEndpoints)
+            setRecentEndpointIds(ownedEndpointIds)
+
+            if (!activeEndpoint) {
+              const metadata = await transport.createEndpoint()
+
+              if (isActive) {
+                applyNewEndpoint(metadata)
+              }
+
+              return
+            }
+
+            const activeEndpointId = activeEndpoint.endpointId
+
+            setIsLoading(true)
+            updateEndpointId(activeEndpointId)
+            resetEndpointLoadState()
+            const requestIdsAtLoadStart = new Set<string>()
+            const requestListVersionAtLoadStart = requestListVersion.current
+            const [nextRequestPage, nextResponseConfig, nextForwardTargets] =
+              await Promise.all([
+                transport.loadRequests(activeEndpointId),
+                transport.loadEndpointResponseConfig(activeEndpointId),
+                transport.listForwardTargets(activeEndpointId),
+              ])
+
+            if (!isActive || activeEndpointIdRef.current !== activeEndpointId) {
+              return
+            }
+
+            applyLoadedRequests({
+              requestListVersionAtLoadStart,
+              page: nextRequestPage,
+              requestIdsAtLoadStart,
+            })
+            setForwardTargets(nextForwardTargets)
+            setResponseConfig(nextResponseConfig)
+            setErrorMessage(null)
+          } catch (error) {
+            if (isActive) {
+              setErrorMessage(readErrorMessage(error))
+            }
+          } finally {
+            if (isActive) {
+              setIsLoading(false)
+            }
+          }
+        })()
+
+        return
+      }
+
+      const activeEndpointId = storedSession.activeEndpointId
+
       setRecentEndpointIds(storedSession.recentEndpointIds)
 
       if (activeEndpointId) {
         // Reveal the restored endpoint identity (URL, switcher label, live
         // connection) immediately so a refresh does not flash placeholders.
         // Only the captured-request list waits on the network.
+        setIsLoading(true)
         updateEndpointId(activeEndpointId)
+        resetEndpointLoadState()
         const requestIdsAtLoadStart = new Set<string>()
         const requestListVersionAtLoadStart = requestListVersion.current
 
@@ -331,6 +435,10 @@ export function useBrowserEndpointSession(): Endpoint {
     applyEndpointMetadataList,
     applyLoadedRequests,
     applyNewEndpoint,
+    authSession.isPending,
+    clearEndpointSessionForRestore,
+    resetEndpointLoadState,
+    sessionUserId,
     storage,
     transport,
     updateEndpointId,
@@ -895,24 +1003,7 @@ export function useBrowserEndpointSession(): Endpoint {
       setIsLoading(true)
       rememberActiveEndpointId(nextEndpointId)
       updateEndpointId(nextEndpointId)
-      setRequestState({
-        hasMoreRequests: false,
-        nextCursor: null,
-        requests: [],
-        selectedId: null,
-      })
-      setForwardTargets([])
-      forwardTargetListVersion.current += 1
-      replayingRequestIdsRef.current = new Set()
-      setReplayingRequestIds(replayingRequestIdsRef.current)
-      requestListVersion.current += 1
-      resetRequestSearch()
-      setIsLoadingOlderRequests(false)
-      setIsLoadingForwardTargets(false)
-      isSavingForwardTargetRef.current = false
-      setIsSavingForwardTarget(false)
-      setResponseConfig(DEFAULT_ENDPOINT_RESPONSE_CONFIG)
-      setConnectionState("connecting")
+      resetEndpointLoadState()
       const requestIdsAtLoadStart = new Set<string>()
       const requestListVersionAtLoadStart = requestListVersion.current
 
@@ -960,7 +1051,7 @@ export function useBrowserEndpointSession(): Endpoint {
       isLoading,
       endpointId,
       rememberActiveEndpointId,
-      resetRequestSearch,
+      resetEndpointLoadState,
       transport,
       updateEndpointId,
     ]

@@ -6,10 +6,12 @@ import {
 } from "@webhooks-lol/webhooks-core/endpoint-response"
 
 const {
+  assertEndpointAccessibleToActor,
   clearEndpointResponseOverride,
   getEndpointResponseConfig,
   setEndpointResponseOverride,
 } = vi.hoisted(() => ({
+  assertEndpointAccessibleToActor: vi.fn(),
   clearEndpointResponseOverride: vi.fn(),
   getEndpointResponseConfig: vi.fn(),
   setEndpointResponseOverride: vi.fn(),
@@ -19,6 +21,7 @@ vi.mock("@webhooks-lol/webhooks-server/repository", async (importOriginal) => ({
   ...(await importOriginal<
     typeof import("@webhooks-lol/webhooks-server/repository")
   >()),
+  assertEndpointAccessibleToActor,
   clearEndpointResponseOverride,
   getEndpointResponseConfig,
   setEndpointResponseOverride,
@@ -40,6 +43,7 @@ function createContext(endpointId = ENDPOINT_ID) {
 
 describe("endpoint response route", () => {
   beforeEach(() => {
+    assertEndpointAccessibleToActor.mockReset()
     clearEndpointResponseOverride.mockReset()
     getEndpointResponseConfig.mockReset()
     setEndpointResponseOverride.mockReset()

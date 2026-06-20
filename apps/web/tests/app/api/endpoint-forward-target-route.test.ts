@@ -6,6 +6,11 @@ const { deleteEndpointForwardTarget, updateEndpointForwardTarget } = vi.hoisted(
     updateEndpointForwardTarget: vi.fn(),
   })
 )
+const { assertEndpointAccessibleToActor, isEndpointUnavailableError } =
+  vi.hoisted(() => ({
+    assertEndpointAccessibleToActor: vi.fn(),
+    isEndpointUnavailableError: vi.fn(() => false),
+  }))
 
 vi.mock(
   "@webhooks-lol/webhooks-server/endpoint-forwarding/repository",
@@ -17,6 +22,11 @@ vi.mock(
     updateEndpointForwardTarget,
   })
 )
+
+vi.mock("@webhooks-lol/webhooks-server/repository", () => ({
+  assertEndpointAccessibleToActor,
+  isEndpointUnavailableError,
+}))
 
 import {
   DELETE,
@@ -37,7 +47,10 @@ function createContext(
 
 describe("endpoint forward target route", () => {
   beforeEach(() => {
+    assertEndpointAccessibleToActor.mockReset()
     deleteEndpointForwardTarget.mockReset()
+    isEndpointUnavailableError.mockReset()
+    isEndpointUnavailableError.mockReturnValue(false)
     updateEndpointForwardTarget.mockReset()
   })
 

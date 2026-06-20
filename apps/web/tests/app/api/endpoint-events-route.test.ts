@@ -2,11 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const {
   acquireEndpointEventStreamAdmission,
-  getEndpoint,
+  assertEndpointAccessibleToActor,
   openEndpointEventStream,
 } = vi.hoisted(() => ({
   acquireEndpointEventStreamAdmission: vi.fn(),
-  getEndpoint: vi.fn(),
+  assertEndpointAccessibleToActor: vi.fn(),
   openEndpointEventStream: vi.fn(),
 }))
 
@@ -22,7 +22,7 @@ vi.mock("@webhooks-lol/webhooks-server/repository", async (importOriginal) => ({
   ...(await importOriginal<
     typeof import("@webhooks-lol/webhooks-server/repository")
   >()),
-  getEndpoint,
+  assertEndpointAccessibleToActor,
 }))
 
 import { GET } from "@/app/api/endpoints/[endpointId]/events/route"
@@ -72,8 +72,7 @@ describe("endpoint events route", () => {
     acquireEndpointEventStreamAdmission.mockResolvedValue(
       createAllowedAdmission()
     )
-    getEndpoint.mockReset()
-    getEndpoint.mockResolvedValue({ endpointId: ENDPOINT_ID, name: null })
+    assertEndpointAccessibleToActor.mockReset()
     openEndpointEventStream.mockReset()
     openEndpointEventStream.mockReturnValue(new ReadableStream())
   })
@@ -86,10 +85,12 @@ describe("endpoint events route", () => {
 
     expect(response.status).toBe(200)
     expect(response.headers.get("content-type")).toBe("text/event-stream")
-    expect(getEndpoint).toHaveBeenCalledWith(ENDPOINT_ID)
     expect(acquireEndpointEventStreamAdmission).toHaveBeenCalledWith({
       endpointId: ENDPOINT_ID,
       request,
+    })
+    expect(assertEndpointAccessibleToActor).toHaveBeenCalledWith(ENDPOINT_ID, {
+      userId: null,
     })
     expect(openEndpointEventStream).toHaveBeenCalledWith({
       endpointId: ENDPOINT_ID,
@@ -112,7 +113,7 @@ describe("endpoint events route", () => {
       ok: false,
       error: "Invalid endpoint ID.",
     })
-    expect(getEndpoint).not.toHaveBeenCalled()
+    expect(assertEndpointAccessibleToActor).not.toHaveBeenCalled()
   })
 
   it("returns 429 when event stream leases are exhausted", async () => {
@@ -134,6 +135,7 @@ describe("endpoint events route", () => {
       error: "Rate limit exceeded.",
       retryAfterSeconds: 60,
     })
+    expect(assertEndpointAccessibleToActor).not.toHaveBeenCalled()
     expect(openEndpointEventStream).not.toHaveBeenCalled()
   })
 
@@ -154,14 +156,17 @@ describe("endpoint events route", () => {
       ok: false,
       error: 'Required client identity header "x-forwarded-for" is missing.',
     })
-    expect(getEndpoint).not.toHaveBeenCalled()
+    expect(assertEndpointAccessibleToActor).not.toHaveBeenCalled()
     expect(openEndpointEventStream).not.toHaveBeenCalled()
   })
 
-  it("releases acquired leases when the endpoint is unavailable", async () => {
+  it("releases the acquired lease when the endpoint is unavailable", async () => {
     const admission = createAllowedAdmission()
+
     acquireEndpointEventStreamAdmission.mockResolvedValueOnce(admission)
-    getEndpoint.mockRejectedValueOnce(new EndpointNotFoundError(ENDPOINT_ID))
+    assertEndpointAccessibleToActor.mockRejectedValueOnce(
+      new EndpointNotFoundError(ENDPOINT_ID)
+    )
 
     const response = await GET(
       new Request(
@@ -175,7 +180,8 @@ describe("endpoint events route", () => {
       ok: false,
       error: "Endpoint not found.",
     })
-    expect(admission.lease.release).toHaveBeenCalledTimes(1)
+    expect(acquireEndpointEventStreamAdmission).toHaveBeenCalled()
+    expect(admission.lease.release).toHaveBeenCalledOnce()
     expect(openEndpointEventStream).not.toHaveBeenCalled()
   })
 })

@@ -15,7 +15,7 @@ export function ThemeKeyboardShortcut() {
         event.ctrlKey ||
         event.metaKey ||
         event.shiftKey ||
-        event.key.toLowerCase() !== "d" ||
+        !isThemeShortcutKey(event.key) ||
         isTextEntryTarget(event.target)
       ) {
         return
@@ -41,6 +41,10 @@ export function ThemeKeyboardShortcut() {
   }, [resolvedTheme, setTheme])
 
   return null
+}
+
+export function isThemeShortcutKey(key: unknown) {
+  return typeof key === "string" && key.toLowerCase() === "d"
 }
 
 function isTextEntryTarget(target: EventTarget | null) {

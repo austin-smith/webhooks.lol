@@ -1,15 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-const { clearRequests, listRequests, publishEndpointCleared } = vi.hoisted(
-  () => ({
-    clearRequests: vi.fn(),
-    listRequests: vi.fn(),
-    publishEndpointCleared: vi.fn(),
-  })
-)
+const {
+  assertEndpointAccessibleToActor,
+  clearRequests,
+  isEndpointUnavailableError,
+  listRequests,
+  publishEndpointCleared,
+} = vi.hoisted(() => ({
+  assertEndpointAccessibleToActor: vi.fn(),
+  clearRequests: vi.fn(),
+  isEndpointUnavailableError: vi.fn(() => false),
+  listRequests: vi.fn(),
+  publishEndpointCleared: vi.fn(),
+}))
 
 vi.mock("@webhooks-lol/webhooks-server/repository", () => ({
+  assertEndpointAccessibleToActor,
   clearRequests,
+  isEndpointUnavailableError,
   listRequests,
 }))
 
@@ -30,7 +38,10 @@ function createContext(endpointId = ENDPOINT_ID) {
 
 describe("endpoint requests route", () => {
   beforeEach(() => {
+    assertEndpointAccessibleToActor.mockReset()
     clearRequests.mockReset()
+    isEndpointUnavailableError.mockReset()
+    isEndpointUnavailableError.mockReturnValue(false)
     listRequests.mockReset()
     publishEndpointCleared.mockReset()
   })
