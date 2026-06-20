@@ -4,6 +4,12 @@ import * as React from "react"
 import { BookTextIcon, SaveIcon, SlidersHorizontalIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import {
   Popover,
@@ -22,7 +28,6 @@ import type {
   EndpointResponseConfig,
   EndpointResponseOverrideInput,
 } from "@webhooks-lol/webhooks-core/endpoint-response"
-import { cn } from "@/lib/utils"
 
 type ResponseMode = EndpointResponseConfig["mode"]
 
@@ -306,12 +311,9 @@ export function ResponseOverrideControl({
               />
 
               {draftError ? (
-                <div
-                  role="alert"
-                  className="rounded-sm border border-destructive/25 bg-destructive/10 px-2.5 py-2 text-[0.68rem] text-destructive"
-                >
+                <FieldError className="rounded-sm border border-destructive/25 bg-destructive/10 px-2.5 py-2">
                   {draftError}
-                </div>
+                </FieldError>
               ) : null}
             </>
           ) : (
@@ -348,35 +350,6 @@ export function ResponseOverrideControl({
   )
 }
 
-function Field({
-  action,
-  children,
-  htmlFor,
-  label,
-  stacked = false,
-}: {
-  action?: React.ReactNode
-  children: React.ReactNode
-  htmlFor: string
-  label: string
-  stacked?: boolean
-}) {
-  return (
-    <div className={cn("grid min-w-0 gap-1", stacked && "grid-cols-1")}>
-      <div className="relative flex h-7 items-center">
-        <label
-          htmlFor={htmlFor}
-          className="text-[0.68rem] font-medium text-muted-foreground"
-        >
-          {label}
-        </label>
-        {action ? <div className="absolute right-0">{action}</div> : null}
-      </div>
-      <div className="min-w-0">{children}</div>
-    </div>
-  )
-}
-
 function ResponseFields({
   body,
   contentType,
@@ -403,9 +376,15 @@ function ResponseFields({
   textareaRef: React.RefObject<HTMLTextAreaElement | null>
 }) {
   return (
-    <>
+    <FieldGroup className="gap-2">
       <div className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-2">
-        <Field label="Status" htmlFor={`${draftId}-status`}>
+        <Field data-disabled={disabled || undefined}>
+          <FieldLabel
+            htmlFor={`${draftId}-status`}
+            className="text-[0.68rem] font-medium text-muted-foreground"
+          >
+            Status
+          </FieldLabel>
           <Input
             id={`${draftId}-status`}
             density="compact"
@@ -416,7 +395,13 @@ function ResponseFields({
             readOnly={readOnly}
           />
         </Field>
-        <Field label="Content-Type" htmlFor={`${draftId}-content-type`}>
+        <Field data-disabled={disabled || undefined}>
+          <FieldLabel
+            htmlFor={`${draftId}-content-type`}
+            className="text-[0.68rem] font-medium text-muted-foreground"
+          >
+            Content-Type
+          </FieldLabel>
           <Input
             id={`${draftId}-content-type`}
             density="compact"
@@ -428,16 +413,18 @@ function ResponseFields({
         </Field>
       </div>
 
-      <Field
-        label="Body"
-        htmlFor={`${draftId}-body`}
-        action={
-          !readOnly ? (
+      <Field data-disabled={disabled || undefined}>
+        <div className="flex h-7 items-center justify-between gap-2">
+          <FieldLabel
+            htmlFor={`${draftId}-body`}
+            className="text-[0.68rem] font-medium text-muted-foreground"
+          >
+            Body
+          </FieldLabel>
+          {!readOnly ? (
             <BodyVariablePicker onInsert={onInsertBodyVariable} />
-          ) : null
-        }
-        stacked
-      >
+          ) : null}
+        </div>
         <Textarea
           id={`${draftId}-body`}
           ref={textareaRef}
@@ -448,7 +435,7 @@ function ResponseFields({
           readOnly={readOnly}
         />
       </Field>
-    </>
+    </FieldGroup>
   )
 }
 
