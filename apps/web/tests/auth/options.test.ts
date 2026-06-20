@@ -49,6 +49,10 @@ type AuthOptionsUnderTest = ReturnType<typeof createAuthOptions> & {
       enabled: boolean
     }
   }
+  plugins: Array<{
+    id: string
+    options?: Record<string, unknown>
+  }>
 }
 
 afterEach(() => {
@@ -109,6 +113,31 @@ describe("auth options", () => {
       "mapProfileToUser"
     )
     expect(options.account.accountLinking.enabled).toBe(false)
+  })
+
+  it("enforces Cloudflare Turnstile on Better Auth email password endpoints", () => {
+    const options = createOptions(undefined, createDatabaseWithUserCount(1))
+    const captchaPlugin = options.plugins.find(
+      (plugin) => plugin.id === "captcha"
+    )
+
+    expect(captchaPlugin).toMatchObject({
+      id: "captcha",
+      options: {
+        provider: "cloudflare-turnstile",
+        secretKey: "turnstile-secret-key",
+      },
+    })
+  })
+
+  it("requires a Turnstile secret key", () => {
+    vi.stubEnv("GITHUB_CLIENT_ID", "github-client-id")
+    vi.stubEnv("GITHUB_CLIENT_SECRET", "github-client-secret")
+    vi.stubEnv("TURNSTILE_SECRET_KEY", "")
+
+    expect(() => createAuthOptions(createDatabaseWithUserCount(1))).toThrow(
+      "TURNSTILE_SECRET_KEY is required to use Cloudflare Turnstile."
+    )
   })
 
   it("sends reset password email with rendered html and text bodies", async () => {
@@ -241,6 +270,7 @@ function createOptions(
 ) {
   vi.stubEnv("GITHUB_CLIENT_ID", "github-client-id")
   vi.stubEnv("GITHUB_CLIENT_SECRET", "github-client-secret")
+  vi.stubEnv("TURNSTILE_SECRET_KEY", "turnstile-secret-key")
 
   return createAuthOptions(database, {
     sendEmail,

@@ -17,6 +17,7 @@ import {
   validateForgotPasswordInput,
 } from "@/lib/auth/password-reset-validation"
 import { RESET_PASSWORD_PATH } from "@/lib/auth/redirects"
+import { TurnstileField, type TurnstileFieldHandle } from "./turnstile-field"
 
 const PASSWORD_RESET_REQUESTED_MESSAGE =
   "If a password reset is available for that email, a reset link will be sent."
@@ -26,7 +27,11 @@ type ForgotPasswordFormProps = {
 }
 
 export function ForgotPasswordForm({ callbackPath }: ForgotPasswordFormProps) {
+  const turnstileRef = React.useRef<TurnstileFieldHandle>(null)
   const [email, setEmail] = React.useState("")
+  const [turnstileToken, setTurnstileToken] = React.useState<string | null>(
+    null
+  )
   const [fieldErrors, setFieldErrors] =
     React.useState<ForgotPasswordFieldErrors>({})
   const [message, setMessage] = React.useState<string | null>(null)
@@ -47,11 +52,21 @@ export function ForgotPasswordForm({ callbackPath }: ForgotPasswordFormProps) {
       return
     }
 
+    if (!turnstileToken) {
+      setMessage("Complete the security check.")
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
       const result = await authClient.requestPasswordReset({
         email: emailAddress,
+        fetchOptions: {
+          headers: {
+            "x-captcha-response": turnstileToken,
+          },
+        },
         redirectTo: createResetPasswordHref(callbackPath),
       })
 
@@ -64,6 +79,7 @@ export function ForgotPasswordForm({ callbackPath }: ForgotPasswordFormProps) {
       setFieldErrors({})
       setMessage(PASSWORD_RESET_REQUESTED_MESSAGE)
     } finally {
+      turnstileRef.current?.reset()
       setIsSubmitting(false)
     }
   }
@@ -121,10 +137,15 @@ export function ForgotPasswordForm({ callbackPath }: ForgotPasswordFormProps) {
           </FieldError>
         </Field>
       </FieldGroup>
+      <TurnstileField
+        ref={turnstileRef}
+        disabled={isSubmitting}
+        onTokenChange={setTurnstileToken}
+      />
       <Button
         type="submit"
         className="w-full rounded-sm text-xs"
-        disabled={isSubmitting}
+        disabled={isSubmitting || !turnstileToken}
       >
         Send reset link
       </Button>

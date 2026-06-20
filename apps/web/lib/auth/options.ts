@@ -1,5 +1,6 @@
 import type { BetterAuthOptions } from "better-auth/minimal"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
+import { captcha } from "better-auth/plugins"
 import { admin } from "better-auth/plugins/admin"
 import { and, eq } from "drizzle-orm"
 
@@ -129,11 +130,23 @@ export function createAuthOptions(
         )
       },
     },
-    plugins: [admin()],
+    plugins: [
+      admin(),
+      captcha({
+        provider: "cloudflare-turnstile",
+        secretKey: readRequiredEnv(
+          "TURNSTILE_SECRET_KEY",
+          "Cloudflare Turnstile"
+        ),
+      }),
+    ],
     socialProviders: {
       github: {
-        clientId: readRequiredEnv("GITHUB_CLIENT_ID"),
-        clientSecret: readRequiredEnv("GITHUB_CLIENT_SECRET"),
+        clientId: readRequiredEnv("GITHUB_CLIENT_ID", "GitHub authentication"),
+        clientSecret: readRequiredEnv(
+          "GITHUB_CLIENT_SECRET",
+          "GitHub authentication"
+        ),
         scope: ["user:email"],
       },
     },
@@ -160,11 +173,11 @@ export function createAuthOptions(
   }
 }
 
-function readRequiredEnv(name: string) {
+function readRequiredEnv(name: string, feature: string) {
   const value = process.env[name]
 
   if (!value) {
-    throw new Error(`${name} is required to use GitHub authentication.`)
+    throw new Error(`${name} is required to use ${feature}.`)
   }
 
   return value

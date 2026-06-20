@@ -22,6 +22,7 @@ import {
   EMAIL_VERIFICATION_CALLBACK_PATH,
   FORGOT_PASSWORD_PATH,
 } from "@/lib/auth/redirects"
+import { TurnstileField, type TurnstileFieldHandle } from "./turnstile-field"
 
 type EmailAuthMode = "login" | "sign-up"
 
@@ -39,8 +40,12 @@ export function EmailAuthForm({
   const router = useRouter()
   const isSignUp = mode === "sign-up"
   const switchAuthHref = createSwitchAuthHref({ callbackPath, isSignUp })
+  const turnstileRef = React.useRef<TurnstileFieldHandle>(null)
   const [email, setEmail] = React.useState("")
   const [password, setPassword] = React.useState("")
+  const [turnstileToken, setTurnstileToken] = React.useState<string | null>(
+    null
+  )
   const [fieldErrors, setFieldErrors] = React.useState<EmailAuthFieldErrors>({})
   const [message, setMessage] = React.useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
@@ -61,6 +66,11 @@ export function EmailAuthForm({
       return
     }
 
+    if (!turnstileToken) {
+      setMessage("Complete the security check.")
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
@@ -68,12 +78,22 @@ export function EmailAuthForm({
         ? await authClient.signUp.email({
             callbackURL: EMAIL_VERIFICATION_CALLBACK_PATH,
             email: emailAddress,
+            fetchOptions: {
+              headers: {
+                "x-captcha-response": turnstileToken,
+              },
+            },
             name: emailAddress,
             password,
           })
         : await authClient.signIn.email({
             callbackURL: callbackPath,
             email: emailAddress,
+            fetchOptions: {
+              headers: {
+                "x-captcha-response": turnstileToken,
+              },
+            },
             password,
           })
 
@@ -95,6 +115,7 @@ export function EmailAuthForm({
       router.push(callbackPath)
       router.refresh()
     } finally {
+      turnstileRef.current?.reset()
       setIsSubmitting(false)
     }
   }
@@ -184,10 +205,15 @@ export function EmailAuthForm({
           <FieldError id="password-error">{fieldErrors.password}</FieldError>
         </Field>
       </FieldGroup>
+      <TurnstileField
+        ref={turnstileRef}
+        disabled={isSubmitting}
+        onTokenChange={setTurnstileToken}
+      />
       <Button
         type="submit"
         className="w-full rounded-sm text-xs"
-        disabled={isSubmitting}
+        disabled={isSubmitting || !turnstileToken}
       >
         {isSignUp ? "Create account" : "Sign in"}
       </Button>
