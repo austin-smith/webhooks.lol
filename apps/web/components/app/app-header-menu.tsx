@@ -9,6 +9,7 @@ import {
   BookTextIcon,
   CheckIcon,
   ChevronRightIcon,
+  HouseIcon,
   MenuIcon,
   MonitorIcon,
   MoonIcon,
@@ -149,6 +150,19 @@ export function AppHeaderMenu({ docsUrl }: AppHeaderMenuProps) {
         ) : (
           <>
             <div className="flex flex-1 flex-col gap-2 p-2">
+              <SheetClose asChild>
+                <Link
+                  href="/"
+                  className={cn(
+                    mobileMenuActionClassName,
+                    "flex items-center gap-2"
+                  )}
+                >
+                  <HouseIcon aria-hidden="true" />
+                  Home
+                </Link>
+              </SheetClose>
+              <Separator />
               <div className="flex flex-col gap-1">
                 <MobileMenuLabel>Appearance</MobileMenuLabel>
                 <label
@@ -211,26 +225,38 @@ export function AppHeaderMenu({ docsUrl }: AppHeaderMenuProps) {
                   Checking session
                 </Button>
               ) : user ? (
-                <>
-                  <div className="truncate px-1 text-[0.68rem] text-muted-foreground">
-                    {user.email}
-                  </div>
+                <div className="flex flex-col gap-1">
                   <SheetClose asChild>
-                    <Button asChild variant="outline">
-                      <Link href="/account">Account settings</Link>
-                    </Button>
+                    <Link
+                      href="/account"
+                      className={cn(
+                        mobileMenuActionClassName,
+                        "flex items-center gap-3 text-left"
+                      )}
+                    >
+                      <span className="min-w-0">
+                        <span className="block">Account settings</span>
+                        <span className="block truncate text-[0.68rem] text-muted-foreground">
+                          {user.email}
+                        </span>
+                      </span>
+                    </Link>
                   </SheetClose>
-                  <Button
+                  <Separator className="my-1" />
+                  <button
                     type="button"
-                    variant="ghost-destructive"
+                    className={cn(
+                      mobileMenuActionClassName,
+                      "text-left text-muted-foreground"
+                    )}
                     disabled={isSigningOut}
                     onClick={() => {
                       void signOut()
                     }}
                   >
                     Sign out
-                  </Button>
-                </>
+                  </button>
+                </div>
               ) : (
                 <SheetClose asChild>
                   <Button asChild>
@@ -321,7 +347,7 @@ function MobileMenuLabel({ children }: { children: React.ReactNode }) {
 }
 
 const mobileMenuActionClassName =
-  "rounded-sm px-2 py-2 text-xs outline-hidden hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5"
+  "rounded-sm px-2 py-2 text-xs outline-hidden hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5"
 
 const MobileMenuAnchor = React.forwardRef<
   HTMLAnchorElement,
