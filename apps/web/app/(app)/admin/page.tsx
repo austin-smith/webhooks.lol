@@ -1,6 +1,5 @@
 import type React from "react"
 
-import { AdminAuthStatus } from "@/components/auth/admin-auth-status"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { RequestMethodBadge } from "@/components/webhook-inspector/request-method-badge"
 import { getAdminDashboardData } from "@/lib/admin/dashboard"
@@ -140,7 +139,7 @@ function AdminDashboard({ dashboard, session }: AdminDashboardProps) {
 
 function AdminShell({ children }: { children: React.ReactNode }) {
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-4 p-4 sm:p-6">
+    <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 px-4 py-6 sm:px-6">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b pb-4">
         <div>
           <h1 className="font-heading text-lg">Admin</h1>
@@ -148,7 +147,6 @@ function AdminShell({ children }: { children: React.ReactNode }) {
             App-wide activity
           </p>
         </div>
-        <AdminAuthStatus />
       </header>
       {children}
     </main>
@@ -163,14 +161,13 @@ function AdminAccessGate({
   title: string
 }) {
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-lg flex-col justify-center gap-4 p-4 sm:p-6">
+    <main className="mx-auto flex w-full max-w-lg flex-1 flex-col justify-center gap-4 px-4 py-6 sm:px-6">
       <div className="space-y-2 border-b pb-4">
         <p className="font-mono text-xs text-muted-foreground">webhooks.lol</p>
         <h1 className="font-heading text-lg">{title}</h1>
       </div>
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">{description}</p>
-        <AdminAuthStatus />
       </div>
     </main>
   )

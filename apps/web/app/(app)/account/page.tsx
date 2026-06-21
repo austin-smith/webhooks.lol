@@ -1,9 +1,10 @@
 import type { Metadata } from "next"
 import type React from "react"
+import Link from "next/link"
 import { redirect } from "next/navigation"
+import { ArrowLeftIcon } from "lucide-react"
 
 import { AccountActions } from "@/components/auth/account-actions"
-import { AuthPageShell } from "@/components/auth/auth-page-shell"
 import { ChangePasswordForm } from "@/components/auth/change-password-form"
 import { formatRelativeTime } from "@/components/webhook-inspector/request-formatters"
 import { getCurrentAccountSecurity } from "@/lib/auth/account-security"
@@ -33,12 +34,20 @@ export default async function AccountPage() {
   ])
 
   return (
-    <AuthPageShell
-      backHref="/"
-      backLabel="Get back there"
-      eyebrow="ACCOUNT"
-      title="Account settings"
-    >
+    <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-5 px-4 py-6 sm:px-6">
+      <Link
+        href="/"
+        className="inline-flex w-fit items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+      >
+        <ArrowLeftIcon className="size-3.5" aria-hidden="true" />
+        Get back there
+      </Link>
+      <div className="flex flex-col gap-2 border-b pb-4">
+        <p className="font-mono text-[0.68rem] tracking-wide text-muted-foreground">
+          ACCOUNT
+        </p>
+        <h1 className="font-heading text-lg">Account settings</h1>
+      </div>
       <div className="flex flex-col gap-4">
         <AccountMetrics stats={accountStats} />
         <dl className="flex flex-col gap-3 rounded-md border bg-card p-3">
@@ -60,7 +69,7 @@ export default async function AccountPage() {
         {accountSecurity.canChangePassword ? <ChangePasswordForm /> : null}
         <AccountActions />
       </div>
-    </AuthPageShell>
+    </main>
   )
 }
 
