@@ -1,0 +1,28 @@
+---
+title: Accounts
+description: Create an account, sign in, and access endpoints across sessions.
+icon: UserRound
+---
+
+Accounts are optional. Opening webhooks.lol without signing in creates an
+anonymous endpoint immediately.
+
+Sign in before creating an endpoint to keep it with the account. Endpoints
+created while signed in are available across signed-in browser sessions.
+
+## Existing anonymous endpoints
+
+Create the endpoint while signed in to keep it with the account. Endpoints
+created while signed out stay anonymous and do not appear in the account
+endpoint list.
+
+Anonymous endpoints remain available in the browser session that created them.
+
+## Signed-in endpoints
+
+Endpoints created while signed in belong to the signed-in account. The endpoint
+switcher loads those endpoints from the server.
+
+Webhook delivery stays public to the receive URL so webhook senders can post
+requests without a browser session. Inspecting requests or changing endpoint
+settings requires a signed-in session for the account that created the endpoint.

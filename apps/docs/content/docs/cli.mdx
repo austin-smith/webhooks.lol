@@ -117,7 +117,7 @@ WEBHOOKS_LOL_URL=http://localhost:4665 npx whlol tail <endpoint-id>
 The current CLI protocol supports anonymous endpoints only. `whlol` can read,
 replay, and forward traffic for anonymous endpoints by endpoint ID.
 Account-owned endpoints created while signed in require the owning browser
-session and are not exposed to the CLI until a dedicated CLI authentication or
-endpoint-token flow exists. By default `--to` must be a local or private-network
-host; pass `--allow-remote` only when you intend to relay traffic to a remote
-server.
+session and are not exposed to the CLI at this time.
+
+By default `--to` must be a local or private-network host; pass
+`--allow-remote` only when the forwarding target is intentionally remote.

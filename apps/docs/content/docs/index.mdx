@@ -4,25 +4,25 @@ description: Create a private URL, send requests to it, and inspect them live.
 icon: BookOpenText
 ---
 
-webhooks.lol gives you a private URL that captures every HTTP request sent to
-it. Point a webhook, script, or service at the URL and watch each request appear
-live, then inspect its method, headers, query string, and body.
+webhooks.lol gives you a unique receive URL that captures every HTTP request
+sent to it. Point a webhook, script, or service at the URL and watch each
+request appear live, then inspect its method, headers, query string, and body.
 
 It is built for testing and debugging webhooks and any other HTTP request you
 want to see exactly as it was sent.
 
 ## How it works
 
-- **Endpoint**: A private place that captures requests. Open the app and one is
-  created for you. Its address, the receive URL you send traffic to, is shaped
-  like `https://webhooks.lol/api/hook/<endpoint-id>`.
-- **Captured request**: A request that arrived at the endpoint, stored so you
-  can inspect it.
-- **Inspector**: Where you read captured requests: a live request list on the
-  left and a detail view on the right.
+- **Endpoint**: A unique URL that captures HTTP requests. Opening the app
+  creates one automatically. Endpoint URLs are shaped like
+  `https://webhooks.lol/api/hook/<endpoint-id>`.
+- **Request list**: Requests received by the endpoint, newest first.
+- **Request detail**: The selected request's method, path, query string,
+  headers, and body.
 
-No account is required. Anyone who opens the app gets a working endpoint
-immediately.
+No account is required. Opening the app creates a working anonymous endpoint
+immediately. Create an account to keep endpoints available across signed-in
+browser sessions.
 
 ## Quickstart
 
@@ -39,6 +39,6 @@ curl -X POST https://webhooks.lol/api/hook/<endpoint-id> \
 4. **Watch it land.** The request appears in the list instantly. Select it to
    see the parsed body, headers, query string, and the raw HTTP request.
 
-That is the whole loop. The rest of these docs cover working with endpoints,
-reading, searching, and replaying captured requests, forwarding new traffic,
-customizing the response your endpoint returns, and the limits that apply.
+That is the whole loop. The rest of these docs cover working with endpoints and
+accounts, reading, searching, and replaying captured requests, forwarding new
+traffic, custom responses, and the limits that apply.
