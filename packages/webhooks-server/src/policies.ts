@@ -5,6 +5,9 @@ import type {
   RateLimitPolicy,
 } from "@webhooks-lol/webhooks-server/rate-limits/config"
 
+// Endpoint identities retain the most recently active endpoints.
+export const MAX_ENDPOINTS_PER_IDENTITY = 50
+
 export const webhookRateLimitPolicies = {
   // Endpoint creation across the whole service.
   // Limit: 360000 creates per 1-hour window; average 100/second.

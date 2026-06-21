@@ -14,6 +14,7 @@ import {
   listRequests,
   saveCapturedRequest,
 } from "@webhooks-lol/webhooks-server/repository"
+import { MAX_ENDPOINTS_PER_IDENTITY } from "@webhooks-lol/webhooks-server/policies"
 import { parseAdvancedRequestSearchQuery } from "@webhooks-lol/webhooks-core/request-search"
 import type {
   CapturedRequest,
@@ -101,6 +102,115 @@ describe("webhook repository request search", () => {
     await expect(
       getEndpointForActor(endpoint.endpointId, { userId: owner.id })
     ).rejects.toBeInstanceOf(EndpointNotFoundError)
+  })
+
+  it("deletes the least recently active user-owned endpoint when a user exceeds the endpoint identity cap", async () => {
+    const owner = await createTrackedUser("owner")
+    const otherUser = await createTrackedUser("other")
+    const activeOlderEndpoint = await createTrackedEndpoint({
+      ownerUserId: owner.id,
+      now: new Date("2026-06-01T00:00:00.000Z"),
+    })
+    const inactiveEndpoint = await createTrackedEndpoint({
+      ownerUserId: owner.id,
+      now: new Date("2026-06-01T00:01:00.000Z"),
+    })
+    const otherUserEndpoint = await createTrackedEndpoint({
+      ownerUserId: otherUser.id,
+      now: new Date("2026-06-01T00:00:00.000Z"),
+    })
+
+    for (let index = 2; index < MAX_ENDPOINTS_PER_IDENTITY; index += 1) {
+      await createTrackedEndpoint({
+        ownerUserId: owner.id,
+        now: new Date(Date.UTC(2026, 5, 1, 0, index)),
+      })
+    }
+    await saveTrackedRequest({
+      endpointId: activeOlderEndpoint.endpointId,
+      method: "POST",
+      url: "https://example.com/activity",
+      path: "/activity",
+    })
+
+    const newestEndpoint = await createTrackedEndpoint({
+      ownerUserId: owner.id,
+      now: new Date("2026-06-02T00:00:00.000Z"),
+    })
+
+    const ownerEndpoints = await listEndpointsForUser(owner.id)
+    const ownerEndpointIds = ownerEndpoints.map(
+      (endpoint) => endpoint.endpointId
+    )
+
+    expect(ownerEndpoints).toHaveLength(MAX_ENDPOINTS_PER_IDENTITY)
+    expect(ownerEndpointIds).toContain(newestEndpoint.endpointId)
+    expect(ownerEndpointIds).toContain(activeOlderEndpoint.endpointId)
+    expect(ownerEndpointIds).not.toContain(inactiveEndpoint.endpointId)
+    await expect(
+      getEndpointForActor(inactiveEndpoint.endpointId, { userId: owner.id })
+    ).rejects.toBeInstanceOf(EndpointNotFoundError)
+    await expect(
+      getEndpointForActor(otherUserEndpoint.endpointId, {
+        userId: otherUser.id,
+      })
+    ).resolves.toEqual(otherUserEndpoint)
+  })
+
+  it("deletes the least recently active anonymous-session endpoint when the session exceeds the endpoint identity cap", async () => {
+    const anonymousSessionId = `session-${crypto.randomUUID()}`
+    const otherAnonymousSessionId = `session-${crypto.randomUUID()}`
+    const activeOlderEndpoint = await createTrackedEndpoint({
+      anonymousSessionId,
+      now: new Date("2026-06-01T00:00:00.000Z"),
+    })
+    const inactiveEndpoint = await createTrackedEndpoint({
+      anonymousSessionId,
+      now: new Date("2026-06-01T00:01:00.000Z"),
+    })
+    const otherSessionEndpoint = await createTrackedEndpoint({
+      anonymousSessionId: otherAnonymousSessionId,
+      now: new Date("2026-06-01T00:00:00.000Z"),
+    })
+
+    for (let index = 2; index < MAX_ENDPOINTS_PER_IDENTITY; index += 1) {
+      await createTrackedEndpoint({
+        anonymousSessionId,
+        now: new Date(Date.UTC(2026, 5, 1, 0, index)),
+      })
+    }
+    await saveTrackedRequest({
+      endpointId: activeOlderEndpoint.endpointId,
+      method: "POST",
+      url: "https://example.com/activity",
+      path: "/activity",
+    })
+
+    const newestEndpoint = await createTrackedEndpoint({
+      anonymousSessionId,
+      now: new Date("2026-06-02T00:00:00.000Z"),
+    })
+    const sessionRows = await getDatabase()
+      .select({ id: endpoints.id })
+      .from(endpoints)
+      .where(eq(endpoints.anonymousSessionId, anonymousSessionId))
+
+    expect(sessionRows).toHaveLength(MAX_ENDPOINTS_PER_IDENTITY)
+    expect(sessionRows.map((row) => row.id)).toContain(
+      newestEndpoint.endpointId
+    )
+    expect(sessionRows.map((row) => row.id)).toContain(
+      activeOlderEndpoint.endpointId
+    )
+    expect(sessionRows.map((row) => row.id)).not.toContain(
+      inactiveEndpoint.endpointId
+    )
+    await expect(
+      getEndpointForActor(inactiveEndpoint.endpointId, { userId: null })
+    ).rejects.toBeInstanceOf(EndpointNotFoundError)
+    await expect(
+      getEndpointForActor(otherSessionEndpoint.endpointId, { userId: null })
+    ).resolves.toEqual(otherSessionEndpoint)
   })
 
   it("returns empty account webhook stats for users without endpoints", async () => {

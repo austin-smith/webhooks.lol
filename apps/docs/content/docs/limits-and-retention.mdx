@@ -9,6 +9,10 @@ limits keep it fast and fair to share.
 
 ## Retention
 
+Each signed-in account or anonymous browser session keeps up to **50
+endpoints**. Creating another endpoint after that succeeds, then removes the
+least recently active endpoint.
+
 Each endpoint keeps its **latest 500 requests**. New requests keep arriving past
 that point, but the oldest are dropped to stay within the cap. You can also
 delete an endpoint's captured requests yourself with the **Clear** button in the
@@ -62,6 +66,7 @@ These caps apply to stored data and endpoint configuration.
 
 | Area                       | Limit                                                  |
 | -------------------------- | ------------------------------------------------------ |
+| Endpoints                  | 50 endpoints per signed-in account or anonymous browser session |
 | Stored requests            | Latest 500 requests per endpoint                       |
 | Captured request body size | 1 MiB per request                                      |
 | Custom response body size  | 64 KiB                                                 |

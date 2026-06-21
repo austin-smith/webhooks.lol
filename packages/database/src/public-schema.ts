@@ -22,6 +22,7 @@ export const endpoints = pgTable(
     ownerUserId: text("owner_user_id").references(() => user.id, {
       onDelete: "cascade",
     }),
+    anonymousSessionId: text("anonymous_session_id"),
     creatorKeyHash: text("creator_key_hash"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -35,6 +36,15 @@ export const endpoints = pgTable(
       table.ownerUserId,
       table.lastActivityAt.desc(),
       table.id.desc()
+    ),
+    index("endpoints_anonymous_session_id_last_activity_idx").on(
+      table.anonymousSessionId,
+      table.lastActivityAt.desc(),
+      table.id.desc()
+    ),
+    check(
+      "endpoints_single_identity_check",
+      sql`${table.ownerUserId} is null or ${table.anonymousSessionId} is null`
     ),
   ]
 )

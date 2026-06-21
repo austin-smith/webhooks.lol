@@ -7,6 +7,7 @@ import {
   inArray,
   lt,
   max,
+  ne,
   notInArray,
   or,
   sql,
@@ -19,6 +20,7 @@ import {
   endpointForwardDeliveries,
   endpoints,
   endpointResponses,
+  user as authUsers,
 } from "@webhooks-lol/database/schema"
 import { mapCapturedRequestRow } from "@webhooks-lol/webhooks-server/captured-request-row"
 import { enqueueEndpointForwardDeliveriesForRequest } from "@webhooks-lol/webhooks-server/endpoint-forwarding/repository"
@@ -38,6 +40,7 @@ import {
   type RequestSearchCriteria,
   type RequestSearchField,
 } from "@webhooks-lol/webhooks-core/request-search"
+import { MAX_ENDPOINTS_PER_IDENTITY } from "@webhooks-lol/webhooks-server/policies"
 import { MAX_REQUESTS_PER_ENDPOINT } from "@webhooks-lol/webhooks-server/request-retention"
 
 export const MAX_ENDPOINT_NAME_LENGTH = 32
@@ -86,23 +89,45 @@ export type RequestPageOptions = {
 }
 
 export type CreateEndpointOptions = {
+  anonymousSessionId?: string | null
   creatorKeyHash?: string | null
   now?: Date
   ownerUserId?: string | null
 }
 
 export async function createEndpoint(options: CreateEndpointOptions = {}) {
+  if (options.ownerUserId && options.anonymousSessionId) {
+    throw new Error("Endpoint cannot have both user and anonymous ownership.")
+  }
+
   const endpointId = crypto.randomUUID()
   const now = options.now ?? new Date()
-  await getDatabase()
-    .insert(endpoints)
-    .values({
+  const anonymousSessionId = options.anonymousSessionId ?? null
+  const ownerUserId = options.ownerUserId ?? null
+
+  await getDatabase().transaction(async (transaction) => {
+    await lockEndpointIdentityForCreate({
+      anonymousSessionId,
+      ownerUserId,
+      transaction,
+    })
+
+    await transaction.insert(endpoints).values({
       id: endpointId,
+      anonymousSessionId,
       creatorKeyHash: options.creatorKeyHash ?? null,
-      ownerUserId: options.ownerUserId ?? null,
+      ownerUserId,
       createdAt: now,
       lastActivityAt: now,
     })
+
+    await trimEndpointIdentity({
+      anonymousSessionId,
+      endpointId,
+      ownerUserId,
+      transaction,
+    })
+  })
 
   return {
     endpointId,
@@ -158,6 +183,95 @@ export async function getAccountWebhookStats(
     endpointCount: Number(endpointStats[0]?.endpointCount ?? 0),
     requestCount: Number(requestStats[0]?.requestCount ?? 0),
     lastActivityAt: requestStats[0]?.lastRequestAt?.toISOString() ?? null,
+  }
+}
+
+type WebhookDatabase = ReturnType<typeof getDatabase>
+type WebhookDatabaseTransaction = Parameters<
+  Parameters<WebhookDatabase["transaction"]>[0]
+>[0]
+
+async function lockEndpointIdentityForCreate({
+  anonymousSessionId,
+  ownerUserId,
+  transaction,
+}: {
+  anonymousSessionId: string | null
+  ownerUserId: string | null
+  transaction: WebhookDatabaseTransaction
+}) {
+  if (ownerUserId) {
+    await transaction.execute(
+      sql`select 1 from ${authUsers} where ${authUsers.id} = ${ownerUserId} for update`
+    )
+    return
+  }
+
+  if (anonymousSessionId) {
+    await transaction.execute(
+      sql`select pg_advisory_xact_lock(1869563150, hashtext(${anonymousSessionId}))`
+    )
+  }
+}
+
+async function trimEndpointIdentity({
+  anonymousSessionId,
+  endpointId,
+  ownerUserId,
+  transaction,
+}: {
+  anonymousSessionId: string | null
+  endpointId: string
+  ownerUserId: string | null
+  transaction: WebhookDatabaseTransaction
+}) {
+  if (ownerUserId) {
+    const retainedEndpointIds = transaction
+      .select({ id: endpoints.id })
+      .from(endpoints)
+      .where(
+        and(
+          eq(endpoints.ownerUserId, ownerUserId),
+          ne(endpoints.id, endpointId)
+        )
+      )
+      .orderBy(desc(endpoints.lastActivityAt), desc(endpoints.id))
+      .limit(MAX_ENDPOINTS_PER_IDENTITY - 1)
+
+    await transaction
+      .delete(endpoints)
+      .where(
+        and(
+          eq(endpoints.ownerUserId, ownerUserId),
+          ne(endpoints.id, endpointId),
+          notInArray(endpoints.id, retainedEndpointIds)
+        )
+      )
+    return
+  }
+
+  if (anonymousSessionId) {
+    const retainedEndpointIds = transaction
+      .select({ id: endpoints.id })
+      .from(endpoints)
+      .where(
+        and(
+          eq(endpoints.anonymousSessionId, anonymousSessionId),
+          ne(endpoints.id, endpointId)
+        )
+      )
+      .orderBy(desc(endpoints.lastActivityAt), desc(endpoints.id))
+      .limit(MAX_ENDPOINTS_PER_IDENTITY - 1)
+
+    await transaction
+      .delete(endpoints)
+      .where(
+        and(
+          eq(endpoints.anonymousSessionId, anonymousSessionId),
+          ne(endpoints.id, endpointId),
+          notInArray(endpoints.id, retainedEndpointIds)
+        )
+      )
   }
 }
 

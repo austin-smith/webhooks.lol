@@ -54,6 +54,7 @@ import { MissingClientIdentityHeaderError } from "@webhooks-lol/webhooks-server/
 
 const ENDPOINT_ID = "11111111-1111-4111-8111-111111111111"
 const NEW_ENDPOINT_ID = "22222222-2222-4222-8222-222222222222"
+const ANONYMOUS_SESSION_ID = "33333333-3333-4333-8333-333333333333"
 
 function createAllowedAdmission() {
   return {
@@ -115,11 +116,43 @@ describe("endpoint route", () => {
     )
 
     expect(response.status).toBe(200)
+    expect(response.headers.get("set-cookie")).toContain(
+      `webhooks_lol_endpoint_session=`
+    )
     await expect(response.json()).resolves.toEqual({
       endpointId: NEW_ENDPOINT_ID,
       name: null,
     })
+    expect(createEndpoint).toHaveBeenCalledWith(
+      expect.objectContaining({
+        anonymousSessionId: expect.stringMatching(
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+        ),
+        creatorKeyHash: "client-hash",
+        ownerUserId: null,
+      })
+    )
+  })
+
+  it("reuses the anonymous endpoint session cookie when creating endpoints", async () => {
+    createEndpoint.mockResolvedValueOnce({
+      endpointId: NEW_ENDPOINT_ID,
+      name: null,
+    })
+
+    const response = await POST(
+      new Request("https://hooks.example.com/api/endpoints", {
+        headers: {
+          cookie: `webhooks_lol_endpoint_session=${ANONYMOUS_SESSION_ID}`,
+        },
+        method: "POST",
+      })
+    )
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get("set-cookie")).toBeNull()
     expect(createEndpoint).toHaveBeenCalledWith({
+      anonymousSessionId: ANONYMOUS_SESSION_ID,
       creatorKeyHash: "client-hash",
       ownerUserId: null,
     })
@@ -140,6 +173,7 @@ describe("endpoint route", () => {
 
     expect(response.status).toBe(200)
     expect(createEndpoint).toHaveBeenCalledWith({
+      anonymousSessionId: null,
       creatorKeyHash: "client-hash",
       ownerUserId: "user-1",
     })

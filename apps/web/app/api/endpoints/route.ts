@@ -3,6 +3,7 @@ import {
   requireEndpointUserId,
 } from "@/lib/auth/endpoint-access"
 import { AuthenticationRequiredError } from "@/lib/auth/session"
+import { getAnonymousEndpointSession } from "@/lib/endpoint-session-cookie"
 import type { EndpointsResponse } from "@webhooks-lol/webhooks-core/api-contracts"
 import { NO_STORE_HEADERS } from "@webhooks-lol/webhooks-server/http/headers"
 import {
@@ -66,10 +67,19 @@ export async function POST(request: Request) {
   }
 
   const actor = await getEndpointAccessActor(request)
+  const anonymousSession = actor.userId
+    ? null
+    : getAnonymousEndpointSession(request)
   const response = await createEndpoint({
+    anonymousSessionId: anonymousSession?.id ?? null,
     creatorKeyHash: admission.clientIdentity.keyHash,
     ownerUserId: actor.userId,
   })
+  const headers = new Headers(NO_STORE_HEADERS)
 
-  return Response.json(response, { headers: NO_STORE_HEADERS })
+  if (anonymousSession?.setCookie) {
+    headers.append("Set-Cookie", anonymousSession.setCookie)
+  }
+
+  return Response.json(response, { headers })
 }
