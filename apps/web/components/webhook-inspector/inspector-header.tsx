@@ -93,7 +93,7 @@ export function InspectorHeader({
 
   return (
     <header className="min-w-0">
-      <div className="grid min-w-0 grid-cols-[minmax(6.75rem,8.5rem)_minmax(0,1fr)_auto] overflow-hidden rounded-md border bg-card sm:grid-cols-[minmax(7.5rem,12rem)_minmax(0,1fr)_auto]">
+      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] overflow-hidden rounded-md border bg-card sm:grid-cols-[minmax(7.5rem,12rem)_minmax(0,1fr)_auto]">
         <EndpointSwitcher
           disabled={isLoading || !endpointId}
           endpointNames={endpointNames}
@@ -105,7 +105,7 @@ export function InspectorHeader({
           onSwitchEndpoint={onSwitchEndpoint}
         />
 
-        <div className="flex min-w-0 items-center gap-1 border-l pr-1 pl-2">
+        <div className="col-span-2 row-start-2 flex min-w-0 items-center gap-1 border-t pr-1 pl-2 sm:col-span-1 sm:col-start-2 sm:row-start-1 sm:border-t-0 sm:border-l">
           {webhookUrl ? (
             <Input
               readOnly
@@ -140,7 +140,7 @@ export function InspectorHeader({
           </span>
         </div>
 
-        <div className="flex items-center gap-0.5 border-l p-1">
+        <div className="col-start-2 row-start-1 flex items-center gap-0.5 border-l p-1 sm:col-start-3">
           <EndpointDetailsPopover
             disabled={isLoading || !endpointId}
             endpointId={endpointId}
