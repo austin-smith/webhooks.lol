@@ -13,10 +13,10 @@
 A small webhook endpoint for receiving and inspecting HTTP requests. The app
 creates unique receive URLs, captures requests sent to them, and shows the
 latest traffic in a compact inspector. It is intentionally simple: a request
-list, a detail pane, and a small remembered-endpoint switcher for moving between
-URLs you have created. Anonymous endpoints remain disposable and browser-local;
-signed-in endpoints are attached to the account that created them so they follow
-that account across browsers and sessions.
+list, a detail pane, and a small remembered-endpoint switcher. Anonymous
+endpoints are disposable and browser-local. Signed-in endpoints are attached to
+the account that created them so they follow that account across browsers and
+sessions.
 
 <p align="center">
   <img src="./docs/screenshots/screen-grab-light.png" alt="webhooks.lol light mode" width="49%" />
@@ -40,28 +40,16 @@ pnpm dev
 The development server runs on
 [http://localhost:4665](http://localhost:4665).
 
-## Configuration
-
-Environment variables are process-owned. Each process reads its own environment
-file or host-provided variables:
-
-- `packages/database/.env.local` is for Drizzle database tooling.
-- `apps/web/.env.local` is for the Next.js web app.
-- `apps/docs/.env.local` is for the Next.js docs app.
-- `apps/pgboss/.env.local` is for the PgBoss worker.
-
-The checked-in `.env.example` files provide local defaults for the matching
-process. Replace placeholder values with the values for the environment being
-run. Auth configuration is documented in [`docs/auth.md`](docs/auth.md).
+Each app/package reads environment variables from its own `.env.local`. The
+example files provide local defaults. Replace placeholder values as needed.
 
 ## Local Services
 
-The local Postgres script runs a named Docker container,
-`webhooks-lol-postgres`, with a named volume, `webhooks-lol-postgres-data`. The
-local Redis script runs `webhooks-lol-redis` with a named volume,
-`webhooks-lol-redis-data`, for rate-limit state.
+`pnpm db:local:start` starts the local PostgreSQL Docker container,
+`webhooks-lol-postgres`. If the container does not exist, the script creates it
+with the `webhooks-lol-postgres-data` volume.
 
-To create the local Postgres container directly:
+Equivalent manual creation command:
 
 ```bash
 docker volume create webhooks-lol-postgres-data
@@ -74,7 +62,11 @@ docker run -d --name webhooks-lol-postgres \
   postgres:18
 ```
 
-To create the local Redis container directly:
+`pnpm redis:local:start` starts the local Redis Docker container,
+`webhooks-lol-redis`. If the container does not exist, the script creates it
+with the `webhooks-lol-redis-data` volume.
+
+Equivalent manual creation command:
 
 ```bash
 docker volume create webhooks-lol-redis-data
@@ -87,8 +79,8 @@ docker run -d --name webhooks-lol-redis \
 ## Usage
 
 1. Open the app.
-2. Optionally sign in or create an account if you want endpoints to follow you
-   across browsers.
+2. Optionally sign in or create an account before creating endpoints that should
+   follow an account across browsers.
 3. Optionally rename the current endpoint so it is easier to recognize later.
 4. Copy the `RECEIVE_URL`.
 5. Send any request to that URL, or to a nested path below it.
@@ -113,7 +105,7 @@ preserve the original method, headers, and exact body bytes, so provider
 signature headers still verify locally.
 
 The current CLI protocol supports anonymous endpoints only. Endpoints created
-while signed in are account-owned and require the owning browser session; use
+while signed in are account-owned and require the owning browser session. Use
 anonymous endpoints with `whlol` until a dedicated CLI authentication or
 endpoint-token flow exists.
 
@@ -130,31 +122,16 @@ npx whlol replay <endpoint-id> --request <request-id> --to http://localhost:3000
 
 Point the CLI at a local or self-hosted deployment with
 `--host http://localhost:4665` or the `WEBHOOKS_LOL_URL` environment variable.
-See `apps/cli/README.md` for all options.
+See [`apps/cli/README.md`](apps/cli/README.md) for command details and options.
 
-## Behavior
-
-- Requests persist in PostgreSQL through Drizzle-managed schema migrations.
-- The app keeps the 50 most recently active endpoints per signed-in account or
-  anonymous browser session.
-- The app keeps the latest 500 requests per endpoint.
-- Request bodies are capped at 1 MiB. Larger payloads return `413`.
-- Browser preflight requests return CORS headers and are not saved as webhook
-  traffic.
-- Endpoint names help identify webhook endpoints in the endpoint switcher.
-- Signed-in endpoint creation attaches the endpoint to the user account;
-  anonymous endpoint creation remains disposable and browser-local.
-- Endpoint forwarding deliveries are queued in PostgreSQL through PgBoss and
-  processed by the worker app in `apps/pgboss`.
-
-## Workspace
+## Monorepo Structure
 
 | Path                       | Responsibility                                                  |
 | -------------------------- | --------------------------------------------------------------- |
-| `apps/web`                 | Next.js web app and API routes                                  |
-| `apps/pgboss`              | PgBoss endpoint-forwarding worker process                       |
-| `apps/cli`                 | `whlol` command-line client                                     |
-| `apps/docs`                | Documentation site                                              |
+| `apps/web`                 | Primary Next.js application                                     |
+| `apps/pgboss`              | Node.js PgBoss worker for endpoint forwarding                   |
+| `apps/cli`                 | `whlol` command-line package                                    |
+| `apps/docs`                | Fumadocs-powered Next.js documentation site                     |
 | `packages/database`        | Drizzle schema and PostgreSQL connection                        |
 | `packages/webhooks-core`   | Shared webhook types, IDs, search helpers, and API contracts    |
 | `packages/webhooks-server` | Server workflows, repositories, rate limits, replay, forwarding |
