@@ -27,30 +27,30 @@ import {
   MIN_PASSWORD_LENGTH,
 } from "@/lib/auth/password-policy"
 
-type PasswordResetField =
+type ChangePasswordField =
   | "confirmedPassword"
   | "currentPassword"
   | "newPassword"
 
-type PasswordResetFieldErrors = Partial<Record<PasswordResetField, string>>
+type ChangePasswordFieldErrors = Partial<Record<ChangePasswordField, string>>
 
-export function ResetPasswordForm() {
+export function ChangePasswordForm() {
   const router = useRouter()
   const [isOpen, setIsOpen] = React.useState(false)
   const [currentPassword, setCurrentPassword] = React.useState("")
   const [newPassword, setNewPassword] = React.useState("")
   const [confirmedPassword, setConfirmedPassword] = React.useState("")
   const [fieldErrors, setFieldErrors] =
-    React.useState<PasswordResetFieldErrors>({})
+    React.useState<ChangePasswordFieldErrors>({})
   const [formError, setFormError] = React.useState<string | null>(null)
   const [statusMessage, setStatusMessage] = React.useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
 
-  async function resetPassword(event: React.FormEvent<HTMLFormElement>) {
+  async function changePassword(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setFormError(null)
 
-    const validationErrors = validatePasswordResetInput({
+    const validationErrors = validateChangePasswordInput({
       confirmedPassword,
       currentPassword,
       newPassword,
@@ -79,7 +79,7 @@ export function ResetPasswordForm() {
           return
         }
 
-        setFormError(result.error.message ?? "Could not reset password.")
+        setFormError(result.error.message ?? "Could not change password.")
         return
       }
 
@@ -89,14 +89,14 @@ export function ResetPasswordForm() {
       setIsOpen(false)
       setFieldErrors({})
       setFormError(null)
-      setStatusMessage("Password reset.")
+      setStatusMessage("Password changed.")
       router.refresh()
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  function validatePasswordResetInput({
+  function validateChangePasswordInput({
     confirmedPassword,
     currentPassword,
     newPassword,
@@ -104,8 +104,8 @@ export function ResetPasswordForm() {
     confirmedPassword: string
     currentPassword: string
     newPassword: string
-  }): PasswordResetFieldErrors {
-    const errors: PasswordResetFieldErrors = {}
+  }): ChangePasswordFieldErrors {
+    const errors: ChangePasswordFieldErrors = {}
 
     if (!currentPassword) {
       errors.currentPassword = "Current password is required."
@@ -158,7 +158,7 @@ export function ResetPasswordForm() {
   }
 
   function updateField(
-    field: PasswordResetField,
+    field: ChangePasswordField,
     value: string,
     setValue: (value: string) => void
   ) {
@@ -193,17 +193,17 @@ export function ResetPasswordForm() {
             className="w-full rounded-sm text-xs"
             onClick={() => setStatusMessage(null)}
           >
-            Reset password
+            Change password
           </Button>
         </DialogTrigger>
         <DialogContent aria-describedby={undefined} className="sm:max-w-xs">
           <form
             className="flex flex-col gap-4"
-            onSubmit={resetPassword}
+            onSubmit={changePassword}
             noValidate
           >
             <DialogHeader>
-              <DialogTitle>Reset password</DialogTitle>
+              <DialogTitle>Change password</DialogTitle>
             </DialogHeader>
             <FieldGroup className="gap-3">
               <Field
@@ -324,7 +324,7 @@ export function ResetPasswordForm() {
                 </Button>
               </DialogClose>
               <Button type="submit" size="sm" disabled={isSubmitting}>
-                Reset password
+                Change password
               </Button>
             </DialogFooter>
           </form>

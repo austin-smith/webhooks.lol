@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
+import { LogOutIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { authClient } from "@/lib/auth/client"
@@ -31,6 +32,7 @@ export function AccountActions() {
       disabled={isSigningOut}
       onClick={signOut}
     >
+      <LogOutIcon data-icon="inline-start" />
       Sign out
     </Button>
   )

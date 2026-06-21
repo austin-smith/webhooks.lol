@@ -26,8 +26,8 @@ sessions.
 - Auth methods are not linked together. An account is either email/password or
   GitHub for sign-in purposes; users are not offered a flow to add another
   provider to an existing account.
-- The account page offers password reset only for email/password accounts.
-  GitHub accounts use GitHub for sign-in and do not get a password reset or
+- The account page offers password changes only for email/password accounts.
+  GitHub accounts use GitHub for sign-in and do not get a password change or
   password creation flow.
 - The first user created on a fresh deployment receives the Better Auth `admin`
   role. Later users receive the standard `user` role regardless of provider.

@@ -4,7 +4,7 @@ import { redirect } from "next/navigation"
 
 import { AccountActions } from "@/components/auth/account-actions"
 import { AuthPageShell } from "@/components/auth/auth-page-shell"
-import { ResetPasswordForm } from "@/components/auth/reset-password-form"
+import { ChangePasswordForm } from "@/components/auth/change-password-form"
 import { formatRelativeTime } from "@/components/webhook-inspector/request-formatters"
 import { getCurrentAccountSecurity } from "@/lib/auth/account-security"
 import { getCurrentSession } from "@/lib/auth/session"
@@ -57,7 +57,7 @@ export default async function AccountPage() {
             </dd>
           </div>
         </dl>
-        {accountSecurity.canResetPassword ? <ResetPasswordForm /> : null}
+        {accountSecurity.canChangePassword ? <ChangePasswordForm /> : null}
         <AccountActions />
       </div>
     </AuthPageShell>

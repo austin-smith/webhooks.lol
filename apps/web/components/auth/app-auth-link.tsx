@@ -3,7 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { CircleUserRoundIcon, LogOutIcon, UserIcon } from "lucide-react"
+import { CircleUserRoundIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -59,10 +59,7 @@ export function AppAuthLink() {
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
             <DropdownMenuItem asChild>
-              <Link href="/account">
-                <UserIcon />
-                Account settings
-              </Link>
+              <Link href="/account">Account settings</Link>
             </DropdownMenuItem>
             <DropdownMenuItem
               disabled={isSigningOut}
@@ -70,7 +67,6 @@ export function AppAuthLink() {
                 void signOut()
               }}
             >
-              <LogOutIcon />
               Sign out
             </DropdownMenuItem>
           </DropdownMenuGroup>

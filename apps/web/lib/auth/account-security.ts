@@ -9,7 +9,7 @@ type AuthAccount = {
 }
 
 export type AccountSecurity = {
-  canResetPassword: boolean
+  canChangePassword: boolean
   signInMethodLabel: string
 }
 
@@ -30,7 +30,7 @@ export function resolveAccountSecurity(
 
   if (hasCredentialAccount) {
     return {
-      canResetPassword: true,
+      canChangePassword: true,
       signInMethodLabel: "Email and password",
     }
   }
@@ -40,7 +40,7 @@ export function resolveAccountSecurity(
   )
 
   return {
-    canResetPassword: false,
+    canChangePassword: false,
     signInMethodLabel: hasGitHubAccount ? "GitHub" : "External provider",
   }
 }
