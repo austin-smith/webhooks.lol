@@ -11,6 +11,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { AppHeaderMenu } from "./app-header-menu"
 
 const GITHUB_URL = "https://github.com/austin-smith/webhooks.lol"
 
@@ -44,7 +45,7 @@ export function AppHeader({ docsUrl }: AppHeaderProps) {
         </Link>
         <nav
           aria-label="Resources"
-          className="flex shrink-0 items-center gap-0.5"
+          className="hidden shrink-0 items-center gap-0.5 sm:flex"
         >
           {docsUrl ? (
             <AppHeaderLink href={docsUrl} icon={BookTextIcon} label="DOCS" />
@@ -52,6 +53,12 @@ export function AppHeader({ docsUrl }: AppHeaderProps) {
           <AppHeaderLink href={GITHUB_URL} icon={GithubIcon} label="GITHUB" />
           <ThemeSwitcher />
           <AppAuthLink />
+        </nav>
+        <nav
+          aria-label="App menu"
+          className="flex shrink-0 items-center sm:hidden"
+        >
+          <AppHeaderMenu docsUrl={docsUrl} />
         </nav>
       </div>
     </header>
