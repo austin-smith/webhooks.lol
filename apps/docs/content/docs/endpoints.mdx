@@ -15,9 +15,10 @@ Each endpoint has a receive URL shaped like:
 https://webhooks.lol/api/hook/<endpoint-id>
 ```
 
-The endpoint ID is a random UUID. It is the only thing that identifies the
-endpoint, so treat the URL as a secret: anyone who has the ID can send requests
-to it and read everything it has captured.
+The endpoint ID is a random UUID. Anyone with the receive URL can send requests
+to it. Captured traffic for anonymous endpoints is readable by endpoint ID;
+captured traffic for account-owned endpoints requires the owning browser
+session.
 
 Use the copy button next to the URL in the inspector to grab it.
 
