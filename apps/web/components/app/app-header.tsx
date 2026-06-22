@@ -56,7 +56,7 @@ export function AppHeader({ docsUrl, user }: AppHeaderProps) {
             <AppHeaderLink href={docsUrl} icon={BookTextIcon} label="DOCS" />
           ) : null}
           <AppHeaderLink href={GITHUB_URL} icon={GithubIcon} label="GITHUB" />
-          <ThemeSwitcher />
+          {user ? null : <ThemeSwitcher />}
           <AppAuthLink user={user} />
         </nav>
         <nav

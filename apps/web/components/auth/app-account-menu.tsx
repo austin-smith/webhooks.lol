@@ -3,9 +3,15 @@
 import * as React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { CircleUserRoundIcon, LogOutIcon, SettingsIcon } from "lucide-react"
+import {
+  CircleUserRoundIcon,
+  LogOutIcon,
+  PaletteIcon,
+  SettingsIcon,
+} from "lucide-react"
 
 import type { AppHeaderUser } from "@/components/app/app-header"
+import { ThemeDropdownMenuItems } from "@/components/theme/theme-dropdown-menu-items"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -14,6 +20,9 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { authClient } from "@/lib/auth/client"
@@ -57,6 +66,15 @@ export function AppAccountMenu({ user }: { user: AppHeaderUser }) {
               Settings
             </Link>
           </DropdownMenuItem>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <PaletteIcon />
+              Customize
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="w-44">
+              <ThemeDropdownMenuItems />
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>

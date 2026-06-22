@@ -10,9 +10,11 @@ import {
   CheckIcon,
   ChevronRightIcon,
   HouseIcon,
+  LogOutIcon,
   MenuIcon,
   MonitorIcon,
   MoonIcon,
+  SettingsIcon,
   SunIcon,
 } from "lucide-react"
 import { useTheme } from "next-themes"
@@ -229,8 +231,9 @@ export function AppHeaderMenu({ docsUrl, user }: AppHeaderMenuProps) {
                         "flex items-center gap-3 text-left"
                       )}
                     >
+                      <SettingsIcon aria-hidden="true" />
                       <span className="min-w-0">
-                        <span className="block">Account settings</span>
+                        <span className="block">Settings</span>
                         <span className="block truncate text-[0.68rem] text-muted-foreground">
                           {user.email}
                         </span>
@@ -242,14 +245,15 @@ export function AppHeaderMenu({ docsUrl, user }: AppHeaderMenuProps) {
                     type="button"
                     className={cn(
                       mobileMenuActionClassName,
-                      "text-left text-muted-foreground"
+                      "flex items-center gap-2 text-left text-muted-foreground"
                     )}
                     disabled={isSigningOut}
                     onClick={() => {
                       void signOut()
                     }}
                   >
-                    Sign out
+                    <LogOutIcon aria-hidden="true" />
+                    <span>Sign out</span>
                   </button>
                 </div>
               ) : (
