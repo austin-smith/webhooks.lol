@@ -34,21 +34,20 @@ import {
 import { Switch } from "@/components/ui/switch"
 import { authClient } from "@/lib/auth/client"
 import { cn } from "@/lib/utils"
+import type { AppHeaderUser } from "./app-header"
 
 const GITHUB_URL = "https://github.com/austin-smith/webhooks.lol"
 
 type AppHeaderMenuProps = {
   docsUrl: string | null
+  user: AppHeaderUser | null
 }
 
 type ThemeMode = "system" | "light" | "dark"
 type MenuView = "main" | "theme"
 
-export function AppHeaderMenu({ docsUrl }: AppHeaderMenuProps) {
+export function AppHeaderMenu({ docsUrl, user }: AppHeaderMenuProps) {
   const router = useRouter()
-  const session = authClient.useSession()
-  const user = session.data?.user
-  const isSessionPending = session.isPending
   const { appTheme, setAppTheme } = useAppTheme()
   const { theme, setTheme } = useTheme()
   const [open, setOpen] = React.useState(false)
@@ -63,7 +62,7 @@ export function AppHeaderMenu({ docsUrl }: AppHeaderMenuProps) {
 
     try {
       await authClient.signOut()
-      router.push("/")
+      router.replace("/")
       router.refresh()
     } finally {
       setIsSigningOut(false)
@@ -220,11 +219,7 @@ export function AppHeaderMenu({ docsUrl }: AppHeaderMenuProps) {
               </div>
             </div>
             <SheetFooter className="border-t">
-              {isSessionPending ? (
-                <Button type="button" variant="outline" disabled>
-                  Checking session
-                </Button>
-              ) : user ? (
+              {user ? (
                 <div className="flex flex-col gap-1">
                   <SheetClose asChild>
                     <Link

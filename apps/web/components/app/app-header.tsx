@@ -15,11 +15,16 @@ import { AppHeaderMenu } from "./app-header-menu"
 
 const GITHUB_URL = "https://github.com/austin-smith/webhooks.lol"
 
-type AppHeaderProps = {
-  docsUrl: string | null
+export type AppHeaderUser = {
+  email: string
 }
 
-export function AppHeader({ docsUrl }: AppHeaderProps) {
+type AppHeaderProps = {
+  docsUrl: string | null
+  user: AppHeaderUser | null
+}
+
+export function AppHeader({ docsUrl, user }: AppHeaderProps) {
   return (
     <header className="shrink-0 border-b bg-background px-4 py-3 lg:px-5">
       <div className="flex min-w-0 items-center justify-between gap-3">
@@ -52,13 +57,13 @@ export function AppHeader({ docsUrl }: AppHeaderProps) {
           ) : null}
           <AppHeaderLink href={GITHUB_URL} icon={GithubIcon} label="GITHUB" />
           <ThemeSwitcher />
-          <AppAuthLink />
+          <AppAuthLink user={user} />
         </nav>
         <nav
           aria-label="App menu"
           className="flex shrink-0 items-center sm:hidden"
         >
-          <AppHeaderMenu docsUrl={docsUrl} />
+          <AppHeaderMenu docsUrl={docsUrl} user={user} />
         </nav>
       </div>
     </header>
