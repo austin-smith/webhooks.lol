@@ -29,9 +29,8 @@ export function ThemeSwitcher({ trigger = "theme" }: ThemeSwitcherProps) {
         <Button
           type="button"
           variant="ghost"
-          size={isPreferencesTrigger ? "icon-sm" : "sm"}
+          size="icon-sm"
           aria-label={isPreferencesTrigger ? "Preferences" : "Theme"}
-          className="h-7 rounded-md px-2 text-[0.68rem] tracking-wide text-muted-foreground hover:text-foreground"
         >
           {isPreferencesTrigger ? (
             <MoreHorizontalIcon data-icon="inline-start" />

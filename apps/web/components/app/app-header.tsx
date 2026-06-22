@@ -6,7 +6,7 @@ import { BookTextIcon } from "lucide-react"
 import { AppAuthLink } from "@/components/auth/app-auth-link"
 import { GithubIcon } from "@/components/icons/github-icon"
 import { ThemeSwitcher } from "@/components/theme/theme-switcher"
-import { appHeaderActionClassName } from "./app-header-action"
+import { Button } from "@/components/ui/button"
 import { AppHeaderMenu } from "./app-header-menu"
 
 const GITHUB_URL = "https://github.com/austin-smith/webhooks.lol"
@@ -46,17 +46,22 @@ export function AppHeader({ docsUrl, user }: AppHeaderProps) {
             WEBHOOKS<span className="text-brand">.LOL</span>
           </span>
         </Link>
-        <nav
-          aria-label="Resources"
-          className="hidden shrink-0 items-center gap-0.5 sm:flex"
-        >
-          {docsUrl ? (
-            <AppHeaderLink href={docsUrl} icon={BookTextIcon} label="DOCS" />
-          ) : null}
-          <AppHeaderLink href={GITHUB_URL} icon={GithubIcon} label="GITHUB" />
-          <AppAuthLink user={user} />
-          {user ? null : <ThemeSwitcher trigger="preferences" />}
-        </nav>
+        <div className="hidden shrink-0 items-center gap-0.5 text-muted-foreground sm:flex">
+          <nav aria-label="Resources" className="flex items-center gap-0.5">
+            {docsUrl ? (
+              <AppHeaderLink href={docsUrl} icon={BookTextIcon} label="DOCS" />
+            ) : null}
+            <AppHeaderLink href={GITHUB_URL} icon={GithubIcon} label="GITHUB" />
+          </nav>
+          <div
+            role="group"
+            aria-label="Account and preferences"
+            className="flex items-center gap-0.5"
+          >
+            <AppAuthLink user={user} />
+            {user ? null : <ThemeSwitcher trigger="preferences" />}
+          </div>
+        </div>
         <nav
           aria-label="App menu"
           className="flex shrink-0 items-center sm:hidden"
@@ -78,14 +83,11 @@ function AppHeaderLink({
   label: string
 }) {
   return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={appHeaderActionClassName}
-    >
-      <Icon className="size-3.5" aria-hidden="true" />
-      {label}
-    </a>
+    <Button asChild variant="ghost" size="xs">
+      <a href={href} target="_blank" rel="noopener noreferrer">
+        <Icon data-icon="inline-start" aria-hidden="true" />
+        {label}
+      </a>
+    </Button>
   )
 }

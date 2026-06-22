@@ -10,9 +10,9 @@ import {
   SettingsIcon,
 } from "lucide-react"
 
-import { appHeaderActionClassName } from "@/components/app/app-header-action"
 import type { AppHeaderUser } from "@/components/app/app-header"
 import { ThemeDropdownMenuItems } from "@/components/theme/theme-dropdown-menu-items"
+import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,14 +47,10 @@ export function AppAccountMenu({ user }: { user: AppHeaderUser }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className={appHeaderActionClassName}
-          aria-label="Account"
-        >
-          <CircleUserRoundIcon className="size-3.5" aria-hidden="true" />
+        <Button type="button" variant="ghost" size="xs" aria-label="Account">
+          <CircleUserRoundIcon data-icon="inline-start" aria-hidden="true" />
           ACCOUNT
-        </button>
+        </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel className="p-1">
