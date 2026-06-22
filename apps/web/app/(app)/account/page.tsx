@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 import { ArrowLeftIcon } from "lucide-react"
 
 import { AccountActions } from "@/components/auth/account-actions"
+import { AccountProfileEditDialog } from "@/components/auth/account-profile-edit-dialog"
 import { ChangePasswordForm } from "@/components/auth/change-password-form"
 import { getUserDisplayName, UserAvatar } from "@/components/auth/user-avatar"
 import { formatRelativeTime } from "@/components/webhook-inspector/request-formatters"
@@ -54,7 +55,7 @@ export default async function AccountPage() {
         <dl className="flex flex-col gap-3 rounded-md border bg-card p-3">
           <div className="flex min-w-0 items-center gap-3">
             <UserAvatar user={session.user} size="lg" />
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <dt className="text-[0.68rem] tracking-wide text-muted-foreground">
                 ACCOUNT
               </dt>
@@ -65,6 +66,7 @@ export default async function AccountPage() {
                 {session.user.email}
               </dd>
             </div>
+            <AccountProfileEditDialog user={session.user} />
           </div>
           <div className="flex min-w-0 flex-col gap-1">
             <dt className="text-[0.68rem] tracking-wide text-muted-foreground">

@@ -15,6 +15,7 @@ import {
   promoteUserToAdminIfNoAdminExists,
   STANDARD_USER_ROLE,
 } from "./first-user-role-policy"
+import { createAuthBeforeHook } from "./hooks"
 import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from "./password-policy"
 import type { DrizzleDatabase } from "./types"
 
@@ -136,6 +137,9 @@ export function createAuthOptions(
           })
         )
       },
+    },
+    hooks: {
+      before: createAuthBeforeHook(),
     },
     plugins: [
       admin(),

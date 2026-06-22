@@ -1,5 +1,5 @@
 import type { ComponentProps } from "react"
-import { UserIcon } from "lucide-react"
+import { UserRound } from "lucide-react"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
@@ -24,7 +24,7 @@ export function UserAvatar({ user, size = "default" }: UserAvatarProps) {
         aria-label={displayName}
         className="[&_svg]:size-3.5 group-data-[size=lg]/avatar:[&_svg]:size-5 group-data-[size=sm]/avatar:[&_svg]:size-3"
       >
-        <UserIcon aria-hidden="true" />
+        <UserRound aria-hidden="true" />
       </AvatarFallback>
     </Avatar>
   )

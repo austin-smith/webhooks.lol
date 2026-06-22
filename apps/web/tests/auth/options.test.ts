@@ -18,6 +18,9 @@ type AuthOptionsUnderTest = ReturnType<typeof createAuthOptions> & {
       }
     }
   }
+  hooks: {
+    before: unknown
+  }
   emailAndPassword: {
     maxPasswordLength: number
     minPasswordLength: number
@@ -122,6 +125,12 @@ describe("auth options", () => {
         secretKey: "turnstile-secret-key",
       },
     })
+  })
+
+  it("registers profile update validation on Better Auth endpoints", () => {
+    const options = createOptions(undefined, createDatabaseWithUserCount(1))
+
+    expect(options.hooks.before).toBeTypeOf("function")
   })
 
   it("requires a Turnstile secret key", () => {
