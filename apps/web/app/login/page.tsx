@@ -26,7 +26,12 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   }
 
   return (
-    <AuthPageShell eyebrow="ACCOUNT" title="Sign in">
+    <AuthPageShell
+      backHref="/"
+      backLabel="Get back there"
+      eyebrow="ACCOUNT"
+      title="Sign in"
+    >
       <AuthMethodPanel mode="login" callbackPath={callbackPath} />
     </AuthPageShell>
   )

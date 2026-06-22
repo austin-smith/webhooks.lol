@@ -6,11 +6,6 @@ import { BookTextIcon } from "lucide-react"
 import { AppAuthLink } from "@/components/auth/app-auth-link"
 import { GithubIcon } from "@/components/icons/github-icon"
 import { ThemeSwitcher } from "@/components/theme/theme-switcher"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 import { AppHeaderMenu } from "./app-header-menu"
 
 const GITHUB_URL = "https://github.com/austin-smith/webhooks.lol"
@@ -58,8 +53,9 @@ export function AppHeader({ docsUrl, user }: AppHeaderProps) {
             <AppHeaderLink href={docsUrl} icon={BookTextIcon} label="DOCS" />
           ) : null}
           <AppHeaderLink href={GITHUB_URL} icon={GithubIcon} label="GITHUB" />
-          {user ? null : <ThemeSwitcher />}
+          <span className="mx-1 h-4 w-px bg-border" aria-hidden="true" />
           <AppAuthLink user={user} />
+          {user ? null : <ThemeSwitcher trigger="preferences" />}
         </nav>
         <nav
           aria-label="App menu"
@@ -81,23 +77,15 @@ function AppHeaderLink({
   icon: ComponentType<SVGProps<SVGSVGElement>>
   label: string
 }) {
-  const link = (
+  return (
     <a
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      aria-label={label}
       className="inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-[0.68rem] font-medium tracking-wide text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none dark:hover:bg-muted/50"
     >
       <Icon className="size-3.5" aria-hidden="true" />
-      <span className="hidden sm:inline">{label}</span>
+      {label}
     </a>
-  )
-
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>{link}</TooltipTrigger>
-      <TooltipContent className="sm:hidden">{label}</TooltipContent>
-    </Tooltip>
   )
 }

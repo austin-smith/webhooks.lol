@@ -26,7 +26,12 @@ export default async function SignUpPage({ searchParams }: SignUpPageProps) {
   }
 
   return (
-    <AuthPageShell eyebrow="ACCOUNT" title="Create account">
+    <AuthPageShell
+      backHref="/"
+      backLabel="Get back there"
+      eyebrow="ACCOUNT"
+      title="Create account"
+    >
       <AuthMethodPanel mode="sign-up" callbackPath={callbackPath} />
     </AuthPageShell>
   )

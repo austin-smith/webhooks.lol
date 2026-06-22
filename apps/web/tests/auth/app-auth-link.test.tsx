@@ -14,7 +14,7 @@ describe("AppAuthLink", () => {
     const html = renderToStaticMarkup(<AppAuthLink user={null} />)
 
     expect(html).toContain('href="/login"')
-    expect(html).toContain("SIGN IN")
+    expect(html).toContain("LOGIN")
   })
 
   it("renders the account menu when the server resolved a header user", () => {
@@ -30,6 +30,6 @@ describe("AppAuthLink", () => {
 
     expect(html).toContain('data-account-menu="true"')
     expect(html).toContain("person@example.com")
-    expect(html).not.toContain("SIGN IN")
+    expect(html).not.toContain("LOGIN")
   })
 })
