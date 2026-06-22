@@ -21,12 +21,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { authClient } from "@/lib/auth/client"
-import { getUserDisplayName, UserAvatar } from "./user-avatar"
+import { AccountMenuIdentity } from "./account-menu-identity"
+import { UserAvatar } from "./user-avatar"
 
 export function AppAccountMenu({ user }: { user: AppHeaderUser }) {
   const router = useRouter()
   const [isSigningOut, setIsSigningOut] = React.useState(false)
-  const displayName = getUserDisplayName(user)
 
   async function signOut() {
     setIsSigningOut(true)
@@ -54,23 +54,15 @@ export function AppAccountMenu({ user }: { user: AppHeaderUser }) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel>
-          <div className="flex min-w-0 items-center gap-2">
-            <UserAvatar user={user} size="sm" />
-            <span className="min-w-0">
-              <span className="block truncate text-foreground">
-                {displayName}
-              </span>
-              <span className="block truncate">{user.email}</span>
-            </span>
-          </div>
+        <DropdownMenuLabel className="p-1">
+          <AccountMenuIdentity user={user} />
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuItem asChild>
             <Link href="/account">
               <SettingsIcon />
-              Settings
+              Account Settings
             </Link>
           </DropdownMenuItem>
           <DropdownMenuSub>
