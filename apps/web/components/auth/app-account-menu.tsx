@@ -47,9 +47,13 @@ export function AppAccountMenu({ user }: { user: AppHeaderUser }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button type="button" variant="ghost" size="xs" aria-label="Account">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Account"
+        >
           <CircleUserRoundIcon data-icon="inline-start" aria-hidden="true" />
-          ACCOUNT
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">

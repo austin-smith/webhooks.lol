@@ -7,6 +7,7 @@ import { AppAuthLink } from "@/components/auth/app-auth-link"
 import { GithubIcon } from "@/components/icons/github-icon"
 import { ThemeSwitcher } from "@/components/theme/theme-switcher"
 import { Button } from "@/components/ui/button"
+import { Separator } from "@/components/ui/separator"
 import { AppHeaderMenu } from "./app-header-menu"
 
 const GITHUB_URL = "https://github.com/austin-smith/webhooks.lol"
@@ -46,13 +47,17 @@ export function AppHeader({ docsUrl, user }: AppHeaderProps) {
             WEBHOOKS<span className="text-brand">.LOL</span>
           </span>
         </Link>
-        <div className="hidden shrink-0 items-center gap-0.5 text-muted-foreground sm:flex">
+        <div className="hidden shrink-0 items-center gap-2 text-muted-foreground sm:flex">
           <nav aria-label="Resources" className="flex items-center gap-0.5">
             {docsUrl ? (
               <AppHeaderLink href={docsUrl} icon={BookTextIcon} label="DOCS" />
             ) : null}
             <AppHeaderLink href={GITHUB_URL} icon={GithubIcon} label="GITHUB" />
           </nav>
+          <Separator
+            orientation="vertical"
+            className="data-vertical:h-4 data-vertical:self-center"
+          />
           <div
             role="group"
             aria-label="Account and preferences"
