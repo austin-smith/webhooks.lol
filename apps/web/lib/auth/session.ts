@@ -22,8 +22,10 @@ export class AuthorizationRequiredError extends Error {
 }
 
 export async function getCurrentSession() {
+  const requestHeaders = await headers()
+
   return getAuth().api.getSession({
-    headers: await headers(),
+    headers: requestHeaders,
   })
 }
 

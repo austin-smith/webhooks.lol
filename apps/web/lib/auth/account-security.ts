@@ -14,8 +14,10 @@ export type AccountSecurity = {
 }
 
 export async function getCurrentAccountSecurity() {
+  const requestHeaders = await headers()
+
   const accounts = await getAuth().api.listUserAccounts({
-    headers: await headers(),
+    headers: requestHeaders,
   })
 
   return resolveAccountSecurity(accounts)
