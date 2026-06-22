@@ -17,6 +17,8 @@ const GITHUB_URL = "https://github.com/austin-smith/webhooks.lol"
 
 export type AppHeaderUser = {
   email: string
+  image: string | null
+  name: string
 }
 
 type AppHeaderProps = {

@@ -10,7 +10,13 @@ export default async function AppLayout({
   children: React.ReactNode
 }) {
   const session = await getCurrentSession()
-  const headerUser = session ? { email: session.user.email } : null
+  const headerUser = session
+    ? {
+        email: session.user.email,
+        image: session.user.image ?? null,
+        name: session.user.name,
+      }
+    : null
 
   return (
     <AppShell docsUrl={readDocsUrl()} user={headerUser}>

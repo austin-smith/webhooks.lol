@@ -6,6 +6,7 @@ import { ArrowLeftIcon } from "lucide-react"
 
 import { AccountActions } from "@/components/auth/account-actions"
 import { ChangePasswordForm } from "@/components/auth/change-password-form"
+import { getUserDisplayName, UserAvatar } from "@/components/auth/user-avatar"
 import { formatRelativeTime } from "@/components/webhook-inspector/request-formatters"
 import { getCurrentAccountSecurity } from "@/lib/auth/account-security"
 import { getCurrentSession } from "@/lib/auth/session"
@@ -51,11 +52,19 @@ export default async function AccountPage() {
       <div className="flex flex-col gap-4">
         <AccountMetrics stats={accountStats} />
         <dl className="flex flex-col gap-3 rounded-md border bg-card p-3">
-          <div className="flex min-w-0 flex-col gap-1">
-            <dt className="text-[0.68rem] tracking-wide text-muted-foreground">
-              EMAIL
-            </dt>
-            <dd className="truncate text-sm">{session.user.email}</dd>
+          <div className="flex min-w-0 items-center gap-3">
+            <UserAvatar user={session.user} size="lg" />
+            <div className="min-w-0">
+              <dt className="text-[0.68rem] tracking-wide text-muted-foreground">
+                ACCOUNT
+              </dt>
+              <dd className="truncate text-sm">
+                {getUserDisplayName(session.user)}
+              </dd>
+              <dd className="truncate text-[0.68rem] text-muted-foreground">
+                {session.user.email}
+              </dd>
+            </div>
           </div>
           <div className="flex min-w-0 flex-col gap-1">
             <dt className="text-[0.68rem] tracking-wide text-muted-foreground">

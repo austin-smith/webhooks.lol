@@ -9,7 +9,6 @@ import {
   BookTextIcon,
   CheckIcon,
   ChevronRightIcon,
-  HouseIcon,
   LogOutIcon,
   MenuIcon,
   MonitorIcon,
@@ -19,6 +18,7 @@ import {
 } from "lucide-react"
 import { useTheme } from "next-themes"
 
+import { getUserDisplayName, UserAvatar } from "@/components/auth/user-avatar"
 import { GithubIcon } from "@/components/icons/github-icon"
 import { useAppTheme } from "@/components/theme/app-theme-provider"
 import { Button } from "@/components/ui/button"
@@ -58,6 +58,7 @@ export function AppHeaderMenu({ docsUrl, user }: AppHeaderMenuProps) {
   const themeMode = normalizeThemeMode(theme)
   const neutralThemeEnabled = appTheme === "neutral"
   const neutralSwitchId = React.useId()
+  const displayName = user ? getUserDisplayName(user) : null
 
   async function signOut() {
     setIsSigningOut(true)
@@ -151,18 +152,33 @@ export function AppHeaderMenu({ docsUrl, user }: AppHeaderMenuProps) {
         ) : (
           <>
             <div className="flex flex-1 flex-col gap-2 p-2">
-              <SheetClose asChild>
-                <Link
-                  href="/"
-                  className={cn(
-                    mobileMenuActionClassName,
-                    "flex items-center gap-2"
-                  )}
-                >
-                  <HouseIcon aria-hidden="true" />
-                  Home
-                </Link>
-              </SheetClose>
+              {user ? (
+                <>
+                  <div className="flex min-w-0 flex-col items-center gap-2 rounded-md border bg-muted/40 px-3 py-4 text-center">
+                    <UserAvatar user={user} size="lg" />
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium">
+                        {displayName}
+                      </span>
+                      <span className="block truncate text-[0.68rem] text-muted-foreground">
+                        {user.email}
+                      </span>
+                    </span>
+                  </div>
+                  <SheetClose asChild>
+                    <Link
+                      href="/account"
+                      className={cn(
+                        mobileMenuActionClassName,
+                        "flex items-center gap-2"
+                      )}
+                    >
+                      <SettingsIcon aria-hidden="true" />
+                      Account Settings
+                    </Link>
+                  </SheetClose>
+                </>
+              ) : null}
               <Separator />
               <div className="flex flex-col gap-1">
                 <MobileMenuLabel>Appearance</MobileMenuLabel>
@@ -223,24 +239,6 @@ export function AppHeaderMenu({ docsUrl, user }: AppHeaderMenuProps) {
             <SheetFooter className="border-t">
               {user ? (
                 <div className="flex flex-col gap-1">
-                  <SheetClose asChild>
-                    <Link
-                      href="/account"
-                      className={cn(
-                        mobileMenuActionClassName,
-                        "flex items-center gap-3 text-left"
-                      )}
-                    >
-                      <SettingsIcon aria-hidden="true" />
-                      <span className="min-w-0">
-                        <span className="block">Settings</span>
-                        <span className="block truncate text-[0.68rem] text-muted-foreground">
-                          {user.email}
-                        </span>
-                      </span>
-                    </Link>
-                  </SheetClose>
-                  <Separator className="my-1" />
                   <button
                     type="button"
                     className={cn(

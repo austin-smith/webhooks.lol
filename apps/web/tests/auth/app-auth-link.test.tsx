@@ -19,7 +19,13 @@ describe("AppAuthLink", () => {
 
   it("renders the account menu when the server resolved a header user", () => {
     const html = renderToStaticMarkup(
-      <AppAuthLink user={{ email: "person@example.com" }} />
+      <AppAuthLink
+        user={{
+          email: "person@example.com",
+          image: null,
+          name: "Person Example",
+        }}
+      />
     )
 
     expect(html).toContain('data-account-menu="true"')

@@ -3,12 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import {
-  CircleUserRoundIcon,
-  LogOutIcon,
-  PaletteIcon,
-  SettingsIcon,
-} from "lucide-react"
+import { LogOutIcon, PaletteIcon, SettingsIcon } from "lucide-react"
 
 import type { AppHeaderUser } from "@/components/app/app-header"
 import { ThemeDropdownMenuItems } from "@/components/theme/theme-dropdown-menu-items"
@@ -26,10 +21,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { authClient } from "@/lib/auth/client"
+import { getUserDisplayName, UserAvatar } from "./user-avatar"
 
 export function AppAccountMenu({ user }: { user: AppHeaderUser }) {
   const router = useRouter()
   const [isSigningOut, setIsSigningOut] = React.useState(false)
+  const displayName = getUserDisplayName(user)
 
   async function signOut() {
     setIsSigningOut(true)
@@ -50,14 +47,24 @@ export function AppAccountMenu({ user }: { user: AppHeaderUser }) {
           type="button"
           variant="ghost"
           size="icon-sm"
-          className="text-muted-foreground hover:text-foreground"
+          className="rounded-full text-muted-foreground hover:text-foreground"
           aria-label="Account"
         >
-          <CircleUserRoundIcon data-icon="inline-start" />
+          <UserAvatar interactive user={user} size="sm" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel className="truncate">{user.email}</DropdownMenuLabel>
+        <DropdownMenuLabel>
+          <div className="flex min-w-0 items-center gap-2">
+            <UserAvatar user={user} size="sm" />
+            <span className="min-w-0">
+              <span className="block truncate text-foreground">
+                {displayName}
+              </span>
+              <span className="block truncate">{user.email}</span>
+            </span>
+          </div>
+        </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuItem asChild>
