@@ -10,6 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { useSyntaxTheme } from "@/components/theme/use-syntax-theme"
 import { cn } from "@/lib/utils"
 
 import { highlightRequestBody } from "./request-body-highlighting"
@@ -28,7 +29,8 @@ export function CodePanel({
   value: string
   wrap?: boolean
 }) {
-  const highlightKey = `${language}\u0000${value}`
+  const { syntaxTheme } = useSyntaxTheme()
+  const highlightKey = `${syntaxTheme}\u0000${language}\u0000${value}`
   const [highlightResult, setHighlightResult] = React.useState({
     html: "",
     key: "",
@@ -37,7 +39,7 @@ export function CodePanel({
   React.useEffect(() => {
     let ignore = false
 
-    void highlightRequestBody({ language, value })
+    void highlightRequestBody({ language, syntaxTheme, value })
       .then((html) => {
         if (!ignore) {
           setHighlightResult({ html, key: highlightKey })
@@ -52,7 +54,7 @@ export function CodePanel({
     return () => {
       ignore = true
     }
-  }, [highlightKey, language, value])
+  }, [highlightKey, language, syntaxTheme, value])
 
   const highlightedHtml =
     highlightResult.key === highlightKey ? highlightResult.html : ""
