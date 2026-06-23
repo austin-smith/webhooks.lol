@@ -20,6 +20,20 @@ replay, CLI transport, or browser endpoint-session code.
 This repo optimizes for clean, correct, modern code. Best practices and high
 code quality are expected for new code and touched code.
 
+### Clarity and Coherence Come First
+
+Clarity and coherence are more important than brevity, cleverness, or superficial
+simplicity. Code, tests, names, module boundaries, and documentation should make
+the system easier to understand as a whole. A shorter solution is not better if
+it hides ownership, blurs domain concepts, obscures data flow, weakens error
+handling, or makes future changes harder to reason about.
+
+Prefer explicit, well-shaped code that fits the existing architecture over
+compact code that requires the reader to reconstruct intent. Preserve clear
+domain language, keep responsibilities aligned with the modules that own them,
+and choose designs that make invariants and failure modes visible. Cleverness is
+only welcome when it increases clarity without reducing coherence.
+
 - Follow current best practices for Next.js App Router, React, TypeScript,
   Tailwind CSS, Drizzle, and the repo's chosen libraries.
 - Do not add shims, workaround layers, polyfill-style wrappers, fallback
@@ -218,7 +232,8 @@ belong in `apps/*`; reusable implementation belongs in packages.
 - Follow the repo's Prettier config: no semicolons, double quotes, LF endings,
   2-space indentation, trailing commas where configured, and Tailwind class
   sorting through `prettier-plugin-tailwindcss`.
-- Prefer small, cohesive modules with clear names over generic helpers.
+- Prefer small, cohesive modules with clear names over generic helpers, but do
+  not split code so aggressively that the workflow becomes harder to follow.
 - Do not scatter behavior into `utils` files without a real boundary or durable
   responsibility.
 
