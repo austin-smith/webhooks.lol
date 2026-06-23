@@ -1,19 +1,46 @@
-import type React from "react"
+import type { Metadata } from "next"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { RequestMethodBadge } from "@/components/webhook-inspector/request-method-badge"
-import { getAdminDashboardData } from "@/lib/admin/dashboard"
+import { AdminConsole } from "@/components/admin/admin-console"
+import type { AdminConsoleData } from "@/components/admin/types"
+import { Separator } from "@/components/ui/separator"
 import {
   AuthenticationRequiredError,
   AuthorizationRequiredError,
   requireAdminSession,
 } from "@/lib/auth/session"
+import {
+  ADMIN_TABLE_PAGE_SIZE_OPTIONS,
+  getAdminDashboardData,
+  type AdminDashboardQuery,
+  type AdminDashboardData,
+  type AdminEndpointFilters,
+  type AdminEndpointOwnershipFilter,
+  type AdminEndpointSort,
+  type AdminRequestFilters,
+  type AdminRequestSort,
+  type AdminSortDirection,
+  type AdminTableId,
+  type AdminTablePage,
+  type AdminTableQuery,
+  type AdminUserFilters,
+  type AdminUserSort,
+  type AdminUserVerificationFilter,
+} from "@webhooks-lol/webhooks-server/admin-reporting"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
-export default async function AdminPage() {
-  const state = await getAdminPageState()
+export const metadata: Metadata = {
+  title: "Admin | webhooks.lol",
+}
+
+type AdminPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}
+
+export default async function AdminPage({ searchParams }: AdminPageProps) {
+  const dashboardQuery = parseAdminDashboardQuery(await searchParams)
+  const state = await getAdminPageState(dashboardQuery)
 
   if (state.kind === "authentication-required") {
     return (
@@ -33,13 +60,18 @@ export default async function AdminPage() {
     )
   }
 
-  return <AdminDashboard dashboard={state.dashboard} session={state.session} />
+  return (
+    <AdminConsole
+      dashboard={serializeAdminDashboard(state.dashboard)}
+      key={state.dashboard.activeTable}
+    />
+  )
 }
 
-async function getAdminPageState() {
+async function getAdminPageState(dashboardQuery: AdminDashboardQuery) {
   try {
     const session = await requireAdminSession()
-    const dashboard = await getAdminDashboardData()
+    const dashboard = await getAdminDashboardData(dashboardQuery)
 
     return {
       kind: "dashboard" as const,
@@ -59,98 +91,181 @@ async function getAdminPageState() {
   }
 }
 
-type AdminDashboardProps = {
-  dashboard: Awaited<ReturnType<typeof getAdminDashboardData>>
-  session: Awaited<ReturnType<typeof requireAdminSession>>
+function serializeAdminDashboard(
+  dashboard: AdminDashboardData
+): AdminConsoleData {
+  return {
+    activeTable: dashboard.activeTable,
+    overview: {
+      ...dashboard.overview,
+      payloadSizeLabel: formatBytes(dashboard.overview.payloadSizeBytes),
+    },
+    requests: {
+      pagination: serializePagination(dashboard.requests),
+      rows: dashboard.requests.rows.map((request) => ({
+        endpointId: request.endpointId,
+        endpointLabel: request.endpointName ?? "Untitled endpoint",
+        id: request.id,
+        ip: request.ip,
+        method: request.method,
+        ownerEmail: request.owner?.email ?? null,
+        ownerName: request.owner?.name ?? null,
+        path: request.path,
+        receivedAtLabel: formatDateTime(request.receivedAt),
+        receivedAtTime: request.receivedAt.getTime(),
+      })),
+    },
+    users: {
+      pagination: serializePagination(dashboard.users),
+      rows: dashboard.users.rows.map((user) => ({
+        createdAtLabel: formatDateTime(user.createdAt),
+        createdAtTime: user.createdAt.getTime(),
+        email: user.email,
+        emailVerified: user.emailVerified,
+        endpointCount: user.endpointCount,
+        id: user.id,
+        lastRequestAtLabel: formatOptionalDateTime(user.lastRequestAt),
+        lastRequestAtTime: user.lastRequestAt?.getTime() ?? null,
+        name: user.name,
+        providerLabel:
+          user.providerIds.length > 0 ? user.providerIds.join(", ") : "-",
+        providerIds: user.providerIds,
+        requestCount: user.requestCount,
+        role: user.role,
+        roleLabel: user.role ?? "No role",
+      })),
+    },
+    endpoints: {
+      pagination: serializePagination(dashboard.endpoints),
+      rows: dashboard.endpoints.rows.map((endpoint) => ({
+        endpointId: endpoint.endpointId,
+        forwardTargetCount: endpoint.enabledForwardTargetCount,
+        lastActivityAtLabel: formatDateTime(endpoint.lastActivityAt),
+        lastActivityAtTime: endpoint.lastActivityAt.getTime(),
+        name: endpoint.name ?? "Untitled endpoint",
+        ownerEmail: endpoint.owner?.email ?? null,
+        ownerName: endpoint.owner?.name ?? null,
+        ownershipKind: endpoint.ownershipKind,
+        requestCount: endpoint.requestCount,
+      })),
+    },
+  }
 }
 
-function AdminDashboard({ dashboard, session }: AdminDashboardProps) {
-  return (
-    <AdminShell>
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricCard label="Requests" value={dashboard.counts.requests} />
-        <MetricCard label="Endpoints" value={dashboard.counts.endpoints} />
-        <MetricCard label="Users" value={dashboard.counts.users} />
-        <MetricCard label="Admin" value={dashboard.counts.admins} />
-      </section>
-
-      <section>
-        <Card className="rounded-lg" size="sm">
-          <CardHeader>
-            <CardTitle>Recent traffic</CardTitle>
-          </CardHeader>
-          <CardContent className="overflow-x-auto">
-            <table className="w-full min-w-[48rem] text-left font-mono text-[0.72rem]">
-              <thead className="border-b text-muted-foreground">
-                <tr>
-                  <th className="py-2 pr-3 font-medium">Time</th>
-                  <th className="py-2 pr-3 font-medium">Method</th>
-                  <th className="py-2 pr-3 font-medium">Endpoint</th>
-                  <th className="py-2 pr-3 font-medium">Path</th>
-                  <th className="py-2 pr-3 text-right font-medium">Bytes</th>
-                  <th className="py-2 pr-3 font-medium">IP</th>
-                </tr>
-              </thead>
-              <tbody>
-                {dashboard.recentRequests.map((request) => (
-                  <tr key={request.id} className="border-b last:border-0">
-                    <td className="py-2 pr-3 text-muted-foreground">
-                      {formatDateTime(request.receivedAt)}
-                    </td>
-                    <td className="py-2 pr-3">
-                      <RequestMethodBadge method={request.method} />
-                    </td>
-                    <td className="max-w-36 truncate py-2 pr-3">
-                      {request.endpointId}
-                    </td>
-                    <td className="max-w-72 truncate py-2 pr-3">
-                      {request.path}
-                    </td>
-                    <td className="py-2 pr-3 text-right">
-                      {request.bodySize.toLocaleString()}
-                    </td>
-                    <td className="py-2 pr-3 text-muted-foreground">
-                      {request.ip ?? "-"}
-                    </td>
-                  </tr>
-                ))}
-                {dashboard.recentRequests.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="py-8 text-center text-muted-foreground"
-                    >
-                      No captured requests yet.
-                    </td>
-                  </tr>
-                ) : null}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
-      </section>
-
-      <footer className="font-mono text-[0.68rem] text-muted-foreground">
-        Signed in as {session.user.email} with {session.role} access.
-      </footer>
-    </AdminShell>
-  )
+function parseAdminDashboardQuery(
+  searchParams: Record<string, string | string[] | undefined>
+): AdminDashboardQuery {
+  return {
+    activeTable: parseActiveTable(readParam(searchParams.tab)),
+    endpoints: parseTableQuery<AdminEndpointSort, AdminEndpointFilters>(
+      searchParams,
+      "e",
+      {
+        endpoint: readParam(searchParams.eEndpoint),
+        owner: readParam(searchParams.eOwner),
+        ownership: parseEndpointOwnershipFilter(
+          readParam(searchParams.eOwnership)
+        ),
+      }
+    ),
+    requests: parseTableQuery<AdminRequestSort, AdminRequestFilters>(
+      searchParams,
+      "r",
+      {
+        endpoint: readParam(searchParams.rEndpoint),
+        method: readParam(searchParams.rMethod),
+        owner: readParam(searchParams.rOwner),
+      }
+    ),
+    users: parseTableQuery<AdminUserSort, AdminUserFilters>(searchParams, "u", {
+      user: readParam(searchParams.uUser),
+      verified: parseVerificationFilter(readParam(searchParams.uVerified)),
+    }),
+  }
 }
 
-function AdminShell({ children }: { children: React.ReactNode }) {
-  return (
-    <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 px-4 py-6 sm:px-6">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b pb-4">
-        <div>
-          <h1 className="font-heading text-lg">Admin</h1>
-          <p className="font-mono text-xs text-muted-foreground">
-            App-wide activity
-          </p>
-        </div>
-      </header>
-      {children}
-    </main>
-  )
+function parseTableQuery<TSort extends string, TFilters extends object>(
+  searchParams: Record<string, string | string[] | undefined>,
+  prefix: string,
+  filters: TFilters
+): AdminTableQuery<TSort, TFilters> {
+  return {
+    direction: parseDirection(readParam(searchParams[`${prefix}Dir`])),
+    filters,
+    page: parsePositiveInteger(readParam(searchParams[`${prefix}Page`])),
+    pageSize: parsePageSize(readParam(searchParams[`${prefix}PageSize`])),
+    sort: readParam(searchParams[`${prefix}Sort`]) as TSort | undefined,
+  }
+}
+
+function serializePagination<
+  TRow,
+  TSort extends string,
+  TFilters extends object,
+>(page: AdminTablePage<TRow, TSort, TFilters>) {
+  return {
+    direction: page.direction,
+    filters: page.filters,
+    page: page.page,
+    pageCount: page.pageCount,
+    pageSize: page.pageSize,
+    sort: page.sort,
+    total: page.total,
+  }
+}
+
+function readParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value
+}
+
+function parseActiveTable(value: string | undefined): AdminTableId | undefined {
+  if (value === "endpoints" || value === "requests" || value === "users") {
+    return value
+  }
+
+  return undefined
+}
+
+function parseDirection(value: string | undefined): AdminSortDirection {
+  return value === "asc" ? "asc" : "desc"
+}
+
+function parseVerificationFilter(
+  value: string | undefined
+): AdminUserVerificationFilter | undefined {
+  if (value === "verified" || value === "unverified") {
+    return value
+  }
+
+  return undefined
+}
+
+function parseEndpointOwnershipFilter(
+  value: string | undefined
+): AdminEndpointOwnershipFilter | undefined {
+  if (value === "anonymous" || value === "unknown" || value === "user-owned") {
+    return value
+  }
+
+  return undefined
+}
+
+function parsePositiveInteger(value: string | undefined) {
+  if (!value) {
+    return undefined
+  }
+
+  const parsed = Number(value)
+
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined
+}
+
+function parsePageSize(value: string | undefined) {
+  const parsed = parsePositiveInteger(value)
+
+  return ADMIN_TABLE_PAGE_SIZE_OPTIONS.includes(parsed as never)
+    ? parsed
+    : undefined
 }
 
 function AdminAccessGate({
@@ -162,27 +277,13 @@ function AdminAccessGate({
 }) {
   return (
     <main className="mx-auto flex w-full max-w-lg flex-1 flex-col justify-center gap-4 px-4 py-6 sm:px-6">
-      <div className="space-y-2 border-b pb-4">
+      <div className="flex flex-col gap-2">
         <p className="font-mono text-xs text-muted-foreground">webhooks.lol</p>
         <h1 className="font-heading text-lg">{title}</h1>
       </div>
-      <div className="space-y-4">
-        <p className="text-sm text-muted-foreground">{description}</p>
-      </div>
+      <Separator />
+      <p className="text-sm text-muted-foreground">{description}</p>
     </main>
-  )
-}
-
-function MetricCard({ label, value }: { label: string; value: number }) {
-  return (
-    <Card className="rounded-lg" size="sm">
-      <CardHeader>
-        <CardTitle className="text-xs text-muted-foreground">{label}</CardTitle>
-      </CardHeader>
-      <CardContent className="font-mono text-2xl">
-        {value.toLocaleString()}
-      </CardContent>
-    </Card>
   )
 }
 
@@ -191,4 +292,30 @@ function formatDateTime(date: Date) {
     dateStyle: "short",
     timeStyle: "medium",
   }).format(date)
+}
+
+function formatOptionalDateTime(date: Date | null) {
+  return date ? formatDateTime(date) : "-"
+}
+
+function formatNumber(value: number) {
+  return value.toLocaleString()
+}
+
+function formatBytes(value: number) {
+  if (value < 1024) {
+    return `${formatNumber(value)} B`
+  }
+
+  if (value < 1024 * 1024) {
+    return `${formatCompactDecimal(value / 1024)} KiB`
+  }
+
+  return `${formatCompactDecimal(value / (1024 * 1024))} MiB`
+}
+
+function formatCompactDecimal(value: number) {
+  return new Intl.NumberFormat("en", {
+    maximumFractionDigits: value >= 10 ? 0 : 1,
+  }).format(value)
 }
