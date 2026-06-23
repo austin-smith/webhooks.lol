@@ -89,21 +89,31 @@ export type RequestPageOptions = {
 }
 
 export type CreateEndpointOptions = {
-  anonymousSessionId?: string | null
   creatorKeyHash?: string | null
   now?: Date
+} & (
+  | {
+      anonymousSessionId: string
+      ownerUserId?: null
+    }
+  | {
+      anonymousSessionId?: null
+      ownerUserId: string
+    }
+)
+
+type EndpointIdentity = {
+  anonymousSessionId?: string | null
   ownerUserId?: string | null
 }
 
-export async function createEndpoint(options: CreateEndpointOptions = {}) {
-  if (options.ownerUserId && options.anonymousSessionId) {
-    throw new Error("Endpoint cannot have both user and anonymous ownership.")
-  }
-
+export async function createEndpoint(options: CreateEndpointOptions) {
   const endpointId = crypto.randomUUID()
   const now = options.now ?? new Date()
   const anonymousSessionId = options.anonymousSessionId ?? null
   const ownerUserId = options.ownerUserId ?? null
+
+  assertEndpointHasSingleIdentity({ anonymousSessionId, ownerUserId })
 
   await getDatabase().transaction(async (transaction) => {
     await lockEndpointIdentityForCreate({
@@ -133,6 +143,17 @@ export async function createEndpoint(options: CreateEndpointOptions = {}) {
     endpointId,
     name: null,
   } satisfies EndpointMetadata
+}
+
+function assertEndpointHasSingleIdentity({
+  anonymousSessionId,
+  ownerUserId,
+}: EndpointIdentity) {
+  if (Boolean(ownerUserId) === Boolean(anonymousSessionId)) {
+    throw new Error(
+      "Endpoint must have exactly one owner identity: user or anonymous session."
+    )
+  }
 }
 
 export async function listEndpointsForUser(userId: string) {

@@ -44,7 +44,7 @@ export const endpoints = pgTable(
     ),
     check(
       "endpoints_single_identity_check",
-      sql`${table.ownerUserId} is null or ${table.anonymousSessionId} is null`
+      sql`num_nonnulls(${table.ownerUserId}, ${table.anonymousSessionId}) = 1`
     ),
   ]
 )

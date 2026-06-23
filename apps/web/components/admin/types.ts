@@ -1,4 +1,4 @@
-export type AdminOwnershipKind = "anonymous" | "unknown" | "user-owned"
+export type AdminOwnershipKind = "anonymous" | "user-owned"
 export type AdminEndpointOwnershipFilter = AdminOwnershipKind
 export type AdminUserVerificationFilter = "unverified" | "verified"
 export type AdminSortDirection = "asc" | "desc"

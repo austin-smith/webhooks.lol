@@ -28,7 +28,7 @@ const DEFAULT_ADMIN_PAGE = 1
 const DEFAULT_ADMIN_PAGE_SIZE = 25
 const MAX_ADMIN_FILTER_LENGTH = 120
 
-export type AdminOwnershipKind = "anonymous" | "unknown" | "user-owned"
+export type AdminOwnershipKind = "anonymous" | "user-owned"
 export type AdminEndpointOwnershipFilter = AdminOwnershipKind
 export type AdminUserVerificationFilter = "unverified" | "verified"
 export type AdminSortDirection = "asc" | "desc"
@@ -112,7 +112,6 @@ export type AdminUserRow = AdminOwnerSummary & {
 }
 
 export type AdminEndpointRow = {
-  anonymousSessionHint: string | null
   enabledForwardTargetCount: number
   endpointId: string
   lastActivityAt: Date
@@ -272,7 +271,6 @@ async function listAdminRequests(
       endpointId: capturedRequests.endpointId,
       endpointName: endpoints.name,
       endpointOwnerUserId: endpoints.ownerUserId,
-      endpointAnonymousSessionId: endpoints.anonymousSessionId,
       id: capturedRequests.id,
       ip: capturedRequests.ip,
       method: capturedRequests.method,
@@ -304,7 +302,6 @@ async function listAdminRequests(
       method: row.method,
       owner: mapOwnerSummary(row),
       ownershipKind: getOwnershipKind({
-        anonymousSessionId: row.endpointAnonymousSessionId,
         ownerUserId: row.endpointOwnerUserId,
       }),
       path: row.path,
@@ -403,7 +400,6 @@ async function listAdminEndpoints(
 
   const rows = await database
     .select({
-      anonymousSessionId: endpoints.anonymousSessionId,
       enabledForwardTargetCount: targetStats.enabledForwardTargetCount,
       endpointId: endpoints.id,
       lastActivityAt: endpoints.lastActivityAt,
@@ -434,14 +430,12 @@ async function listAdminEndpoints(
     direction: query.direction,
     filters: query.filters,
     rows: rows.map((row) => ({
-      anonymousSessionHint: createAnonymousSessionHint(row.anonymousSessionId),
       enabledForwardTargetCount: Number(row.enabledForwardTargetCount ?? 0),
       endpointId: row.endpointId,
       lastActivityAt: row.lastActivityAt,
       name: row.name,
       owner: mapOwnerSummary(row),
       ownershipKind: getOwnershipKind({
-        anonymousSessionId: row.anonymousSessionId,
         ownerUserId: row.ownerUserId,
       }),
       requestCount: Number(row.requestCount ?? 0),
@@ -772,7 +766,7 @@ function normalizeVerificationFilter(
 function normalizeEndpointOwnershipFilter(
   value: string | undefined
 ): AdminEndpointOwnershipFilter | undefined {
-  if (value === "anonymous" || value === "unknown" || value === "user-owned") {
+  if (value === "anonymous" || value === "user-owned") {
     return value
   }
 
@@ -831,27 +825,20 @@ function createFilterPattern(value: string | undefined) {
 function ownershipExpression() {
   return sql<string>`case
     when ${endpoints.ownerUserId} is not null then 'user-owned'
-    when ${endpoints.anonymousSessionId} is not null then 'anonymous'
-    else 'unknown'
+    else 'anonymous'
   end`
 }
 
 function getOwnershipKind({
-  anonymousSessionId,
   ownerUserId,
 }: {
-  anonymousSessionId: string | null
   ownerUserId: string | null
 }): AdminOwnershipKind {
   if (ownerUserId) {
     return "user-owned"
   }
 
-  if (anonymousSessionId) {
-    return "anonymous"
-  }
-
-  return "unknown"
+  return "anonymous"
 }
 
 function mapOwnerSummary(row: {
@@ -876,16 +863,4 @@ function mapOwnerSummary(row: {
 
 function splitProviderIds(providerIds: string | null) {
   return providerIds ? providerIds.split(",").filter(Boolean) : []
-}
-
-function createAnonymousSessionHint(anonymousSessionId: string | null) {
-  if (!anonymousSessionId) {
-    return null
-  }
-
-  if (anonymousSessionId.length <= 12) {
-    return anonymousSessionId
-  }
-
-  return `${anonymousSessionId.slice(0, 6)}...${anonymousSessionId.slice(-6)}`
 }

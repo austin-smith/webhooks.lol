@@ -36,7 +36,7 @@ describe("admin reporting", () => {
     }
   })
 
-  it("attributes requests to user-owned, anonymous, and unknown endpoints", async () => {
+  it("attributes requests to user-owned and anonymous endpoints", async () => {
     const owner = await createTrackedUser("owner")
     await createTrackedAccount(owner.id, "credential")
     await createTrackedAccount(owner.id, "github")
@@ -47,7 +47,6 @@ describe("admin reporting", () => {
     const anonymousEndpoint = await createTrackedEndpoint({
       anonymousSessionId: `session-${crypto.randomUUID()}`,
     })
-    const unknownEndpoint = await createTrackedEndpoint()
 
     const ownedRequest = await saveTrackedRequest({
       bodyText: "owned request",
@@ -63,14 +62,6 @@ describe("admin reporting", () => {
       path: "/anonymous",
       url: "/anonymous",
     })
-    const unknownRequest = await saveTrackedRequest({
-      bodyText: "unknown request",
-      endpointId: unknownEndpoint.endpointId,
-      method: "PATCH",
-      path: "/unknown",
-      url: "/unknown",
-    })
-
     await getDatabase()
       .update(capturedRequests)
       .set({ deleteAfterForwarding: true })
@@ -87,9 +78,6 @@ describe("admin reporting", () => {
     )
     const anonymousRecentRequest = dashboard.requests.rows.find(
       (request) => request.id === anonymousRequest.id
-    )
-    const unknownRecentRequest = dashboard.requests.rows.find(
-      (request) => request.id === unknownRequest.id
     )
     const ownerRow = dashboard.users.rows.find((row) => row.id === owner.id)
     const ownedEndpointRow = dashboard.endpoints.rows.find(
@@ -115,13 +103,6 @@ describe("admin reporting", () => {
       ownershipKind: "anonymous",
       path: "/anonymous",
     })
-    expect(unknownRecentRequest).toMatchObject({
-      endpointId: unknownEndpoint.endpointId,
-      owner: null,
-      ownershipKind: "unknown",
-      path: "/unknown",
-    })
-
     expect(ownerRow).toMatchObject({
       email: owner.email,
       endpointCount: 1,
@@ -143,14 +124,12 @@ describe("admin reporting", () => {
       ownershipKind: "anonymous",
       requestCount: 1,
     })
-    expect(anonymousEndpointRow?.anonymousSessionHint).toBeTruthy()
     expect(dashboard.overview.users).toBeGreaterThanOrEqual(1)
     expect(dashboard.overview.userOwnedEndpoints).toBeGreaterThanOrEqual(1)
     expect(dashboard.overview.anonymousEndpoints).toBeGreaterThanOrEqual(1)
     expect(dashboard.overview.payloadSizeBytes).toBeGreaterThanOrEqual(
       Buffer.byteLength("owned request") +
-        Buffer.byteLength("anonymous request") +
-        Buffer.byteLength("unknown request")
+        Buffer.byteLength("anonymous request")
     )
   })
 
@@ -402,7 +381,9 @@ async function createTrackedAccount(userId: string, providerId: string) {
 }
 
 async function createTrackedEndpoint(
-  options: Parameters<typeof createEndpoint>[0] = {}
+  options: Parameters<typeof createEndpoint>[0] = {
+    anonymousSessionId: `session-${crypto.randomUUID()}`,
+  }
 ) {
   const endpoint = await createEndpoint(options)
   createdEndpointIds.push(endpoint.endpointId)

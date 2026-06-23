@@ -73,8 +73,7 @@ describe("request replay forwarding", () => {
   })
 
   it("queues forwarding deliveries for the replayed request", async () => {
-    const endpoint = await createEndpoint()
-    createdEndpointIds.push(endpoint.endpointId)
+    const endpoint = await createTrackedEndpoint()
     const target = await createEndpointForwardTarget({
       endpointId: endpoint.endpointId,
       url: "https://example.com/webhook",
@@ -125,6 +124,14 @@ describe("request replay forwarding", () => {
     })
   })
 })
+
+async function createTrackedEndpoint() {
+  const endpoint = await createEndpoint({
+    anonymousSessionId: `session-${crypto.randomUUID()}`,
+  })
+  createdEndpointIds.push(endpoint.endpointId)
+  return endpoint
+}
 
 function createAllowedAdmission() {
   return {

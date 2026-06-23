@@ -539,7 +539,6 @@ function createEndpointColumnFilters({
         options={[
           { label: "User-owned", value: "user-owned" },
           { label: "Anonymous", value: "anonymous" },
-          { label: "Unattributed", value: "unknown" },
         ]}
       />
     ),
@@ -713,11 +712,7 @@ function OwnershipBadge({ kind }: { kind: AdminOwnershipKind }) {
     return <Badge>User-owned</Badge>
   }
 
-  if (kind === "anonymous") {
-    return <Badge variant="secondary">Anonymous</Badge>
-  }
-
-  return <Badge variant="outline">Unattributed</Badge>
+  return <Badge variant="secondary">Anonymous</Badge>
 }
 
 function EntityCell({

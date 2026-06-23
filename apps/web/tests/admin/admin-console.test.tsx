@@ -36,6 +36,7 @@ describe("AdminConsole", () => {
     expect(html).toContain("Method filter")
     expect(html).not.toContain("No owner")
     expect(html).not.toContain("Unknown")
+    expect(html).not.toContain("Unattributed")
     expect(html).not.toContain("unowned")
     expect(html).not.toContain("Guest endpoints")
     expect(html).not.toContain("Active sessions")
@@ -117,7 +118,7 @@ function createDashboard(): AdminConsoleData {
           receivedAtTime: 1782098400000,
         },
         {
-          endpointId: "endpoint-unattributed",
+          endpointId: "endpoint-anonymous",
           endpointLabel: "Legacy endpoint",
           id: "request-2",
           ip: null,

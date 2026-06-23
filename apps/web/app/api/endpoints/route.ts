@@ -67,17 +67,26 @@ export async function POST(request: Request) {
   }
 
   const actor = await getEndpointAccessActor(request)
-  const anonymousSession = actor.userId
-    ? null
-    : getAnonymousEndpointSession(request)
-  const response = await createEndpoint({
-    anonymousSessionId: anonymousSession?.id ?? null,
-    creatorKeyHash: admission.clientIdentity.keyHash,
-    ownerUserId: actor.userId,
-  })
   const headers = new Headers(NO_STORE_HEADERS)
 
-  if (anonymousSession?.setCookie) {
+  if (actor.userId) {
+    const response = await createEndpoint({
+      anonymousSessionId: null,
+      creatorKeyHash: admission.clientIdentity.keyHash,
+      ownerUserId: actor.userId,
+    })
+
+    return Response.json(response, { headers })
+  }
+
+  const anonymousSession = getAnonymousEndpointSession(request)
+  const response = await createEndpoint({
+    anonymousSessionId: anonymousSession.id,
+    creatorKeyHash: admission.clientIdentity.keyHash,
+    ownerUserId: null,
+  })
+
+  if (anonymousSession.setCookie) {
     headers.append("Set-Cookie", anonymousSession.setCookie)
   }
 

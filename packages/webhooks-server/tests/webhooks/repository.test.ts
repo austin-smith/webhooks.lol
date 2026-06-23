@@ -57,6 +57,23 @@ describe("webhook repository request search", () => {
     ])
   })
 
+  it("requires exactly one endpoint owner identity", async () => {
+    await expect(
+      // @ts-expect-error Invalid by type; covered here for the runtime guard.
+      createEndpoint({
+        anonymousSessionId: null,
+        ownerUserId: null,
+      })
+    ).rejects.toThrow("exactly one owner identity")
+    await expect(
+      // @ts-expect-error Invalid by type; covered here for the runtime guard.
+      createEndpoint({
+        anonymousSessionId: `session-${crypto.randomUUID()}`,
+        ownerUserId: `user-${crypto.randomUUID()}`,
+      })
+    ).rejects.toThrow("exactly one owner identity")
+  })
+
   it("allows anonymous access to anonymous endpoints", async () => {
     const endpoint = await createTrackedEndpoint()
 
@@ -240,6 +257,7 @@ describe("webhook repository request search", () => {
       now: new Date("2026-06-03T12:00:00.000Z"),
     })
     await createTrackedEndpoint({
+      anonymousSessionId: `session-${crypto.randomUUID()}`,
       now: new Date("2026-06-04T12:00:00.000Z"),
     })
 
@@ -636,7 +654,9 @@ describe("webhook repository request search", () => {
 })
 
 async function createTrackedEndpoint(
-  options: Parameters<typeof createEndpoint>[0] = {}
+  options: Parameters<typeof createEndpoint>[0] = {
+    anonymousSessionId: `session-${crypto.randomUUID()}`,
+  }
 ) {
   const endpoint = await createEndpoint(options)
   createdEndpointIds.push(endpoint.endpointId)

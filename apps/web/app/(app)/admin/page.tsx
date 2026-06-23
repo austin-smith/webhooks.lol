@@ -243,7 +243,7 @@ function parseVerificationFilter(
 function parseEndpointOwnershipFilter(
   value: string | undefined
 ): AdminEndpointOwnershipFilter | undefined {
-  if (value === "anonymous" || value === "unknown" || value === "user-owned") {
+  if (value === "anonymous" || value === "user-owned") {
     return value
   }
 
