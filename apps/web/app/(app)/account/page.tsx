@@ -8,6 +8,7 @@ import { AccountActions } from "@/components/auth/account-actions"
 import { AccountProfileEditDialog } from "@/components/auth/account-profile-edit-dialog"
 import { ChangePasswordForm } from "@/components/auth/change-password-form"
 import { getUserDisplayName, UserAvatar } from "@/components/auth/user-avatar"
+import { AccountDisplaySettings } from "@/components/theme/account-display-settings"
 import { formatRelativeTime } from "@/components/webhook-inspector/request-formatters"
 import { getCurrentAccountSecurity } from "@/lib/auth/account-security"
 import { getCurrentSession } from "@/lib/auth/session"
@@ -77,6 +78,7 @@ export default async function AccountPage() {
             </dd>
           </div>
         </dl>
+        <AccountDisplaySettings />
         {accountSecurity.canChangePassword ? <ChangePasswordForm /> : null}
         <AccountActions />
       </div>

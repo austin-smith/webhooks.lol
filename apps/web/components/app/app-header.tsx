@@ -5,7 +5,7 @@ import { BookTextIcon } from "lucide-react"
 
 import { AppAuthLink } from "@/components/auth/app-auth-link"
 import { GithubIcon } from "@/components/icons/github-icon"
-import { ThemeSwitcher } from "@/components/theme/theme-switcher"
+import { DisplayDropdownMenu } from "@/components/theme/display-dropdown-menu"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { AppHeaderMenu } from "./app-header-menu"
@@ -64,7 +64,7 @@ export function AppHeader({ docsUrl, user }: AppHeaderProps) {
             className="flex items-center gap-0.5"
           >
             <AppAuthLink user={user} />
-            {user ? null : <ThemeSwitcher trigger="preferences" />}
+            {user ? null : <DisplayDropdownMenu />}
           </div>
         </div>
         <nav

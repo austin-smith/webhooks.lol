@@ -11,7 +11,7 @@ import {
 } from "lucide-react"
 
 import type { AppHeaderUser } from "@/components/app/app-header"
-import { ThemeDropdownMenuItems } from "@/components/theme/theme-dropdown-menu-items"
+import { DisplayDropdownMenuItems } from "@/components/theme/display-dropdown-menu"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -74,7 +74,7 @@ export function AppAccountMenu({ user }: { user: AppHeaderUser }) {
               Customize
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent className="w-44">
-              <ThemeDropdownMenuItems />
+              <DisplayDropdownMenuItems />
             </DropdownMenuSubContent>
           </DropdownMenuSub>
         </DropdownMenuGroup>

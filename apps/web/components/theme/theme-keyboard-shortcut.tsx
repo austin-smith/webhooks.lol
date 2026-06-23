@@ -3,6 +3,8 @@
 import * as React from "react"
 import { useTheme } from "next-themes"
 
+import { THEME } from "@/components/theme/display-options"
+
 export function ThemeKeyboardShortcut() {
   const { resolvedTheme, setTheme } = useTheme()
 
@@ -22,13 +24,15 @@ export function ThemeKeyboardShortcut() {
       }
 
       const currentTheme =
-        resolvedTheme === "dark" || resolvedTheme === "light"
+        resolvedTheme === THEME.DARK.value ||
+        resolvedTheme === THEME.LIGHT.value
           ? resolvedTheme
           : document.documentElement.classList.contains("dark")
-            ? "dark"
-            : "light"
+            ? THEME.DARK.value
+            : THEME.LIGHT.value
 
-      const nextTheme = currentTheme === "dark" ? "light" : "dark"
+      const nextTheme =
+        currentTheme === THEME.DARK.value ? THEME.LIGHT.value : THEME.DARK.value
 
       setTheme(nextTheme)
     }

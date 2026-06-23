@@ -11,16 +11,21 @@ import {
   ChevronRightIcon,
   LogOutIcon,
   MenuIcon,
-  MonitorIcon,
-  MoonIcon,
   SettingsIcon,
-  SunIcon,
 } from "lucide-react"
 import { useTheme } from "next-themes"
 
 import { AccountMenuIdentity } from "@/components/auth/account-menu-identity"
 import { GithubIcon } from "@/components/icons/github-icon"
 import { useAppTheme } from "@/components/theme/app-theme-provider"
+import { useHydratedThemeOption } from "@/components/theme/use-hydrated-theme-option"
+import {
+  APPEARANCE,
+  THEME_OPTIONS,
+  type ThemeIcon,
+  type ThemeOption,
+  getThemeLabel,
+} from "@/components/theme/display-options"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import {
@@ -45,7 +50,6 @@ type AppHeaderMenuProps = {
   user: AppHeaderUser | null
 }
 
-type ThemeMode = "system" | "light" | "dark"
 type MenuView = "main" | "theme"
 
 export function AppHeaderMenu({ docsUrl, user }: AppHeaderMenuProps) {
@@ -55,8 +59,8 @@ export function AppHeaderMenu({ docsUrl, user }: AppHeaderMenuProps) {
   const [open, setOpen] = React.useState(false)
   const [menuView, setMenuView] = React.useState<MenuView>("main")
   const [isSigningOut, setIsSigningOut] = React.useState(false)
-  const themeMode = normalizeThemeMode(theme)
-  const neutralThemeEnabled = appTheme === "neutral"
+  const currentTheme = useHydratedThemeOption(theme)
+  const neutralThemeEnabled = appTheme === APPEARANCE.NEUTRAL.value
   const neutralSwitchId = React.useId()
 
   async function signOut() {
@@ -142,9 +146,9 @@ export function AppHeaderMenu({ docsUrl, user }: AppHeaderMenuProps) {
         )}
         {menuView === "theme" ? (
           <ThemeMenuView
-            themeMode={themeMode}
-            onThemeModeChange={(nextThemeMode) => {
-              setTheme(nextThemeMode)
+            currentTheme={currentTheme}
+            onThemeChange={(nextTheme) => {
+              setTheme(nextTheme)
               setMenuView("main")
             }}
           />
@@ -175,13 +179,17 @@ export function AppHeaderMenu({ docsUrl, user }: AppHeaderMenuProps) {
                   htmlFor={neutralSwitchId}
                   className="flex items-center justify-between gap-3 rounded-sm px-2 py-2 text-xs hover:bg-accent hover:text-accent-foreground"
                 >
-                  <span>Neutral</span>
+                  <span>{APPEARANCE.NEUTRAL.label}</span>
                   <Switch
                     id={neutralSwitchId}
                     size="sm"
                     checked={neutralThemeEnabled}
                     onCheckedChange={(checked) => {
-                      setAppTheme(checked ? "neutral" : "branded")
+                      setAppTheme(
+                        checked
+                          ? APPEARANCE.NEUTRAL.value
+                          : APPEARANCE.BRANDED.value
+                      )
                     }}
                     aria-label="Neutral appearance"
                   />
@@ -196,14 +204,14 @@ export function AppHeaderMenu({ docsUrl, user }: AppHeaderMenuProps) {
                     mobileMenuActionClassName,
                     "flex items-center justify-between gap-3 text-left"
                   )}
-                  aria-label={`Theme, ${getThemeModeLabel(themeMode)}`}
+                  aria-label={`Theme, ${getThemeLabel(currentTheme)}`}
                   onClick={() => {
                     setMenuView("theme")
                   }}
                 >
                   <span>Theme</span>
                   <span className="flex items-center gap-2 text-muted-foreground">
-                    <span>{getThemeModeLabel(themeMode)}</span>
+                    <span>{getThemeLabel(currentTheme)}</span>
                     <ChevronRightIcon aria-hidden="true" />
                   </span>
                 </button>
@@ -259,32 +267,23 @@ export function AppHeaderMenu({ docsUrl, user }: AppHeaderMenuProps) {
 }
 
 function ThemeMenuView({
-  themeMode,
-  onThemeModeChange,
+  currentTheme,
+  onThemeChange,
 }: {
-  themeMode: ThemeMode
-  onThemeModeChange: (themeMode: ThemeMode) => void
+  currentTheme: ThemeOption
+  onThemeChange: (theme: ThemeOption) => void
 }) {
   return (
     <div className="flex flex-1 flex-col gap-1 p-2">
-      <ThemeMenuItem
-        value="system"
-        selected={themeMode === "system"}
-        icon={MonitorIcon}
-        onSelect={onThemeModeChange}
-      />
-      <ThemeMenuItem
-        value="light"
-        selected={themeMode === "light"}
-        icon={SunIcon}
-        onSelect={onThemeModeChange}
-      />
-      <ThemeMenuItem
-        value="dark"
-        selected={themeMode === "dark"}
-        icon={MoonIcon}
-        onSelect={onThemeModeChange}
-      />
+      {THEME_OPTIONS.map((themeOption) => (
+        <ThemeMenuItem
+          key={themeOption.value}
+          value={themeOption.value}
+          selected={currentTheme === themeOption.value}
+          icon={themeOption.icon}
+          onSelect={onThemeChange}
+        />
+      ))}
     </div>
   )
 }
@@ -295,12 +294,12 @@ function ThemeMenuItem({
   icon: Icon,
   onSelect,
 }: {
-  value: ThemeMode
+  value: ThemeOption
   selected: boolean
-  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>
-  onSelect: (themeMode: ThemeMode) => void
+  icon: ThemeIcon
+  onSelect: (theme: ThemeOption) => void
 }) {
-  const label = getThemeModeLabel(value)
+  const label = getThemeLabel(value)
 
   return (
     <button
@@ -361,22 +360,3 @@ const MobileMenuAnchor = React.forwardRef<
     </a>
   )
 })
-
-function normalizeThemeMode(theme: string | undefined): ThemeMode {
-  return isThemeMode(theme) ? theme : "system"
-}
-
-function isThemeMode(value: unknown): value is ThemeMode {
-  return value === "system" || value === "light" || value === "dark"
-}
-
-function getThemeModeLabel(themeMode: ThemeMode) {
-  switch (themeMode) {
-    case "system":
-      return "System"
-    case "light":
-      return "Light"
-    case "dark":
-      return "Dark"
-  }
-}
