@@ -8,6 +8,7 @@
   <img alt="TypeScript 5" src="https://img.shields.io/badge/TypeScript%205-3178C6?logo=typescript&logoColor=white">
   <img alt="PostgreSQL 18" src="https://img.shields.io/badge/PostgreSQL%2018-4169E1?logo=postgresql&logoColor=white">
   <img alt="Redis 8" src="https://img.shields.io/badge/Redis%208-FF4438?logo=redis&logoColor=white">
+  <img alt="PgBoss 12" src="https://img.shields.io/badge/PgBoss%2012-336791?logo=postgresql&logoColor=white">
 </p>
 
 A small webhook endpoint for receiving and inspecting HTTP requests. The app
