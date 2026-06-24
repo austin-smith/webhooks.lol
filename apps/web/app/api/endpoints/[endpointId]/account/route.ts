@@ -10,6 +10,7 @@ import {
   createEndpointNotFoundResponse,
   createInvalidEndpointResponse,
 } from "@webhooks-lol/webhooks-server/endpoint-route-responses"
+import { publishEndpointAccessRevoked } from "@webhooks-lol/webhooks-server/endpoint-event-stream"
 import { NO_STORE_HEADERS } from "@webhooks-lol/webhooks-server/http/headers"
 import {
   getEndpointAccountStatus,
@@ -89,6 +90,8 @@ export async function POST(
       endpointId,
       ownerUserId,
     })
+
+    publishEndpointAccessRevoked(endpointId)
 
     return Response.json(response satisfies EndpointAccountResponse, {
       headers: NO_STORE_HEADERS,

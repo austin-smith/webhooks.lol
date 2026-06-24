@@ -9,6 +9,7 @@ const {
   getEndpoint,
   getEndpointForActor,
   listEndpointsForUser,
+  publishEndpointAccessRevoked,
   requireEndpointUserId,
   saveEndpointToAccount,
   updateEndpointName,
@@ -21,6 +22,7 @@ const {
   getEndpoint: vi.fn(),
   getEndpointForActor: vi.fn(),
   listEndpointsForUser: vi.fn(),
+  publishEndpointAccessRevoked: vi.fn(),
   requireEndpointUserId: vi.fn(),
   saveEndpointToAccount: vi.fn(),
   updateEndpointName: vi.fn(),
@@ -28,6 +30,10 @@ const {
 
 vi.mock("@webhooks-lol/webhooks-server/admission-control", () => ({
   checkEndpointCreateAdmission,
+}))
+
+vi.mock("@webhooks-lol/webhooks-server/endpoint-event-stream", () => ({
+  publishEndpointAccessRevoked,
 }))
 
 vi.mock("@webhooks-lol/webhooks-server/repository", async (importOriginal) => ({
@@ -116,6 +122,7 @@ describe("endpoint route", () => {
     getEndpoint.mockReset()
     getEndpointForActor.mockReset()
     listEndpointsForUser.mockReset()
+    publishEndpointAccessRevoked.mockReset()
     requireEndpointUserId.mockReset()
     requireEndpointUserId.mockResolvedValue("user-1")
     saveEndpointToAccount.mockReset()
@@ -452,6 +459,7 @@ describe("endpoint route", () => {
       endpointId: ENDPOINT_ID,
       ownerUserId: "user-1",
     })
+    expect(publishEndpointAccessRevoked).toHaveBeenCalledWith(ENDPOINT_ID)
   })
 
   it("requires authentication before saving an endpoint to an account", async () => {
@@ -478,6 +486,7 @@ describe("endpoint route", () => {
       error: "Authentication is required.",
     })
     expect(saveEndpointToAccount).not.toHaveBeenCalled()
+    expect(publishEndpointAccessRevoked).not.toHaveBeenCalled()
   })
 
   it("requires the anonymous session cookie before saving an endpoint to an account", async () => {
@@ -493,6 +502,7 @@ describe("endpoint route", () => {
 
     expect(response.status).toBe(404)
     expect(saveEndpointToAccount).not.toHaveBeenCalled()
+    expect(publishEndpointAccessRevoked).not.toHaveBeenCalled()
   })
 
   it("hides endpoint save ownership failures behind the endpoint not found response", async () => {
@@ -514,5 +524,6 @@ describe("endpoint route", () => {
     )
 
     expect(response.status).toBe(404)
+    expect(publishEndpointAccessRevoked).not.toHaveBeenCalled()
   })
 })
