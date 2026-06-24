@@ -5,7 +5,7 @@ import { redirect } from "next/navigation"
 import { AuthPageShell } from "@/components/auth/auth-page-shell"
 import { ForgotPasswordForm } from "@/components/auth/forgot-password-form"
 import { Button } from "@/components/ui/button"
-import { resolveAuthRedirectPath } from "@/lib/auth/redirects"
+import { resolveAuthRedirectPath } from "@/lib/auth/redirect-targets"
 import { getCurrentSession } from "@/lib/auth/session"
 
 export const runtime = "nodejs"

@@ -3,7 +3,7 @@ import { redirect } from "next/navigation"
 
 import { AuthMethodPanel } from "@/components/auth/auth-method-panel"
 import { AuthPageShell } from "@/components/auth/auth-page-shell"
-import { resolveAuthRedirectPath } from "@/lib/auth/redirects"
+import { resolveAuthRedirectPath } from "@/lib/auth/redirect-targets"
 import { getCurrentSession } from "@/lib/auth/session"
 
 export const runtime = "nodejs"

@@ -8,7 +8,7 @@ import { authClient } from "@/lib/auth/client"
 import {
   createAuthRedirectHref,
   createEmailVerificationCallbackPath,
-} from "@/lib/auth/redirects"
+} from "@/lib/auth/redirect-links"
 import {
   AuthFormFeedback,
   type AuthFormFeedbackState,

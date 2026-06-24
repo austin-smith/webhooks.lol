@@ -1,18 +1,33 @@
-import { describe, expect, it } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import {
   authRedirectSavesEndpoint,
   createAuthRedirectHref,
   createEmailVerificationCallbackPath,
-  resolveAuthRedirectPath,
-} from "@/lib/auth/redirects"
+} from "@/lib/auth/redirect-links"
+import { resolveAuthRedirectPath } from "@/lib/auth/redirect-targets"
 
 describe("resolveAuthRedirectPath", () => {
+  beforeEach(() => {
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://webhooks.lol")
+  })
+
   it("keeps same-origin paths", () => {
     expect(resolveAuthRedirectPath("/admin")).toBe("/admin")
     expect(resolveAuthRedirectPath("/endpoint/abc?tab=headers")).toBe(
       "/endpoint/abc?tab=headers"
     )
+  })
+
+  it("normalizes same-origin absolute URLs to internal paths", () => {
+    expect(resolveAuthRedirectPath("https://webhooks.lol/account")).toBe(
+      "/account"
+    )
+    expect(
+      resolveAuthRedirectPath(
+        "https://webhooks.lol/endpoint/abc?tab=headers#body"
+      )
+    ).toBe("/endpoint/abc?tab=headers#body")
   })
 
   it("uses the first value when search params contain an array", () => {
@@ -22,6 +37,14 @@ describe("resolveAuthRedirectPath", () => {
   it("rejects external redirects", () => {
     expect(resolveAuthRedirectPath("https://example.com")).toBe("/")
     expect(resolveAuthRedirectPath("//example.com")).toBe("/")
+    expect(resolveAuthRedirectPath("https://webhooks.lol.example.com")).toBe(
+      "/"
+    )
+  })
+
+  it("rejects browser-normalized network-path redirects", () => {
+    expect(resolveAuthRedirectPath("/\\example.com")).toBe("/")
+    expect(resolveAuthRedirectPath("/\\/example.com")).toBe("/")
   })
 
   it("rejects auth-internal redirects", () => {

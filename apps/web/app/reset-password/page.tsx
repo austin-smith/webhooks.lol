@@ -4,7 +4,7 @@ import Link from "next/link"
 import { AuthPageShell } from "@/components/auth/auth-page-shell"
 import { PasswordResetTokenForm } from "@/components/auth/password-reset-token-form"
 import { Button } from "@/components/ui/button"
-import { resolveAuthRedirectPath } from "@/lib/auth/redirects"
+import { resolveAuthRedirectPath } from "@/lib/auth/redirect-targets"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"

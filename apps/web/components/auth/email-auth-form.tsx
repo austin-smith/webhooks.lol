@@ -24,7 +24,7 @@ import {
   createAuthRedirectHref,
   createEmailVerificationCallbackPath,
   FORGOT_PASSWORD_PATH,
-} from "@/lib/auth/redirects"
+} from "@/lib/auth/redirect-links"
 import {
   AuthFormFeedback,
   type AuthFormFeedbackState,

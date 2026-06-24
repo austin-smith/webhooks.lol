@@ -16,7 +16,7 @@ import {
   type ForgotPasswordFieldErrors,
   validateForgotPasswordInput,
 } from "@/lib/auth/password-reset-validation"
-import { RESET_PASSWORD_PATH } from "@/lib/auth/redirects"
+import { RESET_PASSWORD_PATH } from "@/lib/auth/redirect-links"
 import {
   AuthFormFeedback,
   type AuthFormFeedbackState,

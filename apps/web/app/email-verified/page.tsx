@@ -3,10 +3,8 @@ import Link from "next/link"
 
 import { AuthPageShell } from "@/components/auth/auth-page-shell"
 import { Button } from "@/components/ui/button"
-import {
-  createAuthRedirectHref,
-  resolveAuthRedirectPath,
-} from "@/lib/auth/redirects"
+import { createAuthRedirectHref } from "@/lib/auth/redirect-links"
+import { resolveAuthRedirectPath } from "@/lib/auth/redirect-targets"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
