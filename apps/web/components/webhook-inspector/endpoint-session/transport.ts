@@ -2,11 +2,13 @@ import type { CapturedRequest } from "@webhooks-lol/webhooks-core/types"
 import type {
   CreateEndpointForwardTargetRequest,
   CreateEndpointResponse,
+  EndpointAccountResponse,
   EndpointForwardTargetResponse,
   EndpointForwardTargetsResponse,
   EndpointMetadataResponse,
   EndpointResponseConfigResponse,
   EndpointStatsResponse,
+  EndpointsResponse,
   ReplayRequestResponse,
   RequestsResponse,
   UpdateEndpointForwardTargetRequest,
@@ -39,6 +41,10 @@ export type EndpointTransport = {
   createEndpoint: () => Promise<EndpointMetadata>
   deleteForwardTarget: (endpointId: string, targetId: string) => Promise<void>
   listForwardTargets: (endpointId: string) => Promise<EndpointForwardTarget[]>
+  listOwnedEndpoints: () => Promise<EndpointMetadata[]>
+  loadEndpointAccountStatus: (
+    endpointId: string
+  ) => Promise<EndpointAccountStatus>
   loadEndpoint: (endpointId: string) => Promise<EndpointMetadata>
   loadEndpointStats: (endpointId: string) => Promise<EndpointStats>
   loadEndpointResponseConfig: (
@@ -59,6 +65,7 @@ export type EndpointTransport = {
     endpointId: string,
     requestId: string
   ) => Promise<CapturedRequest>
+  saveEndpointToAccount: (endpointId: string) => Promise<EndpointAccountStatus>
   updateEndpointMetadata: (
     endpointId: string,
     metadata: UpdateEndpointMetadataRequest
@@ -75,6 +82,7 @@ export type EndpointMetadata = {
   name: string | null
 }
 
+export type EndpointAccountStatus = EndpointAccountResponse
 export type EndpointStats = EndpointStatsResponse
 export type EndpointForwardTarget =
   EndpointForwardTargetsResponse["targets"][number]
@@ -178,6 +186,21 @@ export function createFetchEndpointTransport(
         )
       }
     },
+    async listOwnedEndpoints() {
+      const response = await fetcher("/api/endpoints", {
+        cache: "no-store",
+      })
+
+      if (!response.ok) {
+        throw new Error(
+          await readResponseError(response, "Could not load endpoints.")
+        )
+      }
+
+      const data = (await response.json()) as EndpointsResponse
+
+      return data.endpoints.map(mapEndpointMetadata)
+    },
     async listForwardTargets(endpointId) {
       const encodedEndpointId = encodeEndpointId(endpointId)
       const response = await fetcher(
@@ -196,6 +219,26 @@ export function createFetchEndpointTransport(
       const data = (await response.json()) as EndpointForwardTargetsResponse
 
       return data.targets
+    },
+    async loadEndpointAccountStatus(endpointId) {
+      const encodedEndpointId = encodeEndpointId(endpointId)
+      const response = await fetcher(
+        `/api/endpoints/${encodedEndpointId}/account`,
+        {
+          cache: "no-store",
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error(
+          await readResponseError(
+            response,
+            "Could not load endpoint account status."
+          )
+        )
+      }
+
+      return (await response.json()) as EndpointAccountStatus
     },
     async loadEndpoint(endpointId) {
       const encodedEndpointId = encodeEndpointId(endpointId)
@@ -328,6 +371,23 @@ export function createFetchEndpointTransport(
       const data = (await response.json()) as ReplayRequestResponse
 
       return data.request
+    },
+    async saveEndpointToAccount(endpointId) {
+      const encodedEndpointId = encodeEndpointId(endpointId)
+      const response = await fetcher(
+        `/api/endpoints/${encodedEndpointId}/account`,
+        {
+          method: "POST",
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error(
+          await readResponseError(response, "Could not save endpoint.")
+        )
+      }
+
+      return (await response.json()) as EndpointAccountStatus
     },
     async updateEndpointMetadata(endpointId, metadata) {
       const encodedEndpointId = encodeEndpointId(endpointId)

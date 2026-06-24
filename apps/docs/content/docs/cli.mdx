@@ -23,13 +23,14 @@ webhook configuration and trigger an event.
 
 ### forward
 
-Create or attach to an endpoint and deliver its requests to a local URL.
+Create or attach to an anonymous endpoint and deliver its requests to a local
+URL.
 
 ```bash
-# Create a new endpoint and forward to a local server
+# Create a new anonymous endpoint and forward to a local server
 npx whlol forward --to http://localhost:3000/api/webhooks
 
-# Attach to an existing endpoint
+# Attach to an existing anonymous endpoint
 npx whlol forward <endpoint-id> --to http://localhost:3000/hook
 ```
 
@@ -46,7 +47,8 @@ unreachable, delivery is retried with backoff.
 
 ### tail
 
-Stream live requests to your terminal without delivering them anywhere.
+Stream live requests from an anonymous endpoint to your terminal without
+delivering them anywhere.
 
 ```bash
 npx whlol tail <endpoint-id>
@@ -55,10 +57,10 @@ npx whlol tail <endpoint-id> --json | jq .
 
 ### replay
 
-Re-send a stored request, or a filtered set of them, on demand. Without `--to`,
-the stored request is re-submitted through webhooks.lol and appears as a new
-captured request for the same endpoint. With `--to`, the CLI sends the replay to
-a local server from your machine.
+Re-send a stored request, or a filtered set of them, from an anonymous endpoint
+on demand. Without `--to`, the stored request is re-submitted through
+webhooks.lol and appears as a new captured request for the same endpoint. With
+`--to`, the CLI sends the replay to a local server from your machine.
 
 ```bash
 # Replay one request by id through webhooks.lol
@@ -98,10 +100,13 @@ string preserved. Pass `--path strip` to always deliver to the exact `--to` URL.
 | `--allow-remote`    | Allow a non-local `--to` host.                                                |
 | `--json`            | Emit machine-readable JSON lines.                                             |
 | `--no-color`        | Disable colored output.                                                       |
+| `-h`, `--help`      | Show help.                                                                    |
+| `-v`, `--version`   | Show the installed CLI version.                                               |
 
 ## Self-hosting
 
-Point the CLI at your own deployment with `--host`, or set `WEBHOOKS_LOL_URL`:
+Point the CLI at your own deployment with `--host`, or set `WEBHOOKS_LOL_URL`.
+The endpoint must still be anonymous:
 
 ```bash
 WEBHOOKS_LOL_URL=http://localhost:4665 npx whlol tail <endpoint-id>
@@ -109,7 +114,10 @@ WEBHOOKS_LOL_URL=http://localhost:4665 npx whlol tail <endpoint-id>
 
 ## Security
 
-The endpoint ID is the only credential for CLI access: anyone who has it can
-read, replay, and forward captured traffic. Treat the receive URL and the ID as
-secrets. By default `--to` must be a local or private-network host; pass
-`--allow-remote` only when you intend to relay traffic to a remote server.
+The current CLI protocol supports anonymous endpoints only. `whlol` can read,
+replay, and forward traffic for anonymous endpoints by endpoint ID.
+Account-owned endpoints created while signed in require the owning browser
+session and are not exposed to the CLI at this time.
+
+By default `--to` must be a local or private-network host; pass
+`--allow-remote` only when the forwarding target is intentionally remote.

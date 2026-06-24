@@ -1,3 +1,4 @@
+import { getEndpointAccessActor } from "@/lib/auth/endpoint-access"
 import { NO_STORE_HEADERS } from "@webhooks-lol/webhooks-server/http/headers"
 import {
   readBoundedTextBody,
@@ -20,6 +21,10 @@ import {
   createInvalidEndpointResponse,
 } from "@webhooks-lol/webhooks-server/endpoint-route-responses"
 import { isUuid } from "@webhooks-lol/webhooks-core/id-format"
+import {
+  assertEndpointAccessibleToActor,
+  isEndpointUnavailableError,
+} from "@webhooks-lol/webhooks-server/repository"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -43,6 +48,10 @@ export async function PATCH(
   }
 
   try {
+    await assertEndpointAccessibleToActor(
+      params.endpointId,
+      await getEndpointAccessActor(request)
+    )
     const response = {
       endpointId: params.endpointId,
       target: await updateEndpointForwardTarget({
@@ -59,7 +68,7 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   context: RouteContext<"/api/endpoints/[endpointId]/forward-targets/[targetId]">
 ) {
   const params = await readEndpointForwardTargetRouteParams(context)
@@ -69,6 +78,10 @@ export async function DELETE(
   }
 
   try {
+    await assertEndpointAccessibleToActor(
+      params.endpointId,
+      await getEndpointAccessActor(request)
+    )
     await deleteEndpointForwardTarget({
       endpointId: params.endpointId,
       targetId: params.targetId,
@@ -195,7 +208,10 @@ async function readUpdateEndpointForwardTargetRequest(request: Request) {
 }
 
 function handleEndpointForwardTargetUpdateError(error: unknown) {
-  if (isEndpointForwardingEndpointUnavailableError(error)) {
+  if (
+    isEndpointForwardingEndpointUnavailableError(error) ||
+    isEndpointUnavailableError(error)
+  ) {
     return createEndpointNotFoundResponse()
   }
 

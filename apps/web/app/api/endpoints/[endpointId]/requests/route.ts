@@ -1,8 +1,10 @@
+import { getEndpointAccessActor } from "@/lib/auth/endpoint-access"
 import { NO_STORE_HEADERS } from "@webhooks-lol/webhooks-server/http/headers"
 import type { RequestsResponse } from "@webhooks-lol/webhooks-core/api-contracts"
 import { parseEndpointId } from "@webhooks-lol/webhooks-core/endpoint-id"
 import { publishEndpointCleared } from "@webhooks-lol/webhooks-server/endpoint-event-stream"
 import {
+  assertEndpointAccessibleToActor,
   clearRequests,
   isEndpointUnavailableError,
   listRequests,
@@ -61,6 +63,10 @@ export async function GET(
   let page: Awaited<ReturnType<typeof listRequests>>
 
   try {
+    await assertEndpointAccessibleToActor(
+      endpointId,
+      await getEndpointAccessActor(request)
+    )
     page = await listRequests(endpointId, {
       cursor: cursor.value,
       limit: readRequestPageLimit(url.searchParams),
@@ -99,6 +105,10 @@ export async function DELETE(
   }
 
   try {
+    await assertEndpointAccessibleToActor(
+      endpointId,
+      await getEndpointAccessActor(request)
+    )
     await clearRequests(endpointId)
   } catch (error) {
     if (isEndpointUnavailableError(error)) {

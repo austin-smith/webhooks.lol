@@ -64,6 +64,27 @@
       "when": 1781418317553,
       "tag": "0008_wakeful_captain_marvel",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1781835130950,
+      "tag": "0009_wakeful_blockbuster",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1782002031558,
+      "tag": "0010_modern_adam_destine",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1782181367633,
+      "tag": "0011_many_jack_power",
+      "breakpoints": true
     }
   ]
 }

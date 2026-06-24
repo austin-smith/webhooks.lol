@@ -27,7 +27,7 @@ export function RequestMethodBadge({
     <Badge
       variant="outline"
       className={cn(
-        "min-w-10 rounded-sm px-1.5 font-semibold",
+        "min-w-10 px-1.5 font-semibold",
         methodClassName,
         className
       )}

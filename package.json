@@ -12,6 +12,7 @@
     "dev": "turbo run dev --filter @webhooks-lol/web",
     "web:build": "turbo run build --filter @webhooks-lol/web",
     "web:dev": "turbo run dev --filter @webhooks-lol/web",
+    "web:email:dev": "pnpm --filter @webhooks-lol/web email:dev",
     "web:start": "pnpm --filter @webhooks-lol/web start",
     "web:verify": "turbo run typecheck lint test build --filter @webhooks-lol/web...",
     "docs:build": "turbo run build --filter @webhooks-lol/docs",
@@ -45,6 +46,7 @@
     "prettier": "^3.8.4",
     "prettier-plugin-tailwindcss": "^0.8.0",
     "turbo": "^2.9.18",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wrangler": "^4.101.0"
   }
 }

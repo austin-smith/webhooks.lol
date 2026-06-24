@@ -8,7 +8,6 @@ import {
   DEFAULT_APP_THEME,
   type AppTheme,
   getAppThemeStorage,
-  normalizeAppTheme,
   readAppThemeFromStorage,
   writeAppThemeToStorage,
 } from "@/components/theme/app-theme"
@@ -17,6 +16,8 @@ type AppThemeContextValue = {
   appTheme: AppTheme
   setAppTheme: (theme: AppTheme) => void
 }
+
+const APP_THEME_CHANGE_EVENT = "webhooks.lol:app-theme-change"
 
 const AppThemeContext = React.createContext<AppThemeContextValue | null>(null)
 
@@ -38,37 +39,20 @@ const appThemeBootstrapScript = `
 `
 
 export function AppThemeProvider({ children }: { children: React.ReactNode }) {
-  const [appTheme, setAppThemeState] = React.useState<AppTheme>(() => {
-    if (typeof window === "undefined") {
-      return DEFAULT_APP_THEME
-    }
-
-    return readAppThemeFromStorage(getAppThemeStorage())
-  })
+  const appTheme = React.useSyncExternalStore(
+    subscribeAppTheme,
+    getAppThemeSnapshot,
+    getAppThemeServerSnapshot
+  )
 
   React.useEffect(() => {
-    function onStorage(event: StorageEvent) {
-      if (event.key !== APP_THEME_STORAGE_KEY) {
-        return
-      }
-
-      const nextTheme = normalizeAppTheme(event.newValue)
-
-      setAppThemeState(nextTheme)
-      applyAppTheme(nextTheme)
-    }
-
-    window.addEventListener("storage", onStorage)
-
-    return () => {
-      window.removeEventListener("storage", onStorage)
-    }
-  }, [])
+    applyAppTheme(getAppThemeSnapshot())
+  }, [appTheme])
 
   const setAppTheme = React.useCallback((theme: AppTheme) => {
-    setAppThemeState(theme)
     applyAppTheme(theme)
     writeAppThemeToStorage(getAppThemeStorage(), theme)
+    publishAppThemeChange()
   }, [])
 
   const contextValue = React.useMemo(
@@ -99,4 +83,32 @@ export function useAppTheme() {
 
 function applyAppTheme(theme: AppTheme) {
   document.documentElement.dataset.appTheme = theme
+}
+
+function getAppThemeSnapshot() {
+  return readAppThemeFromStorage(getAppThemeStorage())
+}
+
+function getAppThemeServerSnapshot() {
+  return DEFAULT_APP_THEME
+}
+
+function subscribeAppTheme(onStoreChange: () => void) {
+  function onStorage(event: StorageEvent) {
+    if (event.key === APP_THEME_STORAGE_KEY) {
+      onStoreChange()
+    }
+  }
+
+  window.addEventListener("storage", onStorage)
+  window.addEventListener(APP_THEME_CHANGE_EVENT, onStoreChange)
+
+  return () => {
+    window.removeEventListener("storage", onStorage)
+    window.removeEventListener(APP_THEME_CHANGE_EVENT, onStoreChange)
+  }
+}
+
+function publishAppThemeChange() {
+  window.dispatchEvent(new Event(APP_THEME_CHANGE_EVENT))
 }

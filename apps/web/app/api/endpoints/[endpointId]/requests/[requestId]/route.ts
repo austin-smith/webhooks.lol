@@ -1,3 +1,4 @@
+import { getEndpointAccessActor } from "@/lib/auth/endpoint-access"
 import { NO_STORE_HEADERS } from "@webhooks-lol/webhooks-server/http/headers"
 import type { RequestResponse } from "@webhooks-lol/webhooks-core/api-contracts"
 import { parseEndpointId } from "@webhooks-lol/webhooks-core/endpoint-id"
@@ -6,6 +7,7 @@ import {
   createInvalidEndpointResponse,
 } from "@webhooks-lol/webhooks-server/endpoint-route-responses"
 import {
+  assertEndpointAccessibleToActor,
   getRequest,
   isEndpointUnavailableError,
 } from "@webhooks-lol/webhooks-server/repository"
@@ -15,7 +17,7 @@ export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: RouteContext<"/api/endpoints/[endpointId]/requests/[requestId]">
 ) {
   const { endpointId: rawEndpointId, requestId } = await context.params
@@ -35,6 +37,10 @@ export async function GET(
   let captured: Awaited<ReturnType<typeof getRequest>>
 
   try {
+    await assertEndpointAccessibleToActor(
+      endpointId,
+      await getEndpointAccessActor(request)
+    )
     captured = await getRequest(endpointId, requestId)
   } catch (error) {
     if (isEndpointUnavailableError(error)) {

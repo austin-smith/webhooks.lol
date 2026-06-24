@@ -15,9 +15,10 @@ Each endpoint has a receive URL shaped like:
 https://webhooks.lol/api/hook/<endpoint-id>
 ```
 
-The endpoint ID is a random UUID. It is the only thing that identifies the
-endpoint, so treat the URL as a secret: anyone who has the ID can send requests
-to it and read everything it has captured.
+The endpoint ID is a random UUID. Anyone with the receive URL can send requests
+to it. Captured traffic for anonymous endpoints is readable by endpoint ID;
+captured traffic for account-owned endpoints requires the owning browser
+session.
 
 Use the copy button next to the URL in the inspector to grab it.
 
@@ -51,16 +52,20 @@ only a local label and does not change the receive URL.
 
 ## Switching between endpoints
 
-The switcher at the top left lists endpoints you have used in this browser, most
-recent first. From it you can:
+The switcher at the top left lists endpoints for the current session, most
+recent first. Anonymous sessions show endpoints remembered by this browser.
+Signed-in sessions show endpoints attached to the account, plus same-browser
+anonymous endpoints that are still available.
 
-- **Search** by name or ID.
-- **Switch** to a previously used endpoint.
-- **Create a new endpoint** with its own URL.
+The switcher supports:
+
+- Searching by name or ID.
+- Opening a previously used endpoint.
+- Creating an endpoint with a new receive URL.
+- Claiming an anonymous endpoint to your account when one is available.
 
 <Callout type="warn">
-  The switcher remembers your 50 most recently used endpoints, stored locally in
-  the browser you opened the app in. The list is not tied to an account and does
-  not sync across devices, and once you go past 50 endpoints the oldest ones are
-  removed from it.
+  The service keeps up to 50 endpoints per signed-in account or anonymous
+  browser session. Creating another endpoint past that limit succeeds and
+  removes the least recently active endpoint.
 </Callout>

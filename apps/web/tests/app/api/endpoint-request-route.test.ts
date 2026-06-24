@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-const { getRequest } = vi.hoisted(() => ({
+const { assertEndpointAccessibleToActor, getRequest } = vi.hoisted(() => ({
+  assertEndpointAccessibleToActor: vi.fn(),
   getRequest: vi.fn(),
 }))
 
@@ -8,6 +9,7 @@ vi.mock("@webhooks-lol/webhooks-server/repository", async (importOriginal) => ({
   ...(await importOriginal<
     typeof import("@webhooks-lol/webhooks-server/repository")
   >()),
+  assertEndpointAccessibleToActor,
   getRequest,
 }))
 
@@ -53,6 +55,7 @@ function createCapturedRequest(
 
 describe("endpoint request route", () => {
   beforeEach(() => {
+    assertEndpointAccessibleToActor.mockReset()
     getRequest.mockReset()
   })
 

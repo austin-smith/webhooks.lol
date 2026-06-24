@@ -17,7 +17,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Tooltip,
@@ -27,27 +26,40 @@ import {
 import { cn } from "@/lib/utils"
 
 import type { EndpointNames } from "./types"
+import type { EndpointAccountStatus } from "./endpoint-session/transport"
 import { formatShortEndpointId } from "./request-formatters"
 
 type EndpointSwitcherProps = {
   disabled: boolean
+  endpointAccountStatuses: Record<string, EndpointAccountStatus>
   endpointNames: EndpointNames
+  isSavingEndpointToAccount: boolean
   name: string
   recentEndpointIds: string[]
   endpointId: string | null
+  onLoadEndpointAccountStatus: (
+    endpointId?: string
+  ) => Promise<EndpointAccountStatus | null>
   onNewEndpoint: () => void
   onRenameEndpoint: (name: string) => void
+  onSaveEndpointToAccount: (
+    endpointId?: string
+  ) => Promise<EndpointAccountStatus | null>
   onSwitchEndpoint: (endpointId: string) => void
 }
 
 export function EndpointSwitcher({
   disabled,
+  endpointAccountStatuses,
   endpointNames,
+  isSavingEndpointToAccount,
   name,
   recentEndpointIds,
   endpointId,
+  onLoadEndpointAccountStatus,
   onNewEndpoint,
   onRenameEndpoint,
+  onSaveEndpointToAccount,
   onSwitchEndpoint,
 }: EndpointSwitcherProps) {
   const [open, setOpen] = React.useState(false)
@@ -92,6 +104,25 @@ export function EndpointSwitcher({
     setIsRenaming(false)
   }
 
+  React.useEffect(() => {
+    if (!open) {
+      return
+    }
+
+    for (const recentEndpointId of filteredEndpointIds) {
+      if (!endpointAccountStatuses[recentEndpointId]) {
+        void onLoadEndpointAccountStatus(recentEndpointId).catch(
+          () => undefined
+        )
+      }
+    }
+  }, [
+    endpointAccountStatuses,
+    filteredEndpointIds,
+    onLoadEndpointAccountStatus,
+    open,
+  ])
+
   return (
     <Popover open={open} onOpenChange={changeOpen}>
       <PopoverTrigger asChild>
@@ -130,13 +161,21 @@ export function EndpointSwitcher({
           </label>
         </div>
 
-        <ScrollArea className="max-h-64">
+        <div
+          className="overflow-y-auto overscroll-contain"
+          style={{
+            maxHeight:
+              "clamp(8rem, calc(var(--radix-popover-content-available-height) - 6rem), 18rem)",
+          }}
+        >
           <div className="flex flex-col gap-1 p-1.5">
             {filteredEndpointIds.length > 0 ? (
               filteredEndpointIds.map((recentEndpointId) => (
                 <EndpointSwitcherRow
                   key={recentEndpointId}
                   endpointNames={endpointNames}
+                  endpointStatus={endpointAccountStatuses[recentEndpointId]}
+                  isSavingEndpointToAccount={isSavingEndpointToAccount}
                   isRenaming={isRenaming && recentEndpointId === endpointId}
                   nameDraft={draftName}
                   selected={recentEndpointId === endpointId}
@@ -150,6 +189,9 @@ export function EndpointSwitcher({
                     setDraftName(name)
                     setIsRenaming(true)
                   }}
+                  onSaveToAccount={() =>
+                    onSaveEndpointToAccount(recentEndpointId)
+                  }
                   onSaveName={saveName}
                   onSelect={() => switchEndpoint(recentEndpointId)}
                 />
@@ -160,9 +202,9 @@ export function EndpointSwitcher({
               </div>
             )}
           </div>
-        </ScrollArea>
+        </div>
 
-        <div className="border-t p-2">
+        <div className="border-t bg-popover p-2">
           <button
             type="button"
             disabled={disabled}
@@ -182,7 +224,9 @@ export function EndpointSwitcher({
 }
 
 function EndpointSwitcherRow({
+  endpointStatus,
   endpointNames,
+  isSavingEndpointToAccount,
   isRenaming,
   nameDraft,
   selected,
@@ -190,10 +234,13 @@ function EndpointSwitcherRow({
   onChangeNameDraft,
   onCancelRename,
   onRename,
+  onSaveToAccount,
   onSaveName,
   onSelect,
 }: {
+  endpointStatus: EndpointAccountStatus | null | undefined
   endpointNames: EndpointNames
+  isSavingEndpointToAccount: boolean
   isRenaming: boolean
   nameDraft: string
   selected: boolean
@@ -201,11 +248,13 @@ function EndpointSwitcherRow({
   onChangeNameDraft: (name: string) => void
   onCancelRename: () => void
   onRename: () => void
+  onSaveToAccount: () => Promise<EndpointAccountStatus | null>
   onSaveName: (event: React.FormEvent<HTMLFormElement>) => void
   onSelect: () => void
 }) {
   const name = endpointNames[endpointId]?.trim()
   const shortId = formatShortEndpointId(endpointId)
+  const canSaveToAccount = Boolean(endpointStatus?.canSaveToAccount)
 
   if (isRenaming) {
     return (
@@ -270,6 +319,26 @@ function EndpointSwitcherRow({
         ) : null}
       </button>
       <span className="flex items-center gap-0.5 pr-1.5">
+        {canSaveToAccount ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                aria-label="Claim this endpoint to my account"
+                disabled={isSavingEndpointToAccount}
+                onClick={() => {
+                  void onSaveToAccount().catch(() => undefined)
+                }}
+                className="flex h-7 items-center gap-1 rounded-sm border px-1.5 text-[0.65rem] font-medium text-muted-foreground transition-colors hover:bg-background hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Claim
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="left">
+              Claim this endpoint to my account
+            </TooltipContent>
+          </Tooltip>
+        ) : null}
         {selected ? (
           <>
             <Tooltip>

@@ -76,3 +76,9 @@ pre,
 samp {
   font-family: var(--font-mono);
 }
+
+@media (width >= 48rem) {
+  #nd-docs-layout [data-sidebar-panel] {
+    top: 1rem;
+  }
+}

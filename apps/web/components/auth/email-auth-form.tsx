@@ -1,0 +1,255 @@
+"use client"
+
+import * as React from "react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+
+import { Button } from "@/components/ui/button"
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
+import { authClient } from "@/lib/auth/client"
+import {
+  type EmailAuthField,
+  type EmailAuthFieldErrors,
+  validateEmailAuthInput,
+} from "@/lib/auth/email-auth-validation"
+import { getSignInFailureMessage } from "@/lib/auth/sign-in-failure-message"
+import {
+  authRedirectSavesEndpoint,
+  createAuthRedirectHref,
+  createEmailVerificationCallbackPath,
+  FORGOT_PASSWORD_PATH,
+} from "@/lib/auth/redirect-links"
+import {
+  AuthFormFeedback,
+  type AuthFormFeedbackState,
+} from "./auth-form-feedback"
+import { TurnstileField, type TurnstileFieldHandle } from "./turnstile-field"
+
+type EmailAuthMode = "login" | "sign-up"
+
+type EmailAuthFormProps = {
+  callbackPath: string
+  mode: EmailAuthMode
+  onSignUpEmailSent?: (email: string) => void
+}
+
+export function EmailAuthForm({
+  callbackPath,
+  mode,
+  onSignUpEmailSent,
+}: EmailAuthFormProps) {
+  const router = useRouter()
+  const isSignUp = mode === "sign-up"
+  const isEndpointSaveAuth = authRedirectSavesEndpoint(callbackPath)
+  const switchAuthHref = createAuthRedirectHref(
+    isSignUp ? "/login" : "/sign-up",
+    callbackPath
+  )
+  const turnstileRef = React.useRef<TurnstileFieldHandle>(null)
+  const [email, setEmail] = React.useState("")
+  const [password, setPassword] = React.useState("")
+  const [turnstileToken, setTurnstileToken] = React.useState<string | null>(
+    null
+  )
+  const [fieldErrors, setFieldErrors] = React.useState<EmailAuthFieldErrors>({})
+  const [feedback, setFeedback] = React.useState<AuthFormFeedbackState | null>(
+    null
+  )
+  const [isSubmitting, setIsSubmitting] = React.useState(false)
+
+  async function submitEmailAuth(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setFeedback(null)
+
+    const emailAddress = email.trim()
+    const validationErrors = validateEmailAuthInput({
+      email: emailAddress,
+      password,
+    })
+
+    setFieldErrors(validationErrors)
+
+    if (Object.keys(validationErrors).length > 0) {
+      return
+    }
+
+    if (!turnstileToken) {
+      setFeedback({
+        title: "Complete the security check.",
+        tone: "error",
+      })
+      return
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      const result = isSignUp
+        ? await authClient.signUp.email({
+            callbackURL: createEmailVerificationCallbackPath(callbackPath),
+            email: emailAddress,
+            fetchOptions: {
+              headers: {
+                "x-captcha-response": turnstileToken,
+              },
+            },
+            name: emailAddress,
+            password,
+          })
+        : await authClient.signIn.email({
+            callbackURL: callbackPath,
+            email: emailAddress,
+            fetchOptions: {
+              headers: {
+                "x-captcha-response": turnstileToken,
+              },
+            },
+            password,
+          })
+
+      if (result.error) {
+        setFeedback({
+          title: isSignUp
+            ? (result.error.message ?? "Authentication failed.")
+            : getSignInFailureMessage(result.error),
+          tone: "error",
+        })
+        return
+      }
+
+      if (isSignUp) {
+        onSignUpEmailSent?.(emailAddress)
+        return
+      }
+
+      router.push(callbackPath)
+      router.refresh()
+    } finally {
+      turnstileRef.current?.reset()
+      setIsSubmitting(false)
+    }
+  }
+
+  function updateField(
+    field: EmailAuthField,
+    value: string,
+    setValue: (value: string) => void
+  ) {
+    setValue(value)
+    setFeedback(null)
+    setFieldErrors((currentErrors) => {
+      if (!currentErrors[field]) {
+        return currentErrors
+      }
+
+      const remainingErrors = { ...currentErrors }
+      delete remainingErrors[field]
+      return remainingErrors
+    })
+  }
+
+  return (
+    <form className="flex flex-col gap-3" onSubmit={submitEmailAuth} noValidate>
+      <FieldGroup className="gap-3">
+        <Field
+          data-disabled={isSubmitting || undefined}
+          data-invalid={Boolean(fieldErrors.email)}
+        >
+          <FieldLabel
+            htmlFor="email"
+            className="text-[0.68rem] tracking-wide text-muted-foreground"
+          >
+            EMAIL
+          </FieldLabel>
+          <Input
+            id="email"
+            aria-describedby={fieldErrors.email ? "email-error" : undefined}
+            aria-invalid={Boolean(fieldErrors.email)}
+            autoComplete="email"
+            disabled={isSubmitting}
+            onChange={(event) =>
+              updateField("email", event.target.value, setEmail)
+            }
+            type="email"
+            value={email}
+          />
+          <FieldError id="email-error">{fieldErrors.email}</FieldError>
+        </Field>
+        <Field
+          data-disabled={isSubmitting || undefined}
+          data-invalid={Boolean(fieldErrors.password)}
+        >
+          <FieldLabel
+            htmlFor="password"
+            className="text-[0.68rem] tracking-wide text-muted-foreground"
+          >
+            PASSWORD
+          </FieldLabel>
+          <Input
+            id="password"
+            aria-describedby={
+              fieldErrors.password ? "password-error" : undefined
+            }
+            aria-invalid={Boolean(fieldErrors.password)}
+            autoComplete={isSignUp ? "new-password" : "current-password"}
+            disabled={isSubmitting}
+            onChange={(event) =>
+              updateField("password", event.target.value, setPassword)
+            }
+            type="password"
+            value={password}
+          />
+          <FieldError id="password-error">{fieldErrors.password}</FieldError>
+        </Field>
+      </FieldGroup>
+      {feedback ? (
+        <AuthFormFeedback
+          description={feedback.description}
+          title={feedback.title}
+          tone={feedback.tone}
+        />
+      ) : null}
+      <TurnstileField
+        ref={turnstileRef}
+        disabled={isSubmitting}
+        onTokenChange={setTurnstileToken}
+      />
+      <Button
+        type="submit"
+        className="w-full rounded-sm text-xs"
+        disabled={isSubmitting || !turnstileToken}
+      >
+        {isSignUp && isEndpointSaveAuth
+          ? "Create account to save endpoint"
+          : isSignUp
+            ? "Create account"
+            : "Sign in"}
+      </Button>
+      <p className="text-center text-[0.68rem] text-muted-foreground">
+        {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
+        <Link
+          href={switchAuthHref}
+          className="font-medium text-foreground underline-offset-4 hover:underline"
+        >
+          {isSignUp ? "Sign in" : "Sign up"}
+        </Link>
+      </p>
+      {!isSignUp ? (
+        <p className="text-center text-[0.68rem] text-muted-foreground">
+          <Link
+            href={createAuthRedirectHref(FORGOT_PASSWORD_PATH, callbackPath)}
+            className="font-medium text-foreground underline-offset-4 hover:underline"
+          >
+            Forgot your password?
+          </Link>
+        </p>
+      ) : null}
+    </form>
+  )
+}

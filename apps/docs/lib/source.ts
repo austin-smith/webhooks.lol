@@ -10,6 +10,7 @@ import {
   SearchIcon,
   SlidersHorizontalIcon,
   TerminalIcon,
+  UserRoundIcon,
   WebhookIcon,
 } from "lucide-react"
 import { createElement } from "react"
@@ -23,6 +24,7 @@ const docsIconComponents: Record<string, LucideIcon> = {
   Search: SearchIcon,
   SlidersHorizontal: SlidersHorizontalIcon,
   Terminal: TerminalIcon,
+  UserRound: UserRoundIcon,
   Webhook: WebhookIcon,
 } satisfies Record<string, LucideIcon>
 

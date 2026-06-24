@@ -18,6 +18,7 @@ import {
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Empty,
   EmptyDescription,
@@ -25,6 +26,12 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field"
 import {
   Popover,
   PopoverContent,
@@ -390,69 +397,87 @@ function ForwardTargetEditor({
   onSave: () => void
   onUrlChange: (url: string) => void
 }) {
+  const forwardUrlId = React.useId()
+  const forwardUrlErrorId = React.useId()
+  const preservePathId = React.useId()
+
   return (
     <div className="grid min-w-0 gap-2.5 rounded-sm border bg-background px-2.5 py-2.5">
-      <Textarea
-        aria-label="Forward URL"
-        placeholder="https://example.com/webhook"
-        value={url}
-        disabled={isSaving}
-        aria-invalid={Boolean(draftError)}
-        spellCheck={false}
-        autoCapitalize="none"
-        autoComplete="url"
-        className="max-h-28 min-h-14 resize-y rounded-sm px-2 py-1 font-mono text-xs leading-snug break-all whitespace-normal md:text-xs"
-        onChange={(event) =>
-          onUrlChange(event.currentTarget.value.replace(/[\r\n]+/g, ""))
-        }
-        onKeyDown={(event) => {
-          if (event.key === "Enter") {
-            event.preventDefault()
-          }
-        }}
-      />
-
-      <div className="flex min-w-0 items-center gap-1.5">
-        <label className="flex min-w-0 items-center gap-2 text-xs">
-          <input
-            type="checkbox"
-            className="size-3.5 shrink-0 accent-foreground"
-            checked={pathMode === "preserve"}
-            disabled={isSaving}
-            onChange={(event) =>
-              onPathModeChange(event.target.checked ? "preserve" : "strip")
-            }
-          />
-          Append incoming request path
-        </label>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              aria-label="What does appending the path do?"
-              className="shrink-0 rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
-            >
-              <CircleHelpIcon className="size-3.5" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent className="max-w-60">
-            <span className="leading-snug">
-              Appends the request path (e.g.{" "}
-              <span className="font-mono">/events/created</span>) onto the
-              target URL.
-            </span>
-          </TooltipContent>
-        </Tooltip>
-      </div>
-
-      {draftError ? (
-        <div
-          role="alert"
-          className="rounded-sm border border-destructive/25 bg-destructive/10 px-2.5 py-2 text-[0.68rem] text-destructive"
+      <FieldGroup className="gap-2.5">
+        <Field
+          data-disabled={isSaving || undefined}
+          data-invalid={Boolean(draftError)}
         >
-          {draftError}
+          <FieldLabel
+            htmlFor={forwardUrlId}
+            className="text-[0.68rem] font-medium text-muted-foreground"
+          >
+            Forward URL
+          </FieldLabel>
+          <Textarea
+            id={forwardUrlId}
+            aria-describedby={draftError ? forwardUrlErrorId : undefined}
+            aria-invalid={Boolean(draftError)}
+            placeholder="https://example.com/webhook"
+            value={url}
+            disabled={isSaving}
+            spellCheck={false}
+            autoCapitalize="none"
+            autoComplete="url"
+            className="max-h-28 min-h-14 resize-y rounded-sm px-2 py-1 font-mono text-xs leading-snug break-all whitespace-normal md:text-xs"
+            onChange={(event) =>
+              onUrlChange(event.currentTarget.value.replace(/[\r\n]+/g, ""))
+            }
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault()
+              }
+            }}
+          />
+          <FieldError id={forwardUrlErrorId}>{draftError}</FieldError>
+        </Field>
+
+        <div className="flex min-w-0 items-center gap-1.5">
+          <Field
+            orientation="horizontal"
+            data-disabled={isSaving || undefined}
+            className="min-w-0 flex-1 items-center gap-2"
+          >
+            <Checkbox
+              id={preservePathId}
+              checked={pathMode === "preserve"}
+              disabled={isSaving}
+              onCheckedChange={(checked) =>
+                onPathModeChange(checked === true ? "preserve" : "strip")
+              }
+            />
+            <FieldLabel
+              htmlFor={preservePathId}
+              className="min-w-0 text-xs font-normal"
+            >
+              Append incoming request path
+            </FieldLabel>
+          </Field>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                aria-label="What does appending the path do?"
+                className="shrink-0 rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+              >
+                <CircleHelpIcon className="size-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-60">
+              <span className="leading-snug">
+                Appends the request path (e.g.{" "}
+                <span className="font-mono">/events/created</span>) onto the
+                target URL.
+              </span>
+            </TooltipContent>
+          </Tooltip>
         </div>
-      ) : null}
+      </FieldGroup>
 
       <div className="flex justify-end gap-2">
         <Button

@@ -1,13 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-const { getEndpointStats } = vi.hoisted(() => ({
-  getEndpointStats: vi.fn(),
-}))
+const { assertEndpointAccessibleToActor, getEndpointStats } = vi.hoisted(
+  () => ({
+    assertEndpointAccessibleToActor: vi.fn(),
+    getEndpointStats: vi.fn(),
+  })
+)
 
 vi.mock("@webhooks-lol/webhooks-server/repository", async (importOriginal) => ({
   ...(await importOriginal<
     typeof import("@webhooks-lol/webhooks-server/repository")
   >()),
+  assertEndpointAccessibleToActor,
   getEndpointStats,
 }))
 
@@ -24,6 +28,7 @@ function createContext(endpointId = ENDPOINT_ID) {
 
 describe("endpoint stats route", () => {
   beforeEach(() => {
+    assertEndpointAccessibleToActor.mockReset()
     getEndpointStats.mockReset()
   })
 

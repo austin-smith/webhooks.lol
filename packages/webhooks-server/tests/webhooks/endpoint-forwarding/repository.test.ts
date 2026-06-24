@@ -69,8 +69,7 @@ describe("endpoint forwarding repository", () => {
     assertEndpointForwardTargetUrlCanBeReachedSafely.mockResolvedValueOnce(
       undefined
     )
-    const endpoint = await createEndpoint()
-    createdEndpointIds.push(endpoint.endpointId)
+    const endpoint = await createTrackedEndpoint()
     const target = await createEndpointForwardTarget({
       endpointId: endpoint.endpointId,
       url: "https://example.com/webhook",
@@ -113,8 +112,7 @@ describe("endpoint forwarding repository", () => {
     assertEndpointForwardTargetUrlCanBeReachedSafely.mockResolvedValueOnce(
       undefined
     )
-    const endpoint = await createEndpoint()
-    createdEndpointIds.push(endpoint.endpointId)
+    const endpoint = await createTrackedEndpoint()
     const target = await createEndpointForwardTarget({
       endpointId: endpoint.endpointId,
       url: "https://example.com/webhook",
@@ -153,8 +151,7 @@ describe("endpoint forwarding repository", () => {
     assertEndpointForwardTargetUrlCanBeReachedSafely.mockResolvedValueOnce(
       undefined
     )
-    const endpoint = await createEndpoint()
-    createdEndpointIds.push(endpoint.endpointId)
+    const endpoint = await createTrackedEndpoint()
     const target = await createEndpointForwardTarget({
       endpointId: endpoint.endpointId,
       pathMode: "preserve",
@@ -196,8 +193,7 @@ describe("endpoint forwarding repository", () => {
     assertEndpointForwardTargetUrlCanBeReachedSafely.mockResolvedValue(
       undefined
     )
-    const endpoint = await createEndpoint()
-    createdEndpointIds.push(endpoint.endpointId)
+    const endpoint = await createTrackedEndpoint()
     const target = await createEndpointForwardTarget({
       endpointId: endpoint.endpointId,
       pathMode: "preserve",
@@ -270,8 +266,7 @@ describe("endpoint forwarding repository", () => {
     assertEndpointForwardTargetUrlCanBeReachedSafely.mockResolvedValue(
       undefined
     )
-    const endpoint = await createEndpoint()
-    createdEndpointIds.push(endpoint.endpointId)
+    const endpoint = await createTrackedEndpoint()
     const target = await createEndpointForwardTarget({
       endpointId: endpoint.endpointId,
       url: "https://example.com/webhook",
@@ -327,8 +322,7 @@ describe("endpoint forwarding repository", () => {
     assertEndpointForwardTargetUrlCanBeReachedSafely.mockResolvedValue(
       undefined
     )
-    const endpoint = await createEndpoint()
-    createdEndpointIds.push(endpoint.endpointId)
+    const endpoint = await createTrackedEndpoint()
     const target = await createEndpointForwardTarget({
       endpointId: endpoint.endpointId,
       url: "https://example.com/webhook",
@@ -363,8 +357,7 @@ describe("endpoint forwarding repository", () => {
     assertEndpointForwardTargetUrlCanBeReachedSafely.mockResolvedValue(
       undefined
     )
-    const endpoint = await createEndpoint()
-    createdEndpointIds.push(endpoint.endpointId)
+    const endpoint = await createTrackedEndpoint()
     let disabledTargetId: string | null = null
 
     for (let index = 0; index < MAX_ENDPOINT_FORWARD_TARGETS; index += 1) {
@@ -420,8 +413,7 @@ describe("endpoint forwarding repository", () => {
     assertEndpointForwardTargetUrlCanBeReachedSafely.mockResolvedValueOnce(
       undefined
     )
-    const endpoint = await createEndpoint()
-    createdEndpointIds.push(endpoint.endpointId)
+    const endpoint = await createTrackedEndpoint()
     await createEndpointForwardTarget({
       endpointId: endpoint.endpointId,
       url: "https://example.com/webhook",
@@ -495,8 +487,7 @@ describe("endpoint forwarding repository", () => {
     assertEndpointForwardTargetUrlCanBeReachedSafely.mockResolvedValueOnce(
       undefined
     )
-    const endpoint = await createEndpoint()
-    createdEndpointIds.push(endpoint.endpointId)
+    const endpoint = await createTrackedEndpoint()
     const target = await createEndpointForwardTarget({
       endpointId: endpoint.endpointId,
       url: "https://example.com/webhook",
@@ -589,8 +580,7 @@ describe("endpoint forwarding repository", () => {
     assertEndpointForwardTargetUrlCanBeReachedSafely.mockResolvedValueOnce(
       undefined
     )
-    const endpoint = await createEndpoint()
-    createdEndpointIds.push(endpoint.endpointId)
+    const endpoint = await createTrackedEndpoint()
     const target = await createEndpointForwardTarget({
       endpointId: endpoint.endpointId,
       url: "https://example.com/webhook",
@@ -659,8 +649,7 @@ describe("endpoint forwarding repository", () => {
         "Forward URL must resolve to a public address."
       )
     )
-    const endpoint = await createEndpoint()
-    createdEndpointIds.push(endpoint.endpointId)
+    const endpoint = await createTrackedEndpoint()
 
     await expect(
       createEndpointForwardTarget({
@@ -690,3 +679,11 @@ describe("endpoint forwarding repository", () => {
     ).not.toHaveBeenCalled()
   })
 })
+
+async function createTrackedEndpoint() {
+  const endpoint = await createEndpoint({
+    anonymousSessionId: `session-${crypto.randomUUID()}`,
+  })
+  createdEndpointIds.push(endpoint.endpointId)
+  return endpoint
+}

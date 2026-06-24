@@ -1,3 +1,4 @@
+import { getEndpointAccessActor } from "@/lib/auth/endpoint-access"
 import {
   EVENT_STREAM_HEADERS,
   NO_STORE_HEADERS,
@@ -11,7 +12,7 @@ import { acquireEndpointEventStreamAdmission } from "@webhooks-lol/webhooks-serv
 import { parseEndpointId } from "@webhooks-lol/webhooks-core/endpoint-id"
 import { openEndpointEventStream } from "@webhooks-lol/webhooks-server/endpoint-event-stream"
 import {
-  getEndpoint,
+  assertEndpointAccessibleToActor,
   isEndpointUnavailableError,
 } from "@webhooks-lol/webhooks-server/repository"
 import {
@@ -59,7 +60,10 @@ export async function GET(
   }
 
   try {
-    await getEndpoint(endpointId)
+    await assertEndpointAccessibleToActor(
+      endpointId,
+      await getEndpointAccessActor(request)
+    )
   } catch (error) {
     await admission.lease.release()
 

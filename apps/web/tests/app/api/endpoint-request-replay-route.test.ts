@@ -6,6 +6,11 @@ const { checkRequestReplayAdmission, replayCapturedRequest } = vi.hoisted(
     replayCapturedRequest: vi.fn(),
   })
 )
+const { assertEndpointAccessibleToActor, isEndpointUnavailableError } =
+  vi.hoisted(() => ({
+    assertEndpointAccessibleToActor: vi.fn(),
+    isEndpointUnavailableError: vi.fn(() => false),
+  }))
 
 vi.mock("@webhooks-lol/webhooks-server/admission-control", () => ({
   checkRequestReplayAdmission,
@@ -16,6 +21,11 @@ vi.mock("@webhooks-lol/webhooks-server/request-replay/replay-request", () => ({
   isReplayEndpointUnavailableError: vi.fn(() => false),
   isReplayRequestUnavailableError: vi.fn(() => false),
   replayCapturedRequest,
+}))
+
+vi.mock("@webhooks-lol/webhooks-server/repository", () => ({
+  assertEndpointAccessibleToActor,
+  isEndpointUnavailableError,
 }))
 
 import { POST } from "@/app/api/endpoints/[endpointId]/requests/[requestId]/replay/route"
@@ -41,6 +51,9 @@ describe("endpoint request replay route", () => {
   beforeEach(() => {
     checkRequestReplayAdmission.mockReset()
     checkRequestReplayAdmission.mockResolvedValue(createAllowedAdmission())
+    assertEndpointAccessibleToActor.mockReset()
+    isEndpointUnavailableError.mockReset()
+    isEndpointUnavailableError.mockReturnValue(false)
     replayCapturedRequest.mockReset()
   })
 

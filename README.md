@@ -5,22 +5,25 @@
 
 <p align="center">
   <img alt="Next.js 16" src="https://img.shields.io/badge/Next.js%2016-black?logo=nextdotjs">
-  <img alt="React 19" src="https://img.shields.io/badge/React%2019-61DAFB?logo=react&logoColor=black">
   <img alt="TypeScript 5" src="https://img.shields.io/badge/TypeScript%205-3178C6?logo=typescript&logoColor=white">
-  <img alt="Tailwind CSS 4" src="https://img.shields.io/badge/Tailwind%20CSS%204-38B2AC?logo=tailwindcss&logoColor=white">
-  <img alt="shadcn/ui" src="https://img.shields.io/badge/shadcn%2Fui-000000?logo=shadcnui&logoColor=white">
   <img alt="PostgreSQL 18" src="https://img.shields.io/badge/PostgreSQL%2018-4169E1?logo=postgresql&logoColor=white">
   <img alt="Redis 8" src="https://img.shields.io/badge/Redis%208-FF4438?logo=redis&logoColor=white">
 </p>
 
-A small webhook endpoint for receiving and inspecting HTTP requests. The app creates private endpoint URLs, captures requests sent to them, and shows the latest traffic in a compact inspector. It is intentionally simple: a request list, a detail pane, and a small remembered-endpoint switcher for moving between URLs you have created.
+A small webhook endpoint for receiving and inspecting HTTP requests. The app
+creates unique receive URLs, captures requests sent to them, and shows the
+latest traffic in a compact inspector. It is intentionally simple: a request
+list, a detail pane, and a small remembered-endpoint switcher. Anonymous
+endpoints are disposable and browser-local. Signed-in endpoints are attached to
+the account that created them so they follow that account across browsers and
+sessions.
 
 <p align="center">
-  <img src="./docs/screenshots/screen-grab-light.png" alt="webhooks.lol inspector in light mode" width="49%" />
-  <img src="./docs/screenshots/screen-grab-dark.png" alt="webhooks.lol inspector in dark mode" width="49%" />
+  <img src="./docs/screenshots/screen-grab-light.png" alt="webhooks.lol light mode" width="49%" />
+  <img src="./docs/screenshots/screen-grab-dark.png" alt="webhooks.lol dark mode" width="49%" />
 </p>
 
-## Run
+## Quick Start
 
 ```bash
 pnpm install
@@ -34,33 +37,19 @@ pnpm db:migrate
 pnpm dev
 ```
 
-The development server runs on [http://localhost:4665](http://localhost:4665). For real webhook delivery, deploy it behind a public HTTPS URL so external services can reach the receive endpoint.
+The development server runs on
+[http://localhost:4665](http://localhost:4665).
 
-Environment files live with the process that reads them:
+Each app/package reads environment variables from its own `.env.local`. The
+example files provide local defaults. Replace placeholder values as needed.
 
-- `packages/database/.env.local` is for Drizzle database tooling.
-- `apps/web/.env.local` is for the Next.js web app.
-- `apps/docs/.env.local` is for the Next.js docs app.
-- `apps/pgboss/.env.local` is for the PgBoss worker.
+## Local Services
 
-The local examples point each process at the same Docker PostgreSQL database.
+`pnpm db:local:start` starts the local PostgreSQL Docker container,
+`webhooks-lol-postgres`. If the container does not exist, the script creates it
+with the `webhooks-lol-postgres-data` volume.
 
-Workspace scripts are orchestrated with Turborepo. Internal packages are
-compiled packages with `dist` entrypoints; app dev commands run the relevant
-package compilers alongside the app process so local changes do not rely on
-stale build output.
-
-Use the root commands for app and worker workflows that depend on compiled
-workspace packages. Commands such as `pnpm web:build`, `pnpm web:verify`,
-`pnpm pgboss:build`, and `pnpm pgboss:verify` run through the Turbo graph and
-work from a clean checkout. Direct filtered app commands such as
-`pnpm --filter @webhooks-lol/web build` do not build ignored `packages/*/dist`
-outputs first, so they are not the supported interface for app builds or app
-verification.
-
-The local Postgres script runs a named Docker container, `webhooks-lol-postgres`, with a named volume, `webhooks-lol-postgres-data`. The local Redis script runs `webhooks-lol-redis` with a named volume, `webhooks-lol-redis-data`, for rate-limit state.
-
-To create the local Postgres container directly:
+Equivalent manual creation command:
 
 ```bash
 docker volume create webhooks-lol-postgres-data
@@ -73,7 +62,11 @@ docker run -d --name webhooks-lol-postgres \
   postgres:18
 ```
 
-To create the local Redis container directly:
+`pnpm redis:local:start` starts the local Redis Docker container,
+`webhooks-lol-redis`. If the container does not exist, the script creates it
+with the `webhooks-lol-redis-data` volume.
+
+Equivalent manual creation command:
 
 ```bash
 docker volume create webhooks-lol-redis-data
@@ -83,38 +76,14 @@ docker run -d --name webhooks-lol-redis \
   redis:8 redis-server --appendonly yes
 ```
 
-For non-local environments, set service-level environment variables on each
-deployed process. The web app needs PostgreSQL, Redis, auth, and docs variables.
-The PgBoss worker needs PostgreSQL. Run migrations before starting the app:
-
-```bash
-pnpm db:migrate
-```
-
-For production, run the web app and the PgBoss worker as separate Node.js
-processes with their own service-level environment variables.
-
-### Railway
-
-Railway deployment settings are owned by app-local config-as-code files:
-
-- `apps/web/railway.json` configures the `web` service.
-- `apps/docs/railway.json` configures the `docs` service.
-- `apps/pgboss/railway.json` configures the `pgboss` worker service.
-
-Keep each Railway service rooted at the repository root so pnpm workspace
-packages resolve correctly. In Railway service settings, point each service at
-its app-local config file with the absolute repository path. Do not add a root
-`railway.json`; the services have different build, start, migration, and watch
-path requirements. See `docs/railway.md` for the rollout and verification
-runbook.
-
-## Use
+## Usage
 
 1. Open the app.
-2. Optionally rename the current endpoint so it is easier to recognize later.
-3. Copy the `RECEIVE_URL`.
-4. Send any request to that URL, or to a nested path below it.
+2. Optionally sign in or create an account before creating endpoints that should
+   follow an account across browsers.
+3. Optionally rename the current endpoint so it is easier to recognize later.
+4. Copy the `RECEIVE_URL`.
+5. Send any request to that URL, or to a nested path below it.
 
 Example:
 
@@ -124,7 +93,8 @@ curl -X POST https://hooks.example.com/api/hook/<id>/events/created \
   -d '{"event":"created","id":"evt_123"}'
 ```
 
-Captured requests appear live in the endpoint. Select a request to inspect the parsed body, headers, query string, and raw HTTP request.
+Captured requests appear live in the endpoint. Select a request to inspect the
+parsed body, headers, query string, and raw HTTP request.
 
 ## CLI
 
@@ -134,44 +104,42 @@ live requests, or replay stored requests. Forwarded and replayed requests
 preserve the original method, headers, and exact body bytes, so provider
 signature headers still verify locally.
 
+The current CLI protocol supports anonymous endpoints only. Endpoints created
+while signed in are account-owned and require the owning browser session. Use
+anonymous endpoints with `whlol` until a dedicated CLI authentication or
+endpoint-token flow exists.
+
 ```bash
 # Forward to a local server (creates an endpoint and prints its receive URL)
 npx whlol forward --to http://localhost:3000/api/webhooks
 
-# Stream live requests to the terminal
+# Stream live requests from an anonymous endpoint to the terminal
 npx whlol tail <endpoint-id>
 
-# Re-send a stored request
+# Re-send a stored request from an anonymous endpoint
 npx whlol replay <endpoint-id> --request <request-id> --to http://localhost:3000/hook
 ```
 
 Point the CLI at a local or self-hosted deployment with
 `--host http://localhost:4665` or the `WEBHOOKS_LOL_URL` environment variable.
-See `apps/cli/README.md` for all options.
+See [`apps/cli/README.md`](apps/cli/README.md) for command details and options.
 
-## Behavior
+## Monorepo Structure
 
-- Requests persist in PostgreSQL through Drizzle-managed schema migrations.
-- The app keeps the latest 500 requests per endpoint.
-- Request bodies are capped at 1 MiB. Larger payloads return `413`.
-- Browser preflight requests return CORS headers and are not saved as webhook traffic.
-- Endpoint names help identify webhook endpoints in the endpoint switcher.
-- Endpoint forwarding deliveries are queued in PostgreSQL through PgBoss and
-  processed by the worker app in `apps/pgboss`.
-
-## Workspace
-
-```text
-apps/web              Next.js web app and API routes
-apps/pgboss           PgBoss endpoint-forwarding worker process
-apps/cli              whlol command-line client
-apps/docs             Documentation site
-packages/database     Drizzle schema and PostgreSQL connection
-packages/webhooks-core Shared webhook types, IDs, search helpers, and API contracts
-packages/webhooks-server Server workflows, repositories, rate limits, replay, and forwarding
-```
+| Path                       | Responsibility                                                  |
+| -------------------------- | --------------------------------------------------------------- |
+| `apps/web`                 | Primary Next.js application                                     |
+| `apps/pgboss`              | Node.js PgBoss worker for endpoint forwarding                   |
+| `apps/cli`                 | `whlol` command-line package                                    |
+| `apps/docs`                | Fumadocs-powered Next.js documentation site                     |
+| `packages/database`        | Drizzle schema and PostgreSQL connection                        |
+| `packages/webhooks-core`   | Shared webhook types, IDs, search helpers, and API contracts    |
+| `packages/webhooks-server` | Server workflows, repositories, rate limits, replay, forwarding |
 
 ## Scripts
+
+Use root commands for app and worker builds or verification so Turbo builds
+workspace package dependencies first.
 
 ```bash
 pnpm dev               # start apps/web on port 4665

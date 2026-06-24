@@ -9,6 +9,13 @@ import {
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  Field,
+  FieldError,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -313,6 +320,7 @@ function RequestSearchForm({
   const [error, setError] = React.useState<string | null>(null)
   const searchSyntaxUrl = createDocsPageUrl(docsUrl, REQUEST_SEARCH_DOCS_PATH)
   const hasActiveSearch = requestSearchIsActive(search)
+  const advancedQueryId = React.useId()
 
   function submitSearch(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -383,7 +391,13 @@ function RequestSearchForm({
 
       {mode === "basic" ? (
         <>
-          <Fieldset label="Method">
+          <FieldSet className="gap-1">
+            <FieldLegend
+              variant="label"
+              className="mb-0 text-[0.6rem] font-medium tracking-wide text-muted-foreground uppercase"
+            >
+              Method
+            </FieldLegend>
             <div
               role="group"
               aria-label="Request method filter"
@@ -399,9 +413,15 @@ function RequestSearchForm({
                 />
               ))}
             </div>
-          </Fieldset>
+          </FieldSet>
 
-          <Fieldset label="Where">
+          <FieldSet className="gap-1">
+            <FieldLegend
+              variant="label"
+              className="mb-0 text-[0.6rem] font-medium tracking-wide text-muted-foreground uppercase"
+            >
+              Where
+            </FieldLegend>
             <div className="flex flex-col gap-1.5">
               {conditions.map((condition, index) => (
                 <ConditionRow
@@ -427,13 +447,18 @@ function RequestSearchForm({
               <PlusIcon data-icon="inline-start" />
               Add filter
             </Button>
-          </Fieldset>
+          </FieldSet>
         </>
       ) : (
-        <Fieldset
-          label="Query"
-          action={
-            searchSyntaxUrl ? (
+        <Field>
+          <div className="flex items-center justify-between gap-2">
+            <FieldLabel
+              htmlFor={advancedQueryId}
+              className="text-[0.6rem] font-medium tracking-wide text-muted-foreground uppercase"
+            >
+              Query
+            </FieldLabel>
+            {searchSyntaxUrl ? (
               <a
                 href={searchSyntaxUrl}
                 target="_blank"
@@ -443,10 +468,10 @@ function RequestSearchForm({
                 <BookTextIcon className="size-3" aria-hidden="true" />
                 Search syntax
               </a>
-            ) : null
-          }
-        >
+            ) : null}
+          </div>
           <Textarea
+            id={advancedQueryId}
             value={advancedQuery}
             disabled={disabled}
             maxLength={REQUEST_SEARCH_MAX_ADVANCED_LENGTH}
@@ -456,14 +481,11 @@ function RequestSearchForm({
             }}
             className="max-h-28 min-h-18 resize-y rounded-sm px-2 py-1.5 font-mono text-xs leading-relaxed md:text-xs"
             placeholder="method:POST AND query.id:123"
-            aria-label="Advanced request search query"
           />
-        </Fieldset>
+        </Field>
       )}
 
-      {error ? (
-        <p className="text-[0.62rem] leading-snug text-destructive">{error}</p>
-      ) : null}
+      {error ? <FieldError>{error}</FieldError> : null}
 
       <div className="flex items-center justify-between gap-2 border-t pt-2.5">
         {hasActiveSearch ? (
@@ -561,28 +583,6 @@ function ConditionRow({
       >
         <XIcon className="size-3.5" />
       </button>
-    </div>
-  )
-}
-
-function Fieldset({
-  action,
-  label,
-  children,
-}: {
-  action?: React.ReactNode
-  label: string
-  children: React.ReactNode
-}) {
-  return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-[0.6rem] font-medium tracking-wide text-muted-foreground uppercase">
-          {label}
-        </span>
-        {action}
-      </div>
-      {children}
     </div>
   )
 }

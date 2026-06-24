@@ -4,6 +4,10 @@ import { parseEndpointId } from "@webhooks-lol/webhooks-core/endpoint-id"
 const ACTIVE_ENDPOINT_ID_STORAGE_KEY = "webhooks.lol:endpoint-id"
 const RECENT_ENDPOINT_IDS_STORAGE_KEY = "webhooks.lol:recent-endpoint-ids"
 
+type EndpointSessionStorageOptions = {
+  userId?: string | null
+}
+
 export type StoredEndpointSession = {
   activeEndpointId: string | null
   recentEndpointIds: string[]
@@ -15,18 +19,33 @@ export type EndpointSessionStorage = {
   writeRecentEndpointIds: (endpointIds: string[]) => void
 }
 
-export function createBrowserEndpointSessionStorage(): EndpointSessionStorage {
-  return createEndpointSessionStorageAdapter(() => window.localStorage)
+export function createBrowserEndpointSessionStorage(
+  options: EndpointSessionStorageOptions = {}
+): EndpointSessionStorage {
+  return createEndpointSessionStorageAdapter(() => window.localStorage, options)
 }
 
 export function createEndpointSessionStorageAdapter(
-  getStorage: () => Pick<Storage, "getItem" | "setItem">
+  getStorage: () => Pick<Storage, "getItem" | "setItem">,
+  options: EndpointSessionStorageOptions = {}
 ): EndpointSessionStorage {
+  const activeEndpointIdKey = getStorageKey(
+    ACTIVE_ENDPOINT_ID_STORAGE_KEY,
+    options.userId
+  )
+  const recentEndpointIdsKey = getStorageKey(
+    RECENT_ENDPOINT_IDS_STORAGE_KEY,
+    options.userId
+  )
+
   return {
     read() {
       const storage = getStorage()
-      const storedEndpointId = storage.getItem(ACTIVE_ENDPOINT_ID_STORAGE_KEY)
-      const storedEndpointIds = readRecentEndpointIds(storage)
+      const storedEndpointId = storage.getItem(activeEndpointIdKey)
+      const storedEndpointIds = readRecentEndpointIds(
+        storage,
+        recentEndpointIdsKey
+      )
       const activeEndpointId =
         (storedEndpointId ? parseEndpointId(storedEndpointId) : null) ??
         storedEndpointIds[0] ??
@@ -42,19 +61,22 @@ export function createEndpointSessionStorageAdapter(
       }
     },
     writeActiveEndpointId(endpointId) {
-      getStorage().setItem(ACTIVE_ENDPOINT_ID_STORAGE_KEY, endpointId)
+      getStorage().setItem(activeEndpointIdKey, endpointId)
     },
     writeRecentEndpointIds(endpointIds) {
       getStorage().setItem(
-        RECENT_ENDPOINT_IDS_STORAGE_KEY,
+        recentEndpointIdsKey,
         JSON.stringify(normalizeEndpointIds(endpointIds))
       )
     },
   }
 }
 
-function readRecentEndpointIds(storage: Pick<Storage, "getItem">) {
-  const value = storage.getItem(RECENT_ENDPOINT_IDS_STORAGE_KEY)
+function readRecentEndpointIds(
+  storage: Pick<Storage, "getItem">,
+  storageKey: string
+) {
+  const value = storage.getItem(storageKey)
 
   if (!value) {
     return []
@@ -67,4 +89,8 @@ function readRecentEndpointIds(storage: Pick<Storage, "getItem">) {
   } catch {
     return []
   }
+}
+
+function getStorageKey(baseKey: string, userId: string | null | undefined) {
+  return userId ? `${baseKey}:user:${encodeURIComponent(userId)}` : baseKey
 }

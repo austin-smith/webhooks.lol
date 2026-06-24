@@ -60,16 +60,18 @@ export function WebhookInspector({ docsUrl }: WebhookInspectorProps) {
   }, [webhookUrl])
 
   return (
-    <main className="flex min-h-svh animate-in flex-col gap-4 bg-background p-4 font-mono text-xs text-foreground duration-300 ease-out fade-in-0 motion-reduce:animate-none sm:h-svh sm:overflow-hidden lg:p-5">
+    <main className="flex min-h-0 flex-1 animate-in flex-col gap-4 p-4 duration-300 ease-out fade-in-0 motion-reduce:animate-none sm:overflow-hidden lg:p-5">
       <InspectorHeader
         connectionState={endpoint.connectionState}
         copied={copied}
         docsUrl={docsUrl}
         copyMessage={copyMessage}
+        endpointAccountStatuses={endpoint.endpointAccountStatuses}
         endpointNames={endpoint.endpointNames}
         forwardTargets={endpoint.forwardTargets}
         isLoading={endpoint.isLoading}
         isLoadingForwardTargets={endpoint.isLoadingForwardTargets}
+        isSavingEndpointToAccount={endpoint.isSavingEndpointToAccount}
         isSavingForwardTarget={endpoint.isSavingForwardTarget}
         isSavingResponse={endpoint.isSavingResponse}
         recentEndpointIds={endpoint.recentEndpointIds}
@@ -79,11 +81,13 @@ export function WebhookInspector({ docsUrl }: WebhookInspectorProps) {
         onCreateForwardTarget={endpoint.actions.createForwardTarget}
         onCopyWebhookUrl={copyWebhookUrl}
         onDeleteForwardTarget={endpoint.actions.deleteForwardTarget}
+        onLoadEndpointAccountStatus={endpoint.actions.loadEndpointAccountStatus}
         onLoadForwardTargets={endpoint.actions.loadForwardTargets}
         onLoadEndpointStats={endpoint.actions.loadEndpointStats}
         onNewEndpoint={endpoint.actions.startNewEndpoint}
         onRenameEndpoint={endpoint.actions.renameEndpoint}
         onResetResponseOverride={endpoint.actions.clearResponseOverride}
+        onSaveEndpointToAccount={endpoint.actions.saveEndpointToAccount}
         onSaveResponseOverride={endpoint.actions.saveResponseOverride}
         onSwitchEndpoint={endpoint.actions.switchEndpoint}
         onUpdateForwardTarget={endpoint.actions.updateForwardTarget}

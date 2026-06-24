@@ -1,3 +1,4 @@
+import { getEndpointAccessActor } from "@/lib/auth/endpoint-access"
 import { NO_STORE_HEADERS } from "@webhooks-lol/webhooks-server/http/headers"
 import {
   createMissingClientIdentityHeaderResponse,
@@ -12,6 +13,10 @@ import {
   createInvalidEndpointResponse,
 } from "@webhooks-lol/webhooks-server/endpoint-route-responses"
 import { isUuid } from "@webhooks-lol/webhooks-core/id-format"
+import {
+  assertEndpointAccessibleToActor,
+  isEndpointUnavailableError,
+} from "@webhooks-lol/webhooks-server/repository"
 import {
   isReplayBodyRateLimitedError,
   isReplayEndpointUnavailableError,
@@ -30,6 +35,19 @@ export async function POST(
 
   if (params.kind === "invalid") {
     return params.response
+  }
+
+  try {
+    await assertEndpointAccessibleToActor(
+      params.endpointId,
+      await getEndpointAccessActor(request)
+    )
+  } catch (error) {
+    if (isEndpointUnavailableError(error)) {
+      return createEndpointNotFoundResponse()
+    }
+
+    throw error
   }
 
   let admission: Awaited<ReturnType<typeof checkRequestReplayAdmission>>

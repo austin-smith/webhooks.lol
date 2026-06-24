@@ -8,6 +8,7 @@ import {
   readAppThemeFromStorage,
   writeAppThemeToStorage,
 } from "@/components/theme/app-theme"
+import { APPEARANCE, THEME } from "@/components/theme/display-options"
 
 class MemoryStorage {
   private values = new Map<string, string>()
@@ -39,19 +40,23 @@ class ThrowingStorageSource {
 
 describe("app theme storage", () => {
   it("normalizes unknown app themes to the default", () => {
-    expect(normalizeAppTheme("neutral")).toBe("neutral")
-    expect(normalizeAppTheme("branded")).toBe("branded")
+    expect(normalizeAppTheme(APPEARANCE.NEUTRAL.value)).toBe(
+      APPEARANCE.NEUTRAL.value
+    )
+    expect(normalizeAppTheme(APPEARANCE.BRANDED.value)).toBe(
+      APPEARANCE.BRANDED.value
+    )
     expect(normalizeAppTheme("simple")).toBe(DEFAULT_APP_THEME)
-    expect(normalizeAppTheme("dark")).toBe(DEFAULT_APP_THEME)
+    expect(normalizeAppTheme(THEME.DARK.value)).toBe(DEFAULT_APP_THEME)
     expect(normalizeAppTheme(null)).toBe(DEFAULT_APP_THEME)
   })
 
   it("reads a valid stored app theme", () => {
     const storage = new MemoryStorage()
 
-    storage.setItem(APP_THEME_STORAGE_KEY, "neutral")
+    storage.setItem(APP_THEME_STORAGE_KEY, APPEARANCE.NEUTRAL.value)
 
-    expect(readAppThemeFromStorage(storage)).toBe("neutral")
+    expect(readAppThemeFromStorage(storage)).toBe(APPEARANCE.NEUTRAL.value)
   })
 
   it("falls back when stored app theme storage is invalid or unavailable", () => {
@@ -79,9 +84,11 @@ describe("app theme storage", () => {
   it("writes app themes without surfacing storage failures", () => {
     const storage = new MemoryStorage()
 
-    writeAppThemeToStorage(storage, "neutral")
-    writeAppThemeToStorage(new ThrowingStorage(), "branded")
+    writeAppThemeToStorage(storage, APPEARANCE.NEUTRAL.value)
+    writeAppThemeToStorage(new ThrowingStorage(), APPEARANCE.BRANDED.value)
 
-    expect(storage.getItem(APP_THEME_STORAGE_KEY)).toBe("neutral")
+    expect(storage.getItem(APP_THEME_STORAGE_KEY)).toBe(
+      APPEARANCE.NEUTRAL.value
+    )
   })
 })

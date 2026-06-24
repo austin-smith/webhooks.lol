@@ -84,4 +84,34 @@ describe("endpoint session storage", () => {
       JSON.stringify([ACTIVE_ENDPOINT_ID, OTHER_ENDPOINT_ID])
     )
   })
+
+  it("keeps authenticated endpoint sessions separate from anonymous sessions", () => {
+    const memoryStorage = new MemoryStorage()
+    const anonymousStorage = createEndpointSessionStorageAdapter(
+      () => memoryStorage
+    )
+    const userStorage = createEndpointSessionStorageAdapter(
+      () => memoryStorage,
+      { userId: "user:1@example.com" }
+    )
+
+    anonymousStorage.writeActiveEndpointId(ACTIVE_ENDPOINT_ID)
+    anonymousStorage.writeRecentEndpointIds([ACTIVE_ENDPOINT_ID])
+    userStorage.writeActiveEndpointId(OTHER_ENDPOINT_ID)
+    userStorage.writeRecentEndpointIds([OTHER_ENDPOINT_ID])
+
+    expect(anonymousStorage.read()).toEqual({
+      activeEndpointId: ACTIVE_ENDPOINT_ID,
+      recentEndpointIds: [ACTIVE_ENDPOINT_ID],
+    })
+    expect(userStorage.read()).toEqual({
+      activeEndpointId: OTHER_ENDPOINT_ID,
+      recentEndpointIds: [OTHER_ENDPOINT_ID],
+    })
+    expect(
+      memoryStorage.getItem(
+        "webhooks.lol:endpoint-id:user:user%3A1%40example.com"
+      )
+    ).toBe(OTHER_ENDPOINT_ID)
+  })
 })

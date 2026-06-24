@@ -7,9 +7,10 @@ import type { CapturedRequest } from "@webhooks-lol/webhooks-core/types"
 
 const REQUEST_EVENT = "request"
 const CLEAR_EVENT = "clear"
+const ACCESS_REVOKED_EVENT = "access-revoked"
 const HEARTBEAT_INTERVAL_MS = 25_000
 
-type EndpointClearedEvent = {
+type EndpointEvent = {
   endpointId: string
 }
 
@@ -33,6 +34,10 @@ export function publishRequest(request: CapturedRequest) {
 
 export function publishEndpointCleared(endpointId: string) {
   getWebhookEvents().emit(CLEAR_EVENT, { endpointId })
+}
+
+export function publishEndpointAccessRevoked(endpointId: string) {
+  getWebhookEvents().emit(ACCESS_REVOKED_EVENT, { endpointId })
 }
 
 export function openEndpointEventStream({
@@ -78,9 +83,15 @@ export function openEndpointEventStream({
         }
       }
 
-      const onClear = (event: EndpointClearedEvent) => {
+      const onClear = (event: EndpointEvent) => {
         if (event.endpointId === endpointId) {
           send(CLEAR_EVENT, event)
+        }
+      }
+
+      const onAccessRevoked = (event: EndpointEvent) => {
+        if (event.endpointId === endpointId) {
+          cleanup()
         }
       }
 
@@ -104,6 +115,7 @@ export function openEndpointEventStream({
         clearInterval(heartbeat)
         events.off(REQUEST_EVENT, onRequest)
         events.off(CLEAR_EVENT, onClear)
+        events.off(ACCESS_REVOKED_EVENT, onAccessRevoked)
         signal.removeEventListener("abort", cleanup)
         void lease?.release().catch(() => {
           // Expiring leases provide a fallback if explicit cleanup cannot reach Redis.
@@ -120,6 +132,7 @@ export function openEndpointEventStream({
 
       events.on(REQUEST_EVENT, onRequest)
       events.on(CLEAR_EVENT, onClear)
+      events.on(ACCESS_REVOKED_EVENT, onAccessRevoked)
       send("ready", { endpointId, readyAt: new Date().toISOString() })
 
       signal.addEventListener("abort", cleanup, { once: true })

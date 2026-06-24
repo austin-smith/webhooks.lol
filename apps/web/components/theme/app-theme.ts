@@ -1,15 +1,23 @@
+import {
+  APPEARANCE_VALUES,
+  DEFAULT_APPEARANCE,
+  type AppearanceOption,
+  getAppearanceLabel,
+  isAppearanceOption,
+  normalizeAppearanceOption,
+} from "@/components/theme/display-options"
+
 export const APP_THEME_STORAGE_KEY = "webhooks.lol:app-theme"
 
-export const APP_THEMES = ["branded", "neutral"] as const
+export const APP_THEMES = APPEARANCE_VALUES
 
-export type AppTheme = (typeof APP_THEMES)[number]
+export type AppTheme = AppearanceOption
 
-export const DEFAULT_APP_THEME: AppTheme = "branded"
+export const DEFAULT_APP_THEME: AppTheme = DEFAULT_APPEARANCE
 
-export const APP_THEME_LABELS: Record<AppTheme, string> = {
-  branded: "Branded",
-  neutral: "Neutral",
-}
+export const APP_THEME_LABELS: Record<AppTheme, string> = Object.fromEntries(
+  APP_THEMES.map((theme) => [theme, getAppearanceLabel(theme)])
+) as Record<AppTheme, string>
 
 export type AppThemeStorage = Pick<Storage, "getItem" | "setItem">
 
@@ -18,11 +26,11 @@ type AppThemeStorageSource = {
 }
 
 export function isAppTheme(value: unknown): value is AppTheme {
-  return typeof value === "string" && APP_THEMES.includes(value as AppTheme)
+  return isAppearanceOption(value)
 }
 
 export function normalizeAppTheme(value: unknown): AppTheme {
-  return isAppTheme(value) ? value : DEFAULT_APP_THEME
+  return normalizeAppearanceOption(value)
 }
 
 export function getAppThemeStorage(

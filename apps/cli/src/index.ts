@@ -24,9 +24,9 @@ Usage:
   whlol replay <endpointId> (--request <id> | --method <m> | --grep <text>) [--to <url>] [options]
 
 Commands:
-  forward   Create or attach to an endpoint and deliver its requests to --to.
-  tail      Stream live requests to the terminal without delivering them.
-  replay    Re-send one stored request (--request) or a filtered set.
+  forward   Create or attach to an anonymous endpoint and deliver its requests to --to.
+  tail      Stream live requests from an anonymous endpoint to the terminal.
+  replay    Re-send one stored request (--request) or a filtered set from an anonymous endpoint.
 
 Options:
   --to <url>          Local URL to deliver to. Omit for server replay through webhooks.lol.

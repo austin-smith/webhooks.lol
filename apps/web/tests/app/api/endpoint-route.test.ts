@@ -1,14 +1,30 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const {
+  assertEndpointAccessibleToActor,
   checkEndpointCreateAdmission,
   createEndpoint,
+  getEndpointAccessActor,
+  getEndpointAccountStatus,
   getEndpoint,
+  getEndpointForActor,
+  listEndpointsForUser,
+  publishEndpointAccessRevoked,
+  requireEndpointUserId,
+  saveEndpointToAccount,
   updateEndpointName,
 } = vi.hoisted(() => ({
+  assertEndpointAccessibleToActor: vi.fn(),
   checkEndpointCreateAdmission: vi.fn(),
   createEndpoint: vi.fn(),
+  getEndpointAccessActor: vi.fn(),
+  getEndpointAccountStatus: vi.fn(),
   getEndpoint: vi.fn(),
+  getEndpointForActor: vi.fn(),
+  listEndpointsForUser: vi.fn(),
+  publishEndpointAccessRevoked: vi.fn(),
+  requireEndpointUserId: vi.fn(),
+  saveEndpointToAccount: vi.fn(),
   updateEndpointName: vi.fn(),
 }))
 
@@ -16,25 +32,46 @@ vi.mock("@webhooks-lol/webhooks-server/admission-control", () => ({
   checkEndpointCreateAdmission,
 }))
 
+vi.mock("@webhooks-lol/webhooks-server/endpoint-event-stream", () => ({
+  publishEndpointAccessRevoked,
+}))
+
 vi.mock("@webhooks-lol/webhooks-server/repository", async (importOriginal) => ({
   ...(await importOriginal<
     typeof import("@webhooks-lol/webhooks-server/repository")
   >()),
+  assertEndpointAccessibleToActor,
   createEndpoint,
+  getEndpointAccountStatus,
   getEndpoint,
+  getEndpointForActor,
+  listEndpointsForUser,
+  saveEndpointToAccount,
   updateEndpointName,
 }))
 
-import { POST } from "@/app/api/endpoints/route"
+vi.mock("@/lib/auth/endpoint-access", () => ({
+  getEndpointAccessActor,
+  requireEndpointUserId,
+}))
+
+import { GET as LIST_ENDPOINTS, POST } from "@/app/api/endpoints/route"
+import {
+  GET as GET_ENDPOINT_ACCOUNT_STATUS,
+  POST as SAVE_ENDPOINT_TO_ACCOUNT,
+} from "@/app/api/endpoints/[endpointId]/account/route"
 import {
   GET,
   MAX_ENDPOINT_METADATA_REQUEST_BYTES,
   PATCH,
 } from "@/app/api/endpoints/[endpointId]/route"
+import { AuthenticationRequiredError } from "@/lib/auth/session"
 import { MissingClientIdentityHeaderError } from "@webhooks-lol/webhooks-server/rate-limits/client-identity"
+import { EndpointNotFoundError } from "@webhooks-lol/webhooks-server/repository"
 
 const ENDPOINT_ID = "11111111-1111-4111-8111-111111111111"
 const NEW_ENDPOINT_ID = "22222222-2222-4222-8222-222222222222"
+const ANONYMOUS_SESSION_ID = "33333333-3333-4333-8333-333333333333"
 
 function createAllowedAdmission() {
   return {
@@ -67,12 +104,28 @@ function createContext(endpointId = ENDPOINT_ID) {
   } as RouteContext<"/api/endpoints/[endpointId]">
 }
 
+function createAccountContext(endpointId = ENDPOINT_ID) {
+  return {
+    params: Promise.resolve({ endpointId }),
+  } as RouteContext<"/api/endpoints/[endpointId]/account">
+}
+
 describe("endpoint route", () => {
   beforeEach(() => {
     checkEndpointCreateAdmission.mockReset()
     checkEndpointCreateAdmission.mockResolvedValue(createAllowedAdmission())
+    assertEndpointAccessibleToActor.mockReset()
     createEndpoint.mockReset()
+    getEndpointAccessActor.mockReset()
+    getEndpointAccessActor.mockResolvedValue({ userId: null })
+    getEndpointAccountStatus.mockReset()
     getEndpoint.mockReset()
+    getEndpointForActor.mockReset()
+    listEndpointsForUser.mockReset()
+    publishEndpointAccessRevoked.mockReset()
+    requireEndpointUserId.mockReset()
+    requireEndpointUserId.mockResolvedValue("user-1")
+    saveEndpointToAccount.mockReset()
     updateEndpointName.mockReset()
   })
 
@@ -89,13 +142,104 @@ describe("endpoint route", () => {
     )
 
     expect(response.status).toBe(200)
+    expect(response.headers.get("set-cookie")).toContain(
+      `webhooks_lol_endpoint_session=`
+    )
     await expect(response.json()).resolves.toEqual({
       endpointId: NEW_ENDPOINT_ID,
       name: null,
     })
-    expect(createEndpoint).toHaveBeenCalledWith({
-      creatorKeyHash: "client-hash",
+    expect(createEndpoint).toHaveBeenCalledWith(
+      expect.objectContaining({
+        anonymousSessionId: expect.stringMatching(
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+        ),
+        creatorKeyHash: "client-hash",
+        ownerUserId: null,
+      })
+    )
+  })
+
+  it("reuses the anonymous endpoint session cookie when creating endpoints", async () => {
+    createEndpoint.mockResolvedValueOnce({
+      endpointId: NEW_ENDPOINT_ID,
+      name: null,
     })
+
+    const response = await POST(
+      new Request("https://hooks.example.com/api/endpoints", {
+        headers: {
+          cookie: `webhooks_lol_endpoint_session=${ANONYMOUS_SESSION_ID}`,
+        },
+        method: "POST",
+      })
+    )
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get("set-cookie")).toBeNull()
+    expect(createEndpoint).toHaveBeenCalledWith({
+      anonymousSessionId: ANONYMOUS_SESSION_ID,
+      creatorKeyHash: "client-hash",
+      ownerUserId: null,
+    })
+  })
+
+  it("creates signed-in endpoints for the current user", async () => {
+    getEndpointAccessActor.mockResolvedValueOnce({ userId: "user-1" })
+    createEndpoint.mockResolvedValueOnce({
+      endpointId: NEW_ENDPOINT_ID,
+      name: null,
+    })
+
+    const response = await POST(
+      new Request("https://hooks.example.com/api/endpoints", {
+        method: "POST",
+      })
+    )
+
+    expect(response.status).toBe(200)
+    expect(createEndpoint).toHaveBeenCalledWith({
+      anonymousSessionId: null,
+      creatorKeyHash: "client-hash",
+      ownerUserId: "user-1",
+    })
+  })
+
+  it("lists endpoints for the signed-in user", async () => {
+    listEndpointsForUser.mockResolvedValueOnce([
+      {
+        endpointId: ENDPOINT_ID,
+        name: "Stripe",
+      },
+    ])
+
+    const response = await LIST_ENDPOINTS()
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({
+      endpoints: [
+        {
+          endpointId: ENDPOINT_ID,
+          name: "Stripe",
+        },
+      ],
+    })
+    expect(listEndpointsForUser).toHaveBeenCalledWith("user-1")
+  })
+
+  it("requires authentication before listing account endpoints", async () => {
+    requireEndpointUserId.mockRejectedValueOnce(
+      new AuthenticationRequiredError()
+    )
+
+    const response = await LIST_ENDPOINTS()
+
+    expect(response.status).toBe(401)
+    await expect(response.json()).resolves.toEqual({
+      ok: false,
+      error: "Authentication is required.",
+    })
+    expect(listEndpointsForUser).not.toHaveBeenCalled()
   })
 
   it("rejects endpoint creation when the create policy is exhausted", async () => {
@@ -137,7 +281,7 @@ describe("endpoint route", () => {
   })
 
   it("returns endpoint metadata", async () => {
-    getEndpoint.mockResolvedValueOnce({
+    getEndpointForActor.mockResolvedValueOnce({
       endpointId: ENDPOINT_ID,
       name: "Stripe",
     })
@@ -152,7 +296,9 @@ describe("endpoint route", () => {
       endpointId: ENDPOINT_ID,
       name: "Stripe",
     })
-    expect(getEndpoint).toHaveBeenCalledWith(ENDPOINT_ID)
+    expect(getEndpointForActor).toHaveBeenCalledWith(ENDPOINT_ID, {
+      userId: null,
+    })
   })
 
   it("rejects malformed endpoint IDs before querying", async () => {
@@ -166,7 +312,7 @@ describe("endpoint route", () => {
       ok: false,
       error: "Invalid endpoint ID.",
     })
-    expect(getEndpoint).not.toHaveBeenCalled()
+    expect(getEndpointForActor).not.toHaveBeenCalled()
   })
 
   it("updates endpoint names", async () => {
@@ -248,5 +394,136 @@ describe("endpoint route", () => {
       maxBodyBytes: MAX_ENDPOINT_METADATA_REQUEST_BYTES,
     })
     expect(updateEndpointName).not.toHaveBeenCalled()
+  })
+
+  it("returns endpoint account status for the current browser session", async () => {
+    getEndpointAccountStatus.mockResolvedValueOnce({
+      canSaveToAccount: true,
+      endpointId: ENDPOINT_ID,
+      savedToAccount: false,
+    })
+
+    const response = await GET_ENDPOINT_ACCOUNT_STATUS(
+      new Request(
+        `https://hooks.example.com/api/endpoints/${ENDPOINT_ID}/account`,
+        {
+          headers: {
+            cookie: `webhooks_lol_endpoint_session=${ANONYMOUS_SESSION_ID}`,
+          },
+        }
+      ),
+      createAccountContext()
+    )
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({
+      canSaveToAccount: true,
+      endpointId: ENDPOINT_ID,
+      savedToAccount: false,
+    })
+    expect(getEndpointAccountStatus).toHaveBeenCalledWith({
+      anonymousSessionId: ANONYMOUS_SESSION_ID,
+      endpointId: ENDPOINT_ID,
+      userId: null,
+    })
+  })
+
+  it("saves an endpoint to the signed-in account with the anonymous session cookie", async () => {
+    saveEndpointToAccount.mockResolvedValueOnce({
+      canSaveToAccount: false,
+      endpointId: ENDPOINT_ID,
+      savedToAccount: true,
+    })
+
+    const response = await SAVE_ENDPOINT_TO_ACCOUNT(
+      new Request(
+        `https://hooks.example.com/api/endpoints/${ENDPOINT_ID}/account`,
+        {
+          headers: {
+            cookie: `webhooks_lol_endpoint_session=${ANONYMOUS_SESSION_ID}`,
+          },
+          method: "POST",
+        }
+      ),
+      createAccountContext()
+    )
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({
+      canSaveToAccount: false,
+      endpointId: ENDPOINT_ID,
+      savedToAccount: true,
+    })
+    expect(saveEndpointToAccount).toHaveBeenCalledWith({
+      anonymousSessionId: ANONYMOUS_SESSION_ID,
+      endpointId: ENDPOINT_ID,
+      ownerUserId: "user-1",
+    })
+    expect(publishEndpointAccessRevoked).toHaveBeenCalledWith(ENDPOINT_ID)
+  })
+
+  it("requires authentication before saving an endpoint to an account", async () => {
+    requireEndpointUserId.mockRejectedValueOnce(
+      new AuthenticationRequiredError()
+    )
+
+    const response = await SAVE_ENDPOINT_TO_ACCOUNT(
+      new Request(
+        `https://hooks.example.com/api/endpoints/${ENDPOINT_ID}/account`,
+        {
+          headers: {
+            cookie: `webhooks_lol_endpoint_session=${ANONYMOUS_SESSION_ID}`,
+          },
+          method: "POST",
+        }
+      ),
+      createAccountContext()
+    )
+
+    expect(response.status).toBe(401)
+    await expect(response.json()).resolves.toEqual({
+      ok: false,
+      error: "Authentication is required.",
+    })
+    expect(saveEndpointToAccount).not.toHaveBeenCalled()
+    expect(publishEndpointAccessRevoked).not.toHaveBeenCalled()
+  })
+
+  it("requires the anonymous session cookie before saving an endpoint to an account", async () => {
+    const response = await SAVE_ENDPOINT_TO_ACCOUNT(
+      new Request(
+        `https://hooks.example.com/api/endpoints/${ENDPOINT_ID}/account`,
+        {
+          method: "POST",
+        }
+      ),
+      createAccountContext()
+    )
+
+    expect(response.status).toBe(404)
+    expect(saveEndpointToAccount).not.toHaveBeenCalled()
+    expect(publishEndpointAccessRevoked).not.toHaveBeenCalled()
+  })
+
+  it("hides endpoint save ownership failures behind the endpoint not found response", async () => {
+    saveEndpointToAccount.mockRejectedValueOnce(
+      new EndpointNotFoundError(ENDPOINT_ID)
+    )
+
+    const response = await SAVE_ENDPOINT_TO_ACCOUNT(
+      new Request(
+        `https://hooks.example.com/api/endpoints/${ENDPOINT_ID}/account`,
+        {
+          headers: {
+            cookie: `webhooks_lol_endpoint_session=${ANONYMOUS_SESSION_ID}`,
+          },
+          method: "POST",
+        }
+      ),
+      createAccountContext()
+    )
+
+    expect(response.status).toBe(404)
+    expect(publishEndpointAccessRevoked).not.toHaveBeenCalled()
   })
 })

@@ -12,17 +12,42 @@ import {
 } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
-export const endpoints = pgTable("endpoints", {
-  id: uuid("id").primaryKey(),
-  name: text("name"),
-  creatorKeyHash: text("creator_key_hash"),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-  lastActivityAt: timestamp("last_activity_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-})
+import { user } from "./auth-schema.js"
+
+export const endpoints = pgTable(
+  "endpoints",
+  {
+    id: uuid("id").primaryKey(),
+    name: text("name"),
+    ownerUserId: text("owner_user_id").references(() => user.id, {
+      onDelete: "cascade",
+    }),
+    anonymousSessionId: text("anonymous_session_id"),
+    creatorKeyHash: text("creator_key_hash"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    lastActivityAt: timestamp("last_activity_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("endpoints_owner_user_id_last_activity_idx").on(
+      table.ownerUserId,
+      table.lastActivityAt.desc(),
+      table.id.desc()
+    ),
+    index("endpoints_anonymous_session_id_last_activity_idx").on(
+      table.anonymousSessionId,
+      table.lastActivityAt.desc(),
+      table.id.desc()
+    ),
+    check(
+      "endpoints_single_identity_check",
+      sql`num_nonnulls(${table.ownerUserId}, ${table.anonymousSessionId}) = 1`
+    ),
+  ]
+)
 
 export const capturedRequests = pgTable(
   "requests",

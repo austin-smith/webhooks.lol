@@ -6,6 +6,8 @@ import {
   eq,
   inArray,
   lt,
+  max,
+  ne,
   notInArray,
   or,
   sql,
@@ -18,6 +20,7 @@ import {
   endpointForwardDeliveries,
   endpoints,
   endpointResponses,
+  user as authUsers,
 } from "@webhooks-lol/database/schema"
 import { mapCapturedRequestRow } from "@webhooks-lol/webhooks-server/captured-request-row"
 import { enqueueEndpointForwardDeliveriesForRequest } from "@webhooks-lol/webhooks-server/endpoint-forwarding/repository"
@@ -37,6 +40,7 @@ import {
   type RequestSearchCriteria,
   type RequestSearchField,
 } from "@webhooks-lol/webhooks-core/request-search"
+import { MAX_ENDPOINTS_PER_IDENTITY } from "@webhooks-lol/webhooks-server/policies"
 import { MAX_REQUESTS_PER_ENDPOINT } from "@webhooks-lol/webhooks-server/request-retention"
 
 export const MAX_ENDPOINT_NAME_LENGTH = 32
@@ -55,12 +59,28 @@ export type EndpointMetadata = {
   name: string | null
 }
 
+export type EndpointAccountStatus = {
+  canSaveToAccount: boolean
+  endpointId: string
+  savedToAccount: boolean
+}
+
+export type EndpointAccessActor = {
+  userId: string | null
+}
+
 export type EndpointStats = {
   endpointId: string
   requestCount: number
   bodySizeBytes: number
   createdAt: string
   lastActivityAt: string
+}
+
+export type AccountWebhookStats = {
+  endpointCount: number
+  requestCount: number
+  lastActivityAt: string | null
 }
 
 export type RequestPageCursor = {
@@ -77,24 +97,209 @@ export type RequestPageOptions = {
 export type CreateEndpointOptions = {
   creatorKeyHash?: string | null
   now?: Date
+} & (
+  | {
+      anonymousSessionId: string
+      ownerUserId?: null
+    }
+  | {
+      anonymousSessionId?: null
+      ownerUserId: string
+    }
+)
+
+type EndpointIdentity = {
+  anonymousSessionId?: string | null
+  ownerUserId?: string | null
 }
 
-export async function createEndpoint(options: CreateEndpointOptions = {}) {
+export async function createEndpoint(options: CreateEndpointOptions) {
   const endpointId = crypto.randomUUID()
   const now = options.now ?? new Date()
-  await getDatabase()
-    .insert(endpoints)
-    .values({
+  const anonymousSessionId = options.anonymousSessionId ?? null
+  const ownerUserId = options.ownerUserId ?? null
+
+  assertEndpointHasSingleIdentity({ anonymousSessionId, ownerUserId })
+
+  await getDatabase().transaction(async (transaction) => {
+    await lockEndpointIdentityForCreate({
+      anonymousSessionId,
+      ownerUserId,
+      transaction,
+    })
+
+    await transaction.insert(endpoints).values({
       id: endpointId,
+      anonymousSessionId,
       creatorKeyHash: options.creatorKeyHash ?? null,
+      ownerUserId,
       createdAt: now,
       lastActivityAt: now,
     })
+
+    await trimEndpointIdentity({
+      anonymousSessionId,
+      endpointId,
+      ownerUserId,
+      transaction,
+    })
+  })
 
   return {
     endpointId,
     name: null,
   } satisfies EndpointMetadata
+}
+
+function assertEndpointHasSingleIdentity({
+  anonymousSessionId,
+  ownerUserId,
+}: EndpointIdentity) {
+  if (Boolean(ownerUserId) === Boolean(anonymousSessionId)) {
+    throw new Error(
+      "Endpoint must have exactly one owner identity: user or anonymous session."
+    )
+  }
+}
+
+export async function listEndpointsForUser(userId: string) {
+  const rows = await getDatabase()
+    .select({
+      id: endpoints.id,
+      name: endpoints.name,
+    })
+    .from(endpoints)
+    .where(eq(endpoints.ownerUserId, userId))
+    .orderBy(desc(endpoints.lastActivityAt), desc(endpoints.id))
+
+  return rows.map(mapEndpointRow)
+}
+
+export async function getAccountWebhookStats(
+  userId: string
+): Promise<AccountWebhookStats> {
+  const db = getDatabase()
+
+  const [endpointStats, requestStats] = await Promise.all([
+    db
+      .select({
+        endpointCount: sql<number>`cast(count(*) as integer)`.as(
+          "endpoint_count"
+        ),
+      })
+      .from(endpoints)
+      .where(eq(endpoints.ownerUserId, userId)),
+    db
+      .select({
+        requestCount: sql<number>`cast(count(*) as integer)`.as(
+          "request_count"
+        ),
+        lastRequestAt: max(capturedRequests.receivedAt).as("last_request_at"),
+      })
+      .from(capturedRequests)
+      .innerJoin(endpoints, eq(capturedRequests.endpointId, endpoints.id))
+      .where(
+        and(
+          eq(endpoints.ownerUserId, userId),
+          eq(capturedRequests.deleteAfterForwarding, false)
+        )
+      ),
+  ])
+
+  return {
+    endpointCount: Number(endpointStats[0]?.endpointCount ?? 0),
+    requestCount: Number(requestStats[0]?.requestCount ?? 0),
+    lastActivityAt: requestStats[0]?.lastRequestAt?.toISOString() ?? null,
+  }
+}
+
+type WebhookDatabase = ReturnType<typeof getDatabase>
+type WebhookDatabaseTransaction = Parameters<
+  Parameters<WebhookDatabase["transaction"]>[0]
+>[0]
+
+async function lockEndpointIdentityForCreate({
+  anonymousSessionId,
+  ownerUserId,
+  transaction,
+}: {
+  anonymousSessionId: string | null
+  ownerUserId: string | null
+  transaction: WebhookDatabaseTransaction
+}) {
+  if (ownerUserId) {
+    await transaction.execute(
+      sql`select 1 from ${authUsers} where ${authUsers.id} = ${ownerUserId} for update`
+    )
+    return
+  }
+
+  if (anonymousSessionId) {
+    await transaction.execute(
+      sql`select pg_advisory_xact_lock(1869563150, hashtext(${anonymousSessionId}))`
+    )
+  }
+}
+
+async function trimEndpointIdentity({
+  anonymousSessionId,
+  endpointId,
+  ownerUserId,
+  transaction,
+}: {
+  anonymousSessionId: string | null
+  endpointId: string
+  ownerUserId: string | null
+  transaction: WebhookDatabaseTransaction
+}) {
+  if (ownerUserId) {
+    const retainedEndpointIds = transaction
+      .select({ id: endpoints.id })
+      .from(endpoints)
+      .where(
+        and(
+          eq(endpoints.ownerUserId, ownerUserId),
+          ne(endpoints.id, endpointId)
+        )
+      )
+      .orderBy(desc(endpoints.lastActivityAt), desc(endpoints.id))
+      .limit(MAX_ENDPOINTS_PER_IDENTITY - 1)
+
+    await transaction
+      .delete(endpoints)
+      .where(
+        and(
+          eq(endpoints.ownerUserId, ownerUserId),
+          ne(endpoints.id, endpointId),
+          notInArray(endpoints.id, retainedEndpointIds)
+        )
+      )
+    return
+  }
+
+  if (anonymousSessionId) {
+    const retainedEndpointIds = transaction
+      .select({ id: endpoints.id })
+      .from(endpoints)
+      .where(
+        and(
+          eq(endpoints.anonymousSessionId, anonymousSessionId),
+          ne(endpoints.id, endpointId)
+        )
+      )
+      .orderBy(desc(endpoints.lastActivityAt), desc(endpoints.id))
+      .limit(MAX_ENDPOINTS_PER_IDENTITY - 1)
+
+    await transaction
+      .delete(endpoints)
+      .where(
+        and(
+          eq(endpoints.anonymousSessionId, anonymousSessionId),
+          ne(endpoints.id, endpointId),
+          notInArray(endpoints.id, retainedEndpointIds)
+        )
+      )
+  }
 }
 
 export async function getEndpoint(endpointId: string) {
@@ -110,6 +315,136 @@ export async function getEndpoint(endpointId: string) {
   assertEndpointRowIsActive(endpointId, row)
 
   return mapEndpointRow(row)
+}
+
+export async function getEndpointForActor(
+  endpointId: string,
+  actor: EndpointAccessActor
+) {
+  const [row] = await getDatabase()
+    .select({
+      id: endpoints.id,
+      name: endpoints.name,
+      ownerUserId: endpoints.ownerUserId,
+    })
+    .from(endpoints)
+    .where(eq(endpoints.id, endpointId))
+    .limit(1)
+
+  assertEndpointRowIsVisibleToActor(endpointId, row, actor)
+
+  return mapEndpointRow(row)
+}
+
+export async function assertEndpointAccessibleToActor(
+  endpointId: string,
+  actor: EndpointAccessActor
+) {
+  const [row] = await getDatabase()
+    .select({
+      id: endpoints.id,
+      ownerUserId: endpoints.ownerUserId,
+    })
+    .from(endpoints)
+    .where(eq(endpoints.id, endpointId))
+    .limit(1)
+
+  assertEndpointRowIsVisibleToActor(endpointId, row, actor)
+}
+
+export async function getEndpointAccountStatus({
+  anonymousSessionId,
+  endpointId,
+  userId,
+}: {
+  anonymousSessionId: string | null
+  endpointId: string
+  userId: string | null
+}) {
+  const [row] = await getDatabase()
+    .select({
+      id: endpoints.id,
+      anonymousSessionId: endpoints.anonymousSessionId,
+      ownerUserId: endpoints.ownerUserId,
+    })
+    .from(endpoints)
+    .where(eq(endpoints.id, endpointId))
+    .limit(1)
+
+  assertEndpointRowIsVisibleToActor(endpointId, row, { userId })
+
+  return mapEndpointAccountStatus(row, anonymousSessionId)
+}
+
+export async function saveEndpointToAccount({
+  anonymousSessionId,
+  endpointId,
+  ownerUserId,
+}: {
+  anonymousSessionId: string
+  endpointId: string
+  ownerUserId: string
+}) {
+  const now = new Date()
+
+  return getDatabase().transaction(async (transaction) => {
+    await transaction.execute(
+      sql`select 1 from ${authUsers} where ${authUsers.id} = ${ownerUserId} for update`
+    )
+    await transaction.execute(
+      sql`select pg_advisory_xact_lock(1869563150, hashtext(${anonymousSessionId}))`
+    )
+
+    const [row] = await transaction
+      .select({
+        id: endpoints.id,
+        anonymousSessionId: endpoints.anonymousSessionId,
+        ownerUserId: endpoints.ownerUserId,
+      })
+      .from(endpoints)
+      .where(eq(endpoints.id, endpointId))
+      .limit(1)
+
+    assertEndpointRowIsActive(endpointId, row)
+
+    if (row.ownerUserId === ownerUserId) {
+      return mapEndpointAccountStatus(row, anonymousSessionId)
+    }
+
+    if (row.ownerUserId || row.anonymousSessionId !== anonymousSessionId) {
+      throw new EndpointNotFoundError(endpointId)
+    }
+
+    const [savedRow] = await transaction
+      .update(endpoints)
+      .set({
+        anonymousSessionId: null,
+        lastActivityAt: now,
+        ownerUserId,
+      })
+      .where(
+        and(
+          eq(endpoints.id, endpointId),
+          eq(endpoints.anonymousSessionId, anonymousSessionId)
+        )
+      )
+      .returning({
+        id: endpoints.id,
+        anonymousSessionId: endpoints.anonymousSessionId,
+        ownerUserId: endpoints.ownerUserId,
+      })
+
+    assertEndpointRowIsActive(endpointId, savedRow)
+
+    await trimEndpointIdentity({
+      anonymousSessionId: null,
+      endpointId,
+      ownerUserId,
+      transaction,
+    })
+
+    return mapEndpointAccountStatus(savedRow, anonymousSessionId)
+  })
 }
 
 export async function getEndpointStats(endpointId: string) {
@@ -460,6 +795,23 @@ function mapEndpointRow(row: { id: string; name: string | null }) {
   } satisfies EndpointMetadata
 }
 
+function mapEndpointAccountStatus(
+  row: {
+    id: string
+    anonymousSessionId?: string | null
+    ownerUserId?: string | null
+  },
+  anonymousSessionId: string | null
+) {
+  return {
+    canSaveToAccount: Boolean(
+      row.anonymousSessionId && row.anonymousSessionId === anonymousSessionId
+    ),
+    endpointId: row.id,
+    savedToAccount: Boolean(row.ownerUserId),
+  } satisfies EndpointAccountStatus
+}
+
 function mapEndpointStatsRow(row: {
   id: string
   requestCount: number
@@ -502,8 +854,20 @@ async function assertEndpointExists(endpointId: string) {
 function assertEndpointRowIsActive(
   endpointId: string,
   row: { id?: string } | undefined
-) {
+): asserts row is { id?: string } {
   if (!row) {
+    throw new EndpointNotFoundError(endpointId)
+  }
+}
+
+function assertEndpointRowIsVisibleToActor(
+  endpointId: string,
+  row: { id?: string; ownerUserId: string | null } | undefined,
+  actor: EndpointAccessActor
+) {
+  assertEndpointRowIsActive(endpointId, row)
+
+  if (row.ownerUserId && row.ownerUserId !== actor.userId) {
     throw new EndpointNotFoundError(endpointId)
   }
 }

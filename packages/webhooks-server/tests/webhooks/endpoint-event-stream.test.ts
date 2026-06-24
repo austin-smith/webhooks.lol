@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest"
 
 import {
   openEndpointEventStream,
+  publishEndpointAccessRevoked,
   publishEndpointCleared,
   publishRequest,
 } from "@webhooks-lol/webhooks-server/endpoint-event-stream"
@@ -85,6 +86,44 @@ describe("openEndpointEventStream", () => {
       await expect(readEvent(reader)).resolves.toBe(
         'event: clear\ndata: {"endpointId":"clear-endpoint-id"}\n\n'
       )
+    } finally {
+      controller.abort()
+      reader.releaseLock()
+    }
+  })
+
+  it("closes matching streams when endpoint access is revoked", async () => {
+    const controller = new AbortController()
+    const lease = {
+      release: vi.fn(async () => undefined),
+      renew: vi.fn(async () => undefined),
+    }
+    const stream = openEndpointEventStream({
+      endpointId: "claimed-endpoint-id",
+      lease,
+      signal: controller.signal,
+    })
+    const reader = stream.getReader()
+
+    try {
+      await readEvent(reader)
+
+      publishEndpointAccessRevoked("other-endpoint-id")
+      publishRequest(createRequest("claimed-endpoint-id", "before-revoke"))
+
+      const event = await readEvent(reader)
+
+      expect(event).toContain('"id":"before-revoke"')
+
+      publishEndpointAccessRevoked("claimed-endpoint-id")
+
+      await expect(reader.read()).resolves.toEqual({
+        done: true,
+        value: undefined,
+      })
+      expect(lease.release).toHaveBeenCalledTimes(1)
+
+      publishRequest(createRequest("claimed-endpoint-id", "after-revoke"))
     } finally {
       controller.abort()
       reader.releaseLock()

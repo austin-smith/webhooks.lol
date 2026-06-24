@@ -1,41 +1,132 @@
 # Auth
 
-Auth is for admin capability, not for ordinary webhook endpoint use.
+Auth is optional for ordinary webhook endpoint use and required for account
+portability.
 
-The public app remains disposable and anonymous. Anyone can create an endpoint,
-send webhook traffic to it, and inspect endpoints remembered by their own browser
-session. Signing in must not become a requirement for that core workflow.
+Anonymous users can still create disposable endpoints, send webhook traffic to
+them, and inspect endpoints remembered by their own browser session. Signed-in
+users get account-owned endpoints that follow the user across browsers and
+sessions.
 
-## Current Model
+## Account Model
 
-- GitHub is the only sign-in provider because the app is developer-focused.
-- Auth gates `/admin`, not webhook endpoint creation or inspection.
-- The first GitHub user created on a fresh deployment becomes the admin.
-- After that first user exists, public signup is closed for this release.
-- Existing linked GitHub accounts can still sign in.
+- Email/password signup is open to users.
+- Users sign in at `/login` and create accounts at `/sign-up`.
+- New email/password accounts must verify their email before signing in.
+- Email verification links redirect to `/email-verified`, which shows an
+  explicit success or failure result before returning the user to sign-in.
+- Users who forget an email/password credential can request a reset link from
+  `/forgot-password`. The public request result is intentionally generic and
+  does not reveal whether the email exists, whether it is GitHub-only, or
+  whether email delivery happened.
+- Password reset links redirect to `/reset-password`. Reset tokens are created
+  and consumed by Better Auth through the standard `auth.verification` table,
+  expire after one hour, and revoke existing sessions after a successful reset.
+- GitHub OAuth is a normal sign-in/sign-up provider.
+- Auth methods are not linked together. An account is either email/password or
+  GitHub for sign-in purposes; users are not offered a flow to add another
+  provider to an existing account.
+- The account page offers password changes only for email/password accounts.
+  GitHub accounts use GitHub for sign-in and do not get a password change or
+  password creation flow.
+- The first user created on a fresh deployment receives the Better Auth `admin`
+  role. Later users receive the standard `user` role regardless of provider.
+- Signed-in endpoint creation stores the Better Auth user ID on the endpoint.
+- Signed-in users keep up to 50 account-owned endpoints. Creating another
+  endpoint succeeds and removes the least recently active account-owned
+  endpoint.
+- Account-owned endpoint reads and mutations require the owning user session.
+- Anonymous endpoint creation does not attach an owner and remains browser-local
+  from the product perspective. Anonymous browser endpoint retention uses a
+  private browser session cookie.
+- Deleting a user deletes that user's account-owned endpoints; owned endpoints
+  must not become anonymous endpoints.
 
-This gives a deployment owner a way to access app-wide activity without turning
-the disposable webhook product into an account-based product too early.
+Historical anonymous endpoint claiming is intentionally not part of the current
+model. Existing anonymous endpoints stay anonymous unless a future product
+design explicitly introduces a claiming flow.
+
+## Endpoint Access
+
+Inbound webhook capture remains public-by-endpoint-ID so webhook providers can
+deliver requests without a browser session.
+
+Inspector and mutation APIs enforce endpoint ownership:
+
+- Anonymous endpoints are accessible by endpoint ID, matching the existing
+  disposable workflow.
+- Account-owned endpoints are visible only to the owning Better Auth user.
+- The current `whlol` CLI protocol supports anonymous endpoints only; account-
+  owned endpoint CLI access needs a dedicated CLI authentication or
+  endpoint-token flow.
+- The signed-in endpoint list is loaded from the server and is the source of
+  truth for account-backed browser sessions.
+- Browser localStorage is used only as a convenience for endpoint selection; it
+  is not an authorization boundary.
 
 ## Admin
 
-Admin means app-wide visibility and control. It is separate from endpoint access.
+Admin means app-wide visibility and control. It is separate from endpoint
+ownership.
 
-Current admin access is intentionally narrow:
+Current admin access remains narrow:
 
 - `/admin` requires a valid session.
 - The signed-in user must have the standard Better Auth `admin` role.
-- The database enforces a single admin role so concurrent first sign-ins cannot
-  accidentally create multiple admins.
+- Admin role checks use Better Auth's user fields, not custom role tables.
+- Fresh deployments bootstrap admin access through the first user, regardless of
+  provider.
 
-Do not add custom role tables, setup-token flows, hardcoded admin IDs, owner
-tables, or bootstrap scripts unless the product design changes first.
+Do not add custom auth, role, setup-token, ownership, or bootstrap tables unless
+a Better Auth-supported feature and product design require them.
 
-## Future Direction
+## Auth Configuration
 
-The current signup policy describes this version of the product. It is not a
-permanent claim that only one account can ever exist.
+Sign-up and sign-in require auth runtime configuration, provider configuration,
+captcha configuration, and outbound email delivery. This is not production-only:
+every deployed environment that exposes auth flows must configure values for that
+environment. Local development must also provide these values when exercising
+auth flows, but can use local URLs, test OAuth apps, Turnstile test keys, and
+sandbox email sender addresses.
 
-User accounts should be added only when the product needs authenticated user
-ownership. Until then, auth stays limited to admin access and must not leak into
-the anonymous endpoint workflow.
+Auth uses the standard Better Auth tables in the `auth` PostgreSQL schema. The
+app-owned endpoint ownership data remains in the `public` schema.
+
+### Required Variables
+
+- `BETTER_AUTH_SECRET`: Better Auth secret for signing and encryption. Use a
+  unique high-entropy value per environment.
+- `BETTER_AUTH_URL`: Canonical web app origin used by Better Auth for auth URLs
+  and callbacks, such as `https://webhooks.lol` or `http://localhost:4665`.
+- `NEXT_PUBLIC_APP_URL`: Canonical public web app origin used by app-generated
+  links.
+- `GITHUB_CLIENT_ID`: GitHub OAuth app client ID for this environment.
+- `GITHUB_CLIENT_SECRET`: GitHub OAuth app client secret for this environment.
+- `NEXT_PUBLIC_TURNSTILE_SITE_KEY`: Cloudflare Turnstile site key rendered by
+  auth forms.
+- `TURNSTILE_SECRET_KEY`: Cloudflare Turnstile secret key verified by the auth
+  server.
+- `APP_ENV`: Environment label used in outbound auth email sender names.
+  `production` sends as `webhooks.lol`; any other value sends as
+  `webhooks.lol (<APP_ENV>)`, such as `webhooks.lol (staging)`.
+- `EMAIL_FROM_ADDRESS`: Outbound sender address for auth email.
+- `CLOUDFLARE_ACCOUNT_ID`: Cloudflare account ID used for Email Sending.
+- `CLOUDFLARE_EMAIL_API_TOKEN`: Scoped Cloudflare API token with Email Sending
+  permission.
+
+### Email Delivery
+
+Email/password auth requires outbound email for email verification and password
+reset links. The app sends these messages through Cloudflare Email Sending.
+
+The sender domain in `EMAIL_FROM_ADDRESS` must be onboarded in Cloudflare Email
+Sending before auth email can be delivered. Use a scoped Cloudflare API token
+with Email Sending permission, not a personal Wrangler OAuth token.
+
+Password reset link email is sent only for accounts that already have an
+email/password credential. GitHub-only accounts must sign in with GitHub. After
+an email/password reset succeeds, the app sends a security notification email to
+the account address.
+
+Local development should use an onboarded sandbox sender address and real test
+recipient addresses controlled by the developer.

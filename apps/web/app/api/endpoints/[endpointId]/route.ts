@@ -1,3 +1,4 @@
+import { getEndpointAccessActor } from "@/lib/auth/endpoint-access"
 import { NO_STORE_HEADERS } from "@webhooks-lol/webhooks-server/http/headers"
 import {
   readBoundedTextBody,
@@ -9,7 +10,8 @@ import type {
 } from "@webhooks-lol/webhooks-core/api-contracts"
 import { parseEndpointId } from "@webhooks-lol/webhooks-core/endpoint-id"
 import {
-  getEndpoint,
+  assertEndpointAccessibleToActor,
+  getEndpointForActor,
   isEndpointUnavailableError,
   MAX_ENDPOINT_NAME_LENGTH,
   updateEndpointName,
@@ -25,7 +27,7 @@ export const dynamic = "force-dynamic"
 export const MAX_ENDPOINT_METADATA_REQUEST_BYTES = 1024
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: RouteContext<"/api/endpoints/[endpointId]">
 ) {
   const { endpointId: rawEndpointId } = await context.params
@@ -35,10 +37,13 @@ export async function GET(
     return createInvalidEndpointResponse()
   }
 
-  let response: Awaited<ReturnType<typeof getEndpoint>>
+  let response: Awaited<ReturnType<typeof getEndpointForActor>>
 
   try {
-    response = await getEndpoint(endpointId)
+    response = await getEndpointForActor(
+      endpointId,
+      await getEndpointAccessActor(request)
+    )
   } catch (error) {
     if (isEndpointUnavailableError(error)) {
       return createEndpointNotFoundResponse()
@@ -105,6 +110,10 @@ export async function PATCH(
   let response: Awaited<ReturnType<typeof updateEndpointName>>
 
   try {
+    await assertEndpointAccessibleToActor(
+      endpointId,
+      await getEndpointAccessActor(request)
+    )
     response = await updateEndpointName({
       endpointId,
       name: parsed.name,

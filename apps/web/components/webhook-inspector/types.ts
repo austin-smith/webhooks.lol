@@ -4,7 +4,10 @@ import type {
   EndpointResponseOverrideInput,
 } from "@webhooks-lol/webhooks-core/endpoint-response"
 import type { RequestSearchCriteria } from "@webhooks-lol/webhooks-core/request-search"
-import type { EndpointStats } from "./endpoint-session/transport"
+import type {
+  EndpointAccountStatus,
+  EndpointStats,
+} from "./endpoint-session/transport"
 import type { EndpointForwardTarget } from "./endpoint-session/transport"
 
 export type ConnectionState = "live" | "connecting" | "offline"
@@ -18,12 +21,18 @@ export type EndpointActions = {
     url: string
   }) => Promise<void>
   deleteForwardTarget: (targetId: string) => Promise<void>
+  loadEndpointAccountStatus: (
+    endpointId?: string
+  ) => Promise<EndpointAccountStatus | null>
   loadForwardTargets: () => Promise<void>
   loadEndpointStats: () => Promise<EndpointStats | null>
   loadOlderRequests: () => void
   renameEndpoint: (name: string) => void
   refreshEndpoint: () => void
   replayRequest: (requestId: string) => Promise<void>
+  saveEndpointToAccount: (
+    endpointId?: string
+  ) => Promise<EndpointAccountStatus | null>
   saveResponseOverride: (
     override: EndpointResponseOverrideInput
   ) => Promise<void>
@@ -48,6 +57,7 @@ export type EndpointState = {
   connectionState: ConnectionState
   errorMessage: string | null
   endpointNames: EndpointNames
+  endpointAccountStatuses: Record<string, EndpointAccountStatus>
   forwardTargets: EndpointForwardTarget[]
   isClearing: boolean
   isLoadingForwardTargets: boolean
@@ -56,6 +66,7 @@ export type EndpointState = {
   isReplayingSelectedRequest: boolean
   isSavingResponse: boolean
   isSavingForwardTarget: boolean
+  isSavingEndpointToAccount: boolean
   hasMoreRequests: boolean
   recentEndpointIds: string[]
   responseConfig: EndpointResponseConfig

@@ -19,15 +19,15 @@ configuration and trigger an event.
 ## Commands
 
 ```bash
-# Forward (create a new endpoint, or attach to an existing one)
+# Forward (create a new anonymous endpoint, or attach to an existing anonymous one)
 npx whlol forward --to http://localhost:3000/api/webhooks
 npx whlol forward <endpoint-id> --to http://localhost:3000/hook
 
-# Tail live requests to the terminal
+# Tail live requests from an anonymous endpoint to the terminal
 npx whlol tail <endpoint-id>
 npx whlol tail <endpoint-id> --json | jq .
 
-# Replay a stored request, or a filtered set
+# Replay a stored request, or a filtered set, from an anonymous endpoint
 npx whlol replay <endpoint-id> --request <request-id>
 npx whlol replay <endpoint-id> --method POST --grep created
 
@@ -66,7 +66,10 @@ briefly down.
 
 ## Security
 
-The endpoint ID is the only credential for CLI access: anyone who has it can
-read, replay, and forward captured traffic. Treat the receive URL and ID as
-secrets. By default `--to` must be a local or private-network host; pass
-`--allow-remote` to override.
+The current CLI protocol supports anonymous endpoints only. `whlol` can read,
+replay, and forward traffic for anonymous endpoints by endpoint ID.
+
+Account-owned endpoints created while signed in require the owning browser
+session and are not exposed to the CLI until a dedicated CLI authentication or
+endpoint-token flow exists. By default `--to` must be a local or private-network
+host; pass `--allow-remote` to override.
