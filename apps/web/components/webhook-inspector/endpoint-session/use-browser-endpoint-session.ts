@@ -1356,6 +1356,7 @@ export function useBrowserEndpointSession(): Endpoint {
     isLoading,
     isLoadingOlderRequests,
     isReplayingSelectedRequest,
+    isSignedIn: Boolean(sessionUserId),
     isSavingForwardTarget,
     isSavingEndpointToAccount,
     isSavingResponse,

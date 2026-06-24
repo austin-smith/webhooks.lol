@@ -64,6 +64,7 @@ export type EndpointState = {
   isLoading: boolean
   isLoadingOlderRequests: boolean
   isReplayingSelectedRequest: boolean
+  isSignedIn: boolean
   isSavingResponse: boolean
   isSavingForwardTarget: boolean
   isSavingEndpointToAccount: boolean

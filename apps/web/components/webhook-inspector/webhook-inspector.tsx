@@ -71,6 +71,7 @@ export function WebhookInspector({ docsUrl }: WebhookInspectorProps) {
         forwardTargets={endpoint.forwardTargets}
         isLoading={endpoint.isLoading}
         isLoadingForwardTargets={endpoint.isLoadingForwardTargets}
+        isSignedIn={endpoint.isSignedIn}
         isSavingEndpointToAccount={endpoint.isSavingEndpointToAccount}
         isSavingForwardTarget={endpoint.isSavingForwardTarget}
         isSavingResponse={endpoint.isSavingResponse}

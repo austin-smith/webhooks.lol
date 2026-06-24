@@ -33,6 +33,7 @@ type InspectorHeaderProps = {
   forwardTargets: EndpointForwardTarget[]
   isLoading: boolean
   isLoadingForwardTargets: boolean
+  isSignedIn: boolean
   isSavingEndpointToAccount: boolean
   isSavingForwardTarget: boolean
   isSavingResponse: boolean
@@ -81,6 +82,7 @@ export function InspectorHeader({
   forwardTargets,
   isLoading,
   isLoadingForwardTargets,
+  isSignedIn,
   isSavingEndpointToAccount,
   isSavingForwardTarget,
   isSavingResponse,
@@ -111,6 +113,7 @@ export function InspectorHeader({
           disabled={isLoading || !endpointId}
           endpointAccountStatuses={endpointAccountStatuses}
           endpointNames={endpointNames}
+          isSignedIn={isSignedIn}
           isSavingEndpointToAccount={isSavingEndpointToAccount}
           name={endpointName}
           recentEndpointIds={recentEndpointIds}

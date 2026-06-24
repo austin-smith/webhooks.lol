@@ -33,6 +33,7 @@ type EndpointSwitcherProps = {
   disabled: boolean
   endpointAccountStatuses: Record<string, EndpointAccountStatus>
   endpointNames: EndpointNames
+  isSignedIn: boolean
   isSavingEndpointToAccount: boolean
   name: string
   recentEndpointIds: string[]
@@ -52,6 +53,7 @@ export function EndpointSwitcher({
   disabled,
   endpointAccountStatuses,
   endpointNames,
+  isSignedIn,
   isSavingEndpointToAccount,
   name,
   recentEndpointIds,
@@ -105,7 +107,7 @@ export function EndpointSwitcher({
   }
 
   React.useEffect(() => {
-    if (!open) {
+    if (!open || !isSignedIn) {
       return
     }
 
@@ -119,6 +121,7 @@ export function EndpointSwitcher({
   }, [
     endpointAccountStatuses,
     filteredEndpointIds,
+    isSignedIn,
     onLoadEndpointAccountStatus,
     open,
   ])
@@ -175,6 +178,7 @@ export function EndpointSwitcher({
                   key={recentEndpointId}
                   endpointNames={endpointNames}
                   endpointStatus={endpointAccountStatuses[recentEndpointId]}
+                  isSignedIn={isSignedIn}
                   isSavingEndpointToAccount={isSavingEndpointToAccount}
                   isRenaming={isRenaming && recentEndpointId === endpointId}
                   nameDraft={draftName}
@@ -226,6 +230,7 @@ export function EndpointSwitcher({
 function EndpointSwitcherRow({
   endpointStatus,
   endpointNames,
+  isSignedIn,
   isSavingEndpointToAccount,
   isRenaming,
   nameDraft,
@@ -240,6 +245,7 @@ function EndpointSwitcherRow({
 }: {
   endpointStatus: EndpointAccountStatus | null | undefined
   endpointNames: EndpointNames
+  isSignedIn: boolean
   isSavingEndpointToAccount: boolean
   isRenaming: boolean
   nameDraft: string
@@ -254,7 +260,8 @@ function EndpointSwitcherRow({
 }) {
   const name = endpointNames[endpointId]?.trim()
   const shortId = formatShortEndpointId(endpointId)
-  const canSaveToAccount = Boolean(endpointStatus?.canSaveToAccount)
+  const canSaveToAccount =
+    isSignedIn && Boolean(endpointStatus?.canSaveToAccount)
 
   if (isRenaming) {
     return (
