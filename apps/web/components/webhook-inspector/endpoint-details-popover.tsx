@@ -43,7 +43,7 @@ export function EndpointDetailsPopover({
   const [hasError, setHasError] = React.useState(false)
   const loadVersion = React.useRef(0)
 
-  const loadStats = React.useCallback(async () => {
+  const loadDetails = React.useCallback(async () => {
     if (!endpointId) {
       return
     }
@@ -57,18 +57,20 @@ export function EndpointDetailsPopover({
     try {
       const nextStats = await onLoadEndpointStats()
 
-      if (loadVersion.current === version) {
-        setStats(nextStats)
+      if (loadVersion.current !== version) {
+        return
       }
+
+      setStats(nextStats)
+      setIsLoading(false)
     } catch {
-      if (loadVersion.current === version) {
-        setStats(null)
-        setHasError(true)
+      if (loadVersion.current !== version) {
+        return
       }
-    } finally {
-      if (loadVersion.current === version) {
-        setIsLoading(false)
-      }
+
+      setStats(null)
+      setHasError(true)
+      setIsLoading(false)
     }
   }, [endpointId, onLoadEndpointStats])
 
@@ -76,7 +78,7 @@ export function EndpointDetailsPopover({
     setOpen(nextOpen)
 
     if (nextOpen) {
-      void loadStats()
+      void loadDetails()
       return
     }
 

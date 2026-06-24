@@ -354,6 +354,56 @@ describe("endpoint transport", () => {
     })
   })
 
+  it("loads and saves endpoint account status through the fetch adapter", async () => {
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(
+        createResponse({
+          canSaveToAccount: true,
+          endpointId: ENDPOINT_ID,
+          savedToAccount: false,
+        })
+      )
+      .mockResolvedValueOnce(
+        createResponse({
+          canSaveToAccount: false,
+          endpointId: ENDPOINT_ID,
+          savedToAccount: true,
+        })
+      )
+    const transport = createFetchEndpointTransport(fetcher)
+
+    await expect(
+      transport.loadEndpointAccountStatus(ENDPOINT_ID)
+    ).resolves.toEqual({
+      canSaveToAccount: true,
+      endpointId: ENDPOINT_ID,
+      savedToAccount: false,
+    })
+    await expect(transport.saveEndpointToAccount(ENDPOINT_ID)).resolves.toEqual(
+      {
+        canSaveToAccount: false,
+        endpointId: ENDPOINT_ID,
+        savedToAccount: true,
+      }
+    )
+
+    expect(fetcher).toHaveBeenNthCalledWith(
+      1,
+      `/api/endpoints/${ENDPOINT_ID}/account`,
+      {
+        cache: "no-store",
+      }
+    )
+    expect(fetcher).toHaveBeenNthCalledWith(
+      2,
+      `/api/endpoints/${ENDPOINT_ID}/account`,
+      {
+        method: "POST",
+      }
+    )
+  })
+
   it("manages endpoint forward targets through the fetch adapter", async () => {
     const createdTarget = createForwardTarget()
     const updatedTarget = createForwardTarget({
@@ -555,6 +605,9 @@ describe("endpoint transport", () => {
     await expect(transport.listOwnedEndpoints()).rejects.toThrow(
       "Could not load endpoints."
     )
+    await expect(
+      transport.loadEndpointAccountStatus(ENDPOINT_ID)
+    ).rejects.toThrow("Could not load endpoint account status.")
     await expect(transport.loadEndpointStats(ENDPOINT_ID)).rejects.toThrow(
       "Could not load endpoint details."
     )
@@ -599,5 +652,8 @@ describe("endpoint transport", () => {
     await expect(
       transport.replayRequest(ENDPOINT_ID, "captured-1")
     ).rejects.toThrow("Could not replay request.")
+    await expect(transport.saveEndpointToAccount(ENDPOINT_ID)).rejects.toThrow(
+      "Could not save endpoint."
+    )
   })
 })

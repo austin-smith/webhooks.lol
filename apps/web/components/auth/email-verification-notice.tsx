@@ -5,7 +5,10 @@ import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
 import { authClient } from "@/lib/auth/client"
-import { EMAIL_VERIFICATION_CALLBACK_PATH } from "@/lib/auth/redirects"
+import {
+  createAuthRedirectHref,
+  createEmailVerificationCallbackPath,
+} from "@/lib/auth/redirects"
 import {
   AuthFormFeedback,
   type AuthFormFeedbackState,
@@ -24,7 +27,7 @@ export function EmailVerificationNotice({
     null
   )
   const [isResending, setIsResending] = React.useState(false)
-  const loginHref = createLoginHref(callbackPath)
+  const loginHref = createAuthRedirectHref("/login", callbackPath)
 
   async function resendVerificationEmail() {
     setIsResending(true)
@@ -32,7 +35,7 @@ export function EmailVerificationNotice({
 
     try {
       const result = await authClient.sendVerificationEmail({
-        callbackURL: EMAIL_VERIFICATION_CALLBACK_PATH,
+        callbackURL: createEmailVerificationCallbackPath(callbackPath),
         email,
       })
 
@@ -85,12 +88,4 @@ export function EmailVerificationNotice({
       ) : null}
     </div>
   )
-}
-
-function createLoginHref(callbackPath: string) {
-  if (callbackPath === "/") {
-    return "/login"
-  }
-
-  return `/login?next=${encodeURIComponent(callbackPath)}`
 }

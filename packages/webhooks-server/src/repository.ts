@@ -59,6 +59,12 @@ export type EndpointMetadata = {
   name: string | null
 }
 
+export type EndpointAccountStatus = {
+  canSaveToAccount: boolean
+  endpointId: string
+  savedToAccount: boolean
+}
+
 export type EndpointAccessActor = {
   userId: string | null
 }
@@ -344,6 +350,101 @@ export async function assertEndpointAccessibleToActor(
     .limit(1)
 
   assertEndpointRowIsVisibleToActor(endpointId, row, actor)
+}
+
+export async function getEndpointAccountStatus({
+  anonymousSessionId,
+  endpointId,
+  userId,
+}: {
+  anonymousSessionId: string | null
+  endpointId: string
+  userId: string | null
+}) {
+  const [row] = await getDatabase()
+    .select({
+      id: endpoints.id,
+      anonymousSessionId: endpoints.anonymousSessionId,
+      ownerUserId: endpoints.ownerUserId,
+    })
+    .from(endpoints)
+    .where(eq(endpoints.id, endpointId))
+    .limit(1)
+
+  assertEndpointRowIsVisibleToActor(endpointId, row, { userId })
+
+  return mapEndpointAccountStatus(row, anonymousSessionId)
+}
+
+export async function saveEndpointToAccount({
+  anonymousSessionId,
+  endpointId,
+  ownerUserId,
+}: {
+  anonymousSessionId: string
+  endpointId: string
+  ownerUserId: string
+}) {
+  const now = new Date()
+
+  return getDatabase().transaction(async (transaction) => {
+    await transaction.execute(
+      sql`select 1 from ${authUsers} where ${authUsers.id} = ${ownerUserId} for update`
+    )
+    await transaction.execute(
+      sql`select pg_advisory_xact_lock(1869563150, hashtext(${anonymousSessionId}))`
+    )
+
+    const [row] = await transaction
+      .select({
+        id: endpoints.id,
+        anonymousSessionId: endpoints.anonymousSessionId,
+        ownerUserId: endpoints.ownerUserId,
+      })
+      .from(endpoints)
+      .where(eq(endpoints.id, endpointId))
+      .limit(1)
+
+    assertEndpointRowIsActive(endpointId, row)
+
+    if (row.ownerUserId === ownerUserId) {
+      return mapEndpointAccountStatus(row, anonymousSessionId)
+    }
+
+    if (row.ownerUserId || row.anonymousSessionId !== anonymousSessionId) {
+      throw new EndpointNotFoundError(endpointId)
+    }
+
+    const [savedRow] = await transaction
+      .update(endpoints)
+      .set({
+        anonymousSessionId: null,
+        lastActivityAt: now,
+        ownerUserId,
+      })
+      .where(
+        and(
+          eq(endpoints.id, endpointId),
+          eq(endpoints.anonymousSessionId, anonymousSessionId)
+        )
+      )
+      .returning({
+        id: endpoints.id,
+        anonymousSessionId: endpoints.anonymousSessionId,
+        ownerUserId: endpoints.ownerUserId,
+      })
+
+    assertEndpointRowIsActive(endpointId, savedRow)
+
+    await trimEndpointIdentity({
+      anonymousSessionId: null,
+      endpointId,
+      ownerUserId,
+      transaction,
+    })
+
+    return mapEndpointAccountStatus(savedRow, anonymousSessionId)
+  })
 }
 
 export async function getEndpointStats(endpointId: string) {
@@ -692,6 +793,23 @@ function mapEndpointRow(row: { id: string; name: string | null }) {
     endpointId: row.id,
     name: row.name,
   } satisfies EndpointMetadata
+}
+
+function mapEndpointAccountStatus(
+  row: {
+    id: string
+    anonymousSessionId?: string | null
+    ownerUserId?: string | null
+  },
+  anonymousSessionId: string | null
+) {
+  return {
+    canSaveToAccount: Boolean(
+      row.anonymousSessionId && row.anonymousSessionId === anonymousSessionId
+    ),
+    endpointId: row.id,
+    savedToAccount: Boolean(row.ownerUserId),
+  } satisfies EndpointAccountStatus
 }
 
 function mapEndpointStatsRow(row: {

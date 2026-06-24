@@ -5,20 +5,24 @@ const {
   checkEndpointCreateAdmission,
   createEndpoint,
   getEndpointAccessActor,
+  getEndpointAccountStatus,
   getEndpoint,
   getEndpointForActor,
   listEndpointsForUser,
   requireEndpointUserId,
+  saveEndpointToAccount,
   updateEndpointName,
 } = vi.hoisted(() => ({
   assertEndpointAccessibleToActor: vi.fn(),
   checkEndpointCreateAdmission: vi.fn(),
   createEndpoint: vi.fn(),
   getEndpointAccessActor: vi.fn(),
+  getEndpointAccountStatus: vi.fn(),
   getEndpoint: vi.fn(),
   getEndpointForActor: vi.fn(),
   listEndpointsForUser: vi.fn(),
   requireEndpointUserId: vi.fn(),
+  saveEndpointToAccount: vi.fn(),
   updateEndpointName: vi.fn(),
 }))
 
@@ -32,9 +36,11 @@ vi.mock("@webhooks-lol/webhooks-server/repository", async (importOriginal) => ({
   >()),
   assertEndpointAccessibleToActor,
   createEndpoint,
+  getEndpointAccountStatus,
   getEndpoint,
   getEndpointForActor,
   listEndpointsForUser,
+  saveEndpointToAccount,
   updateEndpointName,
 }))
 
@@ -45,12 +51,17 @@ vi.mock("@/lib/auth/endpoint-access", () => ({
 
 import { GET as LIST_ENDPOINTS, POST } from "@/app/api/endpoints/route"
 import {
+  GET as GET_ENDPOINT_ACCOUNT_STATUS,
+  POST as SAVE_ENDPOINT_TO_ACCOUNT,
+} from "@/app/api/endpoints/[endpointId]/account/route"
+import {
   GET,
   MAX_ENDPOINT_METADATA_REQUEST_BYTES,
   PATCH,
 } from "@/app/api/endpoints/[endpointId]/route"
 import { AuthenticationRequiredError } from "@/lib/auth/session"
 import { MissingClientIdentityHeaderError } from "@webhooks-lol/webhooks-server/rate-limits/client-identity"
+import { EndpointNotFoundError } from "@webhooks-lol/webhooks-server/repository"
 
 const ENDPOINT_ID = "11111111-1111-4111-8111-111111111111"
 const NEW_ENDPOINT_ID = "22222222-2222-4222-8222-222222222222"
@@ -87,6 +98,12 @@ function createContext(endpointId = ENDPOINT_ID) {
   } as RouteContext<"/api/endpoints/[endpointId]">
 }
 
+function createAccountContext(endpointId = ENDPOINT_ID) {
+  return {
+    params: Promise.resolve({ endpointId }),
+  } as RouteContext<"/api/endpoints/[endpointId]/account">
+}
+
 describe("endpoint route", () => {
   beforeEach(() => {
     checkEndpointCreateAdmission.mockReset()
@@ -95,11 +112,13 @@ describe("endpoint route", () => {
     createEndpoint.mockReset()
     getEndpointAccessActor.mockReset()
     getEndpointAccessActor.mockResolvedValue({ userId: null })
+    getEndpointAccountStatus.mockReset()
     getEndpoint.mockReset()
     getEndpointForActor.mockReset()
     listEndpointsForUser.mockReset()
     requireEndpointUserId.mockReset()
     requireEndpointUserId.mockResolvedValue("user-1")
+    saveEndpointToAccount.mockReset()
     updateEndpointName.mockReset()
   })
 
@@ -368,5 +387,132 @@ describe("endpoint route", () => {
       maxBodyBytes: MAX_ENDPOINT_METADATA_REQUEST_BYTES,
     })
     expect(updateEndpointName).not.toHaveBeenCalled()
+  })
+
+  it("returns endpoint account status for the current browser session", async () => {
+    getEndpointAccountStatus.mockResolvedValueOnce({
+      canSaveToAccount: true,
+      endpointId: ENDPOINT_ID,
+      savedToAccount: false,
+    })
+
+    const response = await GET_ENDPOINT_ACCOUNT_STATUS(
+      new Request(
+        `https://hooks.example.com/api/endpoints/${ENDPOINT_ID}/account`,
+        {
+          headers: {
+            cookie: `webhooks_lol_endpoint_session=${ANONYMOUS_SESSION_ID}`,
+          },
+        }
+      ),
+      createAccountContext()
+    )
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({
+      canSaveToAccount: true,
+      endpointId: ENDPOINT_ID,
+      savedToAccount: false,
+    })
+    expect(getEndpointAccountStatus).toHaveBeenCalledWith({
+      anonymousSessionId: ANONYMOUS_SESSION_ID,
+      endpointId: ENDPOINT_ID,
+      userId: null,
+    })
+  })
+
+  it("saves an endpoint to the signed-in account with the anonymous session cookie", async () => {
+    saveEndpointToAccount.mockResolvedValueOnce({
+      canSaveToAccount: false,
+      endpointId: ENDPOINT_ID,
+      savedToAccount: true,
+    })
+
+    const response = await SAVE_ENDPOINT_TO_ACCOUNT(
+      new Request(
+        `https://hooks.example.com/api/endpoints/${ENDPOINT_ID}/account`,
+        {
+          headers: {
+            cookie: `webhooks_lol_endpoint_session=${ANONYMOUS_SESSION_ID}`,
+          },
+          method: "POST",
+        }
+      ),
+      createAccountContext()
+    )
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({
+      canSaveToAccount: false,
+      endpointId: ENDPOINT_ID,
+      savedToAccount: true,
+    })
+    expect(saveEndpointToAccount).toHaveBeenCalledWith({
+      anonymousSessionId: ANONYMOUS_SESSION_ID,
+      endpointId: ENDPOINT_ID,
+      ownerUserId: "user-1",
+    })
+  })
+
+  it("requires authentication before saving an endpoint to an account", async () => {
+    requireEndpointUserId.mockRejectedValueOnce(
+      new AuthenticationRequiredError()
+    )
+
+    const response = await SAVE_ENDPOINT_TO_ACCOUNT(
+      new Request(
+        `https://hooks.example.com/api/endpoints/${ENDPOINT_ID}/account`,
+        {
+          headers: {
+            cookie: `webhooks_lol_endpoint_session=${ANONYMOUS_SESSION_ID}`,
+          },
+          method: "POST",
+        }
+      ),
+      createAccountContext()
+    )
+
+    expect(response.status).toBe(401)
+    await expect(response.json()).resolves.toEqual({
+      ok: false,
+      error: "Authentication is required.",
+    })
+    expect(saveEndpointToAccount).not.toHaveBeenCalled()
+  })
+
+  it("requires the anonymous session cookie before saving an endpoint to an account", async () => {
+    const response = await SAVE_ENDPOINT_TO_ACCOUNT(
+      new Request(
+        `https://hooks.example.com/api/endpoints/${ENDPOINT_ID}/account`,
+        {
+          method: "POST",
+        }
+      ),
+      createAccountContext()
+    )
+
+    expect(response.status).toBe(404)
+    expect(saveEndpointToAccount).not.toHaveBeenCalled()
+  })
+
+  it("hides endpoint save ownership failures behind the endpoint not found response", async () => {
+    saveEndpointToAccount.mockRejectedValueOnce(
+      new EndpointNotFoundError(ENDPOINT_ID)
+    )
+
+    const response = await SAVE_ENDPOINT_TO_ACCOUNT(
+      new Request(
+        `https://hooks.example.com/api/endpoints/${ENDPOINT_ID}/account`,
+        {
+          headers: {
+            cookie: `webhooks_lol_endpoint_session=${ANONYMOUS_SESSION_ID}`,
+          },
+          method: "POST",
+        }
+      ),
+      createAccountContext()
+    )
+
+    expect(response.status).toBe(404)
   })
 })

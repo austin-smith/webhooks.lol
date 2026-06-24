@@ -66,10 +66,12 @@ export function WebhookInspector({ docsUrl }: WebhookInspectorProps) {
         copied={copied}
         docsUrl={docsUrl}
         copyMessage={copyMessage}
+        endpointAccountStatuses={endpoint.endpointAccountStatuses}
         endpointNames={endpoint.endpointNames}
         forwardTargets={endpoint.forwardTargets}
         isLoading={endpoint.isLoading}
         isLoadingForwardTargets={endpoint.isLoadingForwardTargets}
+        isSavingEndpointToAccount={endpoint.isSavingEndpointToAccount}
         isSavingForwardTarget={endpoint.isSavingForwardTarget}
         isSavingResponse={endpoint.isSavingResponse}
         recentEndpointIds={endpoint.recentEndpointIds}
@@ -79,11 +81,13 @@ export function WebhookInspector({ docsUrl }: WebhookInspectorProps) {
         onCreateForwardTarget={endpoint.actions.createForwardTarget}
         onCopyWebhookUrl={copyWebhookUrl}
         onDeleteForwardTarget={endpoint.actions.deleteForwardTarget}
+        onLoadEndpointAccountStatus={endpoint.actions.loadEndpointAccountStatus}
         onLoadForwardTargets={endpoint.actions.loadForwardTargets}
         onLoadEndpointStats={endpoint.actions.loadEndpointStats}
         onNewEndpoint={endpoint.actions.startNewEndpoint}
         onRenameEndpoint={endpoint.actions.renameEndpoint}
         onResetResponseOverride={endpoint.actions.clearResponseOverride}
+        onSaveEndpointToAccount={endpoint.actions.saveEndpointToAccount}
         onSaveResponseOverride={endpoint.actions.saveResponseOverride}
         onSwitchEndpoint={endpoint.actions.switchEndpoint}
         onUpdateForwardTarget={endpoint.actions.updateForwardTarget}

@@ -7,6 +7,7 @@ import {
   type EndpointResponseConfig,
   type EndpointResponseOverrideInput,
 } from "@webhooks-lol/webhooks-core/endpoint-response"
+import { parseEndpointId } from "@webhooks-lol/webhooks-core/endpoint-id"
 import {
   EMPTY_REQUEST_SEARCH,
   requestMatchesSearch,
@@ -36,8 +37,13 @@ import {
 } from "./state"
 import { createBrowserEndpointSessionStorage } from "./storage"
 import {
+  getSignedInStoredEndpointIds,
+  resolveSignedInEndpointRestore,
+} from "./restore"
+import {
   type CapturedRequestPage,
   createFetchEndpointTransport,
+  type EndpointAccountStatus,
   type EndpointForwardTarget,
   type EndpointMetadata,
   type EndpointStats,
@@ -55,6 +61,10 @@ export function useBrowserEndpointSession(): Endpoint {
     () => createBrowserEndpointSessionStorage({ userId: sessionUserId }),
     [sessionUserId]
   )
+  const anonymousStorage = React.useMemo(
+    () => createBrowserEndpointSessionStorage(),
+    []
+  )
   const transport = React.useMemo(() => createFetchEndpointTransport(), [])
   const eventStream = React.useMemo(
     () => createBrowserEndpointEventStream(),
@@ -68,11 +78,21 @@ export function useBrowserEndpointSession(): Endpoint {
   const requestSearchRef =
     React.useRef<RequestSearchCriteria>(EMPTY_REQUEST_SEARCH)
   const replayingRequestIdsRef = React.useRef<Set<string>>(new Set())
+  const endpointAccountStatusesRef = React.useRef<
+    Record<string, EndpointAccountStatus>
+  >({})
+  const endpointAccountStatusLoadGeneration = React.useRef(0)
+  const endpointAccountStatusLoadPromises = React.useRef(
+    new Map<string, Promise<EndpointAccountStatus | null>>()
+  )
   const renameSaveStatesByEndpoint = React.useRef(
     new Map<string, EndpointRenameSaveState>()
   )
   const [endpointId, setEndpointId] = React.useState<string | null>(null)
   const [endpointNames, setEndpointNames] = React.useState<EndpointNames>({})
+  const [endpointAccountStatuses, setEndpointAccountStatuses] = React.useState<
+    Record<string, EndpointAccountStatus>
+  >({})
   const [recentEndpointIds, setRecentEndpointIds] = React.useState<string[]>([])
   const [requestState, setRequestState] = React.useState<{
     hasMoreRequests: boolean
@@ -99,6 +119,8 @@ export function useBrowserEndpointSession(): Endpoint {
   const [isLoadingOlderRequests, setIsLoadingOlderRequests] =
     React.useState(false)
   const [isSavingForwardTarget, setIsSavingForwardTarget] =
+    React.useState(false)
+  const [isSavingEndpointToAccount, setIsSavingEndpointToAccount] =
     React.useState(false)
   const [isSavingResponse, setIsSavingResponse] = React.useState(false)
   const [replayingRequestIds, setReplayingRequestIds] = React.useState<
@@ -179,8 +201,12 @@ export function useBrowserEndpointSession(): Endpoint {
 
   const clearEndpointSessionForRestore = React.useCallback(() => {
     activeEndpointIdRef.current = null
+    endpointAccountStatusLoadGeneration.current += 1
+    endpointAccountStatusLoadPromises.current.clear()
+    endpointAccountStatusesRef.current = {}
     setEndpointId(null)
     setEndpointNames({})
+    setEndpointAccountStatuses({})
     setRecentEndpointIds([])
     resetEndpointLoadState()
     setErrorMessage(null)
@@ -232,6 +258,17 @@ export function useBrowserEndpointSession(): Endpoint {
     []
   )
 
+  const applyEndpointAccountStatus = React.useCallback(
+    (status: EndpointAccountStatus) => {
+      endpointAccountStatusesRef.current = {
+        ...endpointAccountStatusesRef.current,
+        [status.endpointId]: status,
+      }
+      setEndpointAccountStatuses(endpointAccountStatusesRef.current)
+    },
+    []
+  )
+
   const applyNewEndpoint = React.useCallback(
     (metadata: EndpointMetadata) => {
       const nextEndpointId = metadata.endpointId
@@ -278,39 +315,76 @@ export function useBrowserEndpointSession(): Endpoint {
       hasLoadedStorage.current = true
 
       if (sessionUserId) {
+        const anonymousStoredSession = anonymousStorage.read()
+
         void (async () => {
+          let endpointSaveErrorMessage: string | null = null
+          let preferredActiveEndpointId: string | null = null
+
           try {
+            const pendingSaveEndpointId = readPendingSaveEndpointId()
+
+            if (pendingSaveEndpointId) {
+              setIsLoading(true)
+              setIsSavingEndpointToAccount(true)
+
+              try {
+                const savedStatus = await transport.saveEndpointToAccount(
+                  pendingSaveEndpointId
+                )
+                preferredActiveEndpointId = savedStatus.endpointId
+                applyEndpointAccountStatus(savedStatus)
+              } catch {
+                endpointSaveErrorMessage =
+                  "Endpoint cannot be saved from this browser."
+              }
+            }
+
             const ownedEndpoints = await transport.listOwnedEndpoints()
+            const ownedEndpointIds = ownedEndpoints.map(
+              (metadata) => metadata.endpointId
+            )
+            const storedEndpointIds = getSignedInStoredEndpointIds({
+              accountEndpointIds: ownedEndpointIds,
+              accountSession: storedSession,
+              anonymousSession: anonymousStoredSession,
+            })
+            const storedEndpointResults = await Promise.allSettled(
+              storedEndpointIds.map((storedEndpointId) =>
+                transport.loadEndpoint(storedEndpointId)
+              )
+            )
 
             if (!isActive) {
               return
             }
 
-            const ownedEndpointIds = ownedEndpoints.map(
-              (metadata) => metadata.endpointId
+            const storedEndpoints = storedEndpointResults.flatMap((result) =>
+              result.status === "fulfilled" ? [result.value] : []
             )
-            const activeEndpoint =
-              ownedEndpoints.find(
-                (metadata) =>
-                  metadata.endpointId === storedSession.activeEndpointId
-              ) ??
-              ownedEndpoints[0] ??
-              null
+            const restoredSession = resolveSignedInEndpointRestore({
+              accountEndpoints: ownedEndpoints,
+              accountSession: storedSession,
+              anonymousSession: anonymousStoredSession,
+              preferredActiveEndpointId,
+              storedEndpoints,
+            })
 
-            applyEndpointMetadataList(ownedEndpoints)
-            setRecentEndpointIds(ownedEndpointIds)
+            applyEndpointMetadataList(restoredSession.metadata)
+            setRecentEndpointIds(restoredSession.endpointIds)
 
-            if (!activeEndpoint) {
+            if (!restoredSession.activeEndpoint) {
               const metadata = await transport.createEndpoint()
 
               if (isActive) {
                 applyNewEndpoint(metadata)
+                setErrorMessage(endpointSaveErrorMessage)
               }
 
               return
             }
 
-            const activeEndpointId = activeEndpoint.endpointId
+            const activeEndpointId = restoredSession.activeEndpoint.endpointId
 
             setIsLoading(true)
             updateEndpointId(activeEndpointId)
@@ -335,13 +409,15 @@ export function useBrowserEndpointSession(): Endpoint {
             })
             setForwardTargets(nextForwardTargets)
             setResponseConfig(nextResponseConfig)
-            setErrorMessage(null)
+            setErrorMessage(endpointSaveErrorMessage)
           } catch (error) {
             if (isActive) {
               setErrorMessage(readErrorMessage(error))
             }
           } finally {
+            clearPendingSaveEndpointId()
             if (isActive) {
+              setIsSavingEndpointToAccount(false)
               setIsLoading(false)
             }
           }
@@ -432,10 +508,12 @@ export function useBrowserEndpointSession(): Endpoint {
       isActive = false
     }
   }, [
+    applyEndpointAccountStatus,
     applyEndpointMetadataList,
     applyLoadedRequests,
     applyNewEndpoint,
     authSession.isPending,
+    anonymousStorage,
     clearEndpointSessionForRestore,
     resetEndpointLoadState,
     sessionUserId,
@@ -905,6 +983,102 @@ export function useBrowserEndpointSession(): Endpoint {
     return stats satisfies EndpointStats
   }, [endpointId, transport])
 
+  const loadEndpointAccountStatus = React.useCallback(
+    async (requestedEndpointId?: string) => {
+      const loadingEndpointId = requestedEndpointId ?? endpointId
+
+      if (!loadingEndpointId) {
+        return null
+      }
+
+      const cachedStatus = endpointAccountStatusesRef.current[loadingEndpointId]
+
+      if (cachedStatus) {
+        return cachedStatus
+      }
+
+      const pendingLoad =
+        endpointAccountStatusLoadPromises.current.get(loadingEndpointId)
+
+      if (pendingLoad) {
+        return pendingLoad
+      }
+
+      const loadGeneration = endpointAccountStatusLoadGeneration.current
+      const loadPromise = transport
+        .loadEndpointAccountStatus(loadingEndpointId)
+        .then((status) => {
+          if (endpointAccountStatusLoadGeneration.current !== loadGeneration) {
+            return null
+          }
+
+          applyEndpointAccountStatus(status)
+
+          return status satisfies EndpointAccountStatus
+        })
+        .finally(() => {
+          if (
+            endpointAccountStatusLoadPromises.current.get(loadingEndpointId) ===
+            loadPromise
+          ) {
+            endpointAccountStatusLoadPromises.current.delete(loadingEndpointId)
+          }
+        })
+
+      endpointAccountStatusLoadPromises.current.set(
+        loadingEndpointId,
+        loadPromise
+      )
+
+      return loadPromise
+    },
+    [applyEndpointAccountStatus, endpointId, transport]
+  )
+
+  const saveCurrentEndpointToAccount = React.useCallback(
+    async (requestedEndpointId?: string) => {
+      const savingEndpointId = requestedEndpointId ?? endpointId
+
+      if (!savingEndpointId || isSavingEndpointToAccount) {
+        return null
+      }
+
+      if (!sessionUserId) {
+        window.location.assign(createEndpointSaveSignUpHref(savingEndpointId))
+        return null
+      }
+
+      setIsSavingEndpointToAccount(true)
+
+      try {
+        const status = await transport.saveEndpointToAccount(savingEndpointId)
+
+        applyEndpointAccountStatus(status)
+
+        if (activeEndpointIdRef.current === savingEndpointId) {
+          setErrorMessage(null)
+        }
+
+        return status
+      } catch (error) {
+        if (activeEndpointIdRef.current === savingEndpointId) {
+          setErrorMessage(readErrorMessage(error))
+        }
+
+        throw error
+      } finally {
+        setIsSavingEndpointToAccount(false)
+      }
+    },
+    [
+      applyEndpointAccountStatus,
+      endpointId,
+      isSavingEndpointToAccount,
+      sessionUserId,
+      transport,
+    ]
+  )
+
   const startNewEndpoint = React.useCallback(async () => {
     if (isLoading) {
       return
@@ -1131,12 +1305,14 @@ export function useBrowserEndpointSession(): Endpoint {
       clearResponseOverride,
       createForwardTarget,
       deleteForwardTarget,
+      loadEndpointAccountStatus,
       loadForwardTargets,
       loadEndpointStats,
       loadOlderRequests,
       renameEndpoint: renameCurrentEndpoint,
       refreshEndpoint,
       replayRequest,
+      saveEndpointToAccount: saveCurrentEndpointToAccount,
       saveResponseOverride,
       searchRequests,
       selectRequest: selectCapturedRequest,
@@ -1149,12 +1325,14 @@ export function useBrowserEndpointSession(): Endpoint {
       clearResponseOverride,
       createForwardTarget,
       deleteForwardTarget,
+      loadEndpointAccountStatus,
       loadForwardTargets,
       loadEndpointStats,
       loadOlderRequests,
       refreshEndpoint,
       renameCurrentEndpoint,
       replayRequest,
+      saveCurrentEndpointToAccount,
       saveResponseOverride,
       searchRequests,
       selectCapturedRequest,
@@ -1169,6 +1347,7 @@ export function useBrowserEndpointSession(): Endpoint {
     canRefresh: Boolean(endpointId) && !isLoading && !isClearing,
     connectionState,
     errorMessage,
+    endpointAccountStatuses,
     endpointNames,
     forwardTargets,
     hasMoreRequests,
@@ -1178,6 +1357,7 @@ export function useBrowserEndpointSession(): Endpoint {
     isLoadingOlderRequests,
     isReplayingSelectedRequest,
     isSavingForwardTarget,
+    isSavingEndpointToAccount,
     isSavingResponse,
     recentEndpointIds,
     responseConfig,
@@ -1195,4 +1375,31 @@ function readErrorMessage(error: unknown) {
   }
 
   return "Something went wrong."
+}
+
+function createEndpointSaveSignUpHref(endpointId: string) {
+  return `/sign-up?next=${encodeURIComponent(createPendingSaveEndpointPath(endpointId))}`
+}
+
+function createPendingSaveEndpointPath(endpointId: string) {
+  return `/?saveEndpoint=${encodeURIComponent(endpointId)}`
+}
+
+function readPendingSaveEndpointId() {
+  const endpointId = new URLSearchParams(window.location.search).get(
+    "saveEndpoint"
+  )
+
+  return endpointId ? parseEndpointId(endpointId) : null
+}
+
+function clearPendingSaveEndpointId() {
+  const url = new URL(window.location.href)
+
+  if (!url.searchParams.has("saveEndpoint")) {
+    return
+  }
+
+  url.searchParams.delete("saveEndpoint")
+  window.history.replaceState(window.history.state, "", url)
 }

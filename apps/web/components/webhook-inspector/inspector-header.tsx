@@ -18,6 +18,7 @@ import { ResponseOverrideControl } from "./response-override-control"
 import type { ConnectionState, EndpointForwardPathMode } from "./types"
 import type {
   EndpointForwardTarget,
+  EndpointAccountStatus,
   EndpointStats,
 } from "./endpoint-session/transport"
 import { formatConnectionState } from "./request-formatters"
@@ -27,10 +28,12 @@ type InspectorHeaderProps = {
   copied: boolean
   copyMessage: string
   docsUrl: string | null
+  endpointAccountStatuses: Record<string, EndpointAccountStatus>
   endpointNames: Record<string, string>
   forwardTargets: EndpointForwardTarget[]
   isLoading: boolean
   isLoadingForwardTargets: boolean
+  isSavingEndpointToAccount: boolean
   isSavingForwardTarget: boolean
   isSavingResponse: boolean
   recentEndpointIds: string[]
@@ -43,11 +46,17 @@ type InspectorHeaderProps = {
   }) => Promise<void>
   onCopyWebhookUrl: () => void
   onDeleteForwardTarget: (targetId: string) => Promise<void>
+  onLoadEndpointAccountStatus: (
+    endpointId?: string
+  ) => Promise<EndpointAccountStatus | null>
   onLoadForwardTargets: () => Promise<void>
   onLoadEndpointStats: () => Promise<EndpointStats | null>
   onNewEndpoint: () => void
   onRenameEndpoint: (name: string) => void
   onResetResponseOverride: () => Promise<void>
+  onSaveEndpointToAccount: (
+    endpointId?: string
+  ) => Promise<EndpointAccountStatus | null>
   onSaveResponseOverride: (
     override: EndpointResponseOverrideInput
   ) => Promise<void>
@@ -67,14 +76,17 @@ export function InspectorHeader({
   copied,
   copyMessage,
   docsUrl,
+  endpointAccountStatuses,
   endpointNames,
   forwardTargets,
   isLoading,
   isLoadingForwardTargets,
+  isSavingEndpointToAccount,
   isSavingForwardTarget,
   isSavingResponse,
   onCreateForwardTarget,
   onDeleteForwardTarget,
+  onLoadEndpointAccountStatus,
   onResetResponseOverride,
   onLoadForwardTargets,
   onSaveResponseOverride,
@@ -86,6 +98,7 @@ export function InspectorHeader({
   onLoadEndpointStats,
   onNewEndpoint,
   onRenameEndpoint,
+  onSaveEndpointToAccount,
   onSwitchEndpoint,
   onUpdateForwardTarget,
 }: InspectorHeaderProps) {
@@ -96,12 +109,16 @@ export function InspectorHeader({
       <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] overflow-hidden rounded-md border bg-card sm:grid-cols-[minmax(7.5rem,12rem)_minmax(0,1fr)_auto]">
         <EndpointSwitcher
           disabled={isLoading || !endpointId}
+          endpointAccountStatuses={endpointAccountStatuses}
           endpointNames={endpointNames}
+          isSavingEndpointToAccount={isSavingEndpointToAccount}
           name={endpointName}
           recentEndpointIds={recentEndpointIds}
           endpointId={endpointId}
+          onLoadEndpointAccountStatus={onLoadEndpointAccountStatus}
           onNewEndpoint={onNewEndpoint}
           onRenameEndpoint={onRenameEndpoint}
+          onSaveEndpointToAccount={onSaveEndpointToAccount}
           onSwitchEndpoint={onSwitchEndpoint}
         />
 

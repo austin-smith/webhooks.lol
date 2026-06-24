@@ -14,12 +14,9 @@ export type AnonymousEndpointSession = {
 export function getAnonymousEndpointSession(
   request: Request
 ): AnonymousEndpointSession {
-  const existingSessionId = readCookie(
-    request.headers.get("cookie"),
-    ANONYMOUS_ENDPOINT_SESSION_COOKIE
-  )
+  const existingSessionId = getAnonymousEndpointSessionId(request)
 
-  if (existingSessionId && UUID_PATTERN.test(existingSessionId)) {
+  if (existingSessionId) {
     return {
       id: existingSessionId,
       setCookie: null,
@@ -32,6 +29,17 @@ export function getAnonymousEndpointSession(
     id,
     setCookie: serializeAnonymousEndpointSessionCookie(id),
   }
+}
+
+export function getAnonymousEndpointSessionId(request: Request) {
+  const existingSessionId = readCookie(
+    request.headers.get("cookie"),
+    ANONYMOUS_ENDPOINT_SESSION_COOKIE
+  )
+
+  return existingSessionId && UUID_PATTERN.test(existingSessionId)
+    ? existingSessionId
+    : null
 }
 
 function readCookie(header: string | null, name: string) {

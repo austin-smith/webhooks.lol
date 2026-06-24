@@ -15,6 +15,12 @@ export type EndpointMetadataResponse = {
   name: string | null
 }
 
+export type EndpointAccountResponse = {
+  canSaveToAccount: boolean
+  endpointId: string
+  savedToAccount: boolean
+}
+
 export type EndpointsResponse = {
   endpoints: EndpointMetadataResponse[]
 }

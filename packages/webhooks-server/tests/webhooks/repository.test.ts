@@ -10,9 +10,11 @@ import {
   EndpointNotFoundError,
   getAccountWebhookStats,
   getEndpointForActor,
+  getEndpointAccountStatus,
   listEndpointsForUser,
   listRequests,
   saveCapturedRequest,
+  saveEndpointToAccount,
 } from "@webhooks-lol/webhooks-server/repository"
 import { MAX_ENDPOINTS_PER_IDENTITY } from "@webhooks-lol/webhooks-server/policies"
 import { parseAdvancedRequestSearchQuery } from "@webhooks-lol/webhooks-core/request-search"
@@ -83,6 +85,100 @@ describe("webhook repository request search", () => {
     await expect(
       assertEndpointAccessibleToActor(endpoint.endpointId, { userId: null })
     ).resolves.toBeUndefined()
+  })
+
+  it("reports endpoint account status without changing anonymous endpoint metadata access", async () => {
+    const anonymousSessionId = `session-${crypto.randomUUID()}`
+    const endpoint = await createTrackedEndpoint({ anonymousSessionId })
+
+    await expect(
+      getEndpointForActor(endpoint.endpointId, { userId: null })
+    ).resolves.toEqual(endpoint)
+    await expect(
+      getEndpointAccountStatus({
+        anonymousSessionId,
+        endpointId: endpoint.endpointId,
+        userId: null,
+      })
+    ).resolves.toEqual({
+      canSaveToAccount: true,
+      endpointId: endpoint.endpointId,
+      savedToAccount: false,
+    })
+    await expect(
+      getEndpointAccountStatus({
+        anonymousSessionId: `session-${crypto.randomUUID()}`,
+        endpointId: endpoint.endpointId,
+        userId: null,
+      })
+    ).resolves.toEqual({
+      canSaveToAccount: false,
+      endpointId: endpoint.endpointId,
+      savedToAccount: false,
+    })
+  })
+
+  it("saves one matching anonymous-session endpoint to a user account", async () => {
+    const owner = await createTrackedUser("owner")
+    const anonymousSessionId = `session-${crypto.randomUUID()}`
+    const savedEndpoint = await createTrackedEndpoint({ anonymousSessionId })
+    const remainingEndpoint = await createTrackedEndpoint({
+      anonymousSessionId,
+    })
+    const request = await saveTrackedRequest({
+      endpointId: savedEndpoint.endpointId,
+      method: "POST",
+      url: "/saved",
+      path: "/saved",
+    })
+
+    await expect(
+      saveEndpointToAccount({
+        anonymousSessionId,
+        endpointId: savedEndpoint.endpointId,
+        ownerUserId: owner.id,
+      })
+    ).resolves.toEqual({
+      canSaveToAccount: false,
+      endpointId: savedEndpoint.endpointId,
+      savedToAccount: true,
+    })
+
+    await expect(listEndpointsForUser(owner.id)).resolves.toEqual([
+      savedEndpoint,
+    ])
+    await expect(
+      getEndpointForActor(savedEndpoint.endpointId, { userId: null })
+    ).rejects.toBeInstanceOf(EndpointNotFoundError)
+    await expect(
+      getEndpointForActor(savedEndpoint.endpointId, { userId: owner.id })
+    ).resolves.toEqual(savedEndpoint)
+    await expect(
+      getEndpointForActor(remainingEndpoint.endpointId, { userId: null })
+    ).resolves.toEqual(remainingEndpoint)
+    await expect(listRequests(savedEndpoint.endpointId)).resolves.toMatchObject(
+      {
+        requests: [expect.objectContaining({ id: request.id })],
+      }
+    )
+  })
+
+  it("does not save an anonymous endpoint from a different anonymous session", async () => {
+    const owner = await createTrackedUser("owner")
+    const endpoint = await createTrackedEndpoint({
+      anonymousSessionId: `session-${crypto.randomUUID()}`,
+    })
+
+    await expect(
+      saveEndpointToAccount({
+        anonymousSessionId: `session-${crypto.randomUUID()}`,
+        endpointId: endpoint.endpointId,
+        ownerUserId: owner.id,
+      })
+    ).rejects.toBeInstanceOf(EndpointNotFoundError)
+    await expect(
+      getEndpointForActor(endpoint.endpointId, { userId: null })
+    ).resolves.toEqual(endpoint)
   })
 
   it("hides user-owned endpoints from anonymous users and other users", async () => {

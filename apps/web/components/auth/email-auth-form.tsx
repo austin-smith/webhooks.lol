@@ -20,7 +20,9 @@ import {
 } from "@/lib/auth/email-auth-validation"
 import { getSignInFailureMessage } from "@/lib/auth/sign-in-failure-message"
 import {
-  EMAIL_VERIFICATION_CALLBACK_PATH,
+  authRedirectSavesEndpoint,
+  createAuthRedirectHref,
+  createEmailVerificationCallbackPath,
   FORGOT_PASSWORD_PATH,
 } from "@/lib/auth/redirects"
 import {
@@ -44,7 +46,11 @@ export function EmailAuthForm({
 }: EmailAuthFormProps) {
   const router = useRouter()
   const isSignUp = mode === "sign-up"
-  const switchAuthHref = createSwitchAuthHref({ callbackPath, isSignUp })
+  const isEndpointSaveAuth = authRedirectSavesEndpoint(callbackPath)
+  const switchAuthHref = createAuthRedirectHref(
+    isSignUp ? "/login" : "/sign-up",
+    callbackPath
+  )
   const turnstileRef = React.useRef<TurnstileFieldHandle>(null)
   const [email, setEmail] = React.useState("")
   const [password, setPassword] = React.useState("")
@@ -86,7 +92,7 @@ export function EmailAuthForm({
     try {
       const result = isSignUp
         ? await authClient.signUp.email({
-            callbackURL: EMAIL_VERIFICATION_CALLBACK_PATH,
+            callbackURL: createEmailVerificationCallbackPath(callbackPath),
             email: emailAddress,
             fetchOptions: {
               headers: {
@@ -219,7 +225,11 @@ export function EmailAuthForm({
         className="w-full rounded-sm text-xs"
         disabled={isSubmitting || !turnstileToken}
       >
-        {isSignUp ? "Create account" : "Sign in"}
+        {isSignUp && isEndpointSaveAuth
+          ? "Create account to save endpoint"
+          : isSignUp
+            ? "Create account"
+            : "Sign in"}
       </Button>
       <p className="text-center text-[0.68rem] text-muted-foreground">
         {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
@@ -233,7 +243,7 @@ export function EmailAuthForm({
       {!isSignUp ? (
         <p className="text-center text-[0.68rem] text-muted-foreground">
           <Link
-            href={createForgotPasswordHref(callbackPath)}
+            href={createAuthRedirectHref(FORGOT_PASSWORD_PATH, callbackPath)}
             className="font-medium text-foreground underline-offset-4 hover:underline"
           >
             Forgot your password?
@@ -242,28 +252,4 @@ export function EmailAuthForm({
       ) : null}
     </form>
   )
-}
-
-function createSwitchAuthHref({
-  callbackPath,
-  isSignUp,
-}: {
-  callbackPath: string
-  isSignUp: boolean
-}) {
-  const pathname = isSignUp ? "/login" : "/sign-up"
-
-  if (callbackPath === "/") {
-    return pathname
-  }
-
-  return `${pathname}?next=${encodeURIComponent(callbackPath)}`
-}
-
-function createForgotPasswordHref(callbackPath: string) {
-  if (callbackPath === "/") {
-    return FORGOT_PASSWORD_PATH
-  }
-
-  return `${FORGOT_PASSWORD_PATH}?next=${encodeURIComponent(callbackPath)}`
 }
