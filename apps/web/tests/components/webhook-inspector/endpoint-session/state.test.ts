@@ -8,6 +8,7 @@ import {
   normalizeEndpointIds,
   reconcileLoadedRequests,
   rememberEndpointId,
+  removeEndpointId,
   removeForwardTarget,
   replaceForwardTarget,
   selectRequest,
@@ -201,5 +202,8 @@ describe("endpoint session state", () => {
       secondEndpointId,
       firstEndpointId,
     ])
+    expect(
+      removeEndpointId(firstEndpointId, [firstEndpointId, secondEndpointId])
+    ).toEqual([secondEndpointId])
   })
 })

@@ -69,6 +69,7 @@ export function WebhookInspector({ docsUrl }: WebhookInspectorProps) {
         endpointAccountStatuses={endpoint.endpointAccountStatuses}
         endpointNames={endpoint.endpointNames}
         forwardTargets={endpoint.forwardTargets}
+        isDeletingEndpoint={endpoint.isDeletingEndpoint}
         isLoading={endpoint.isLoading}
         isLoadingForwardTargets={endpoint.isLoadingForwardTargets}
         isSignedIn={endpoint.isSignedIn}
@@ -81,6 +82,7 @@ export function WebhookInspector({ docsUrl }: WebhookInspectorProps) {
         webhookUrl={webhookUrl}
         onCreateForwardTarget={endpoint.actions.createForwardTarget}
         onCopyWebhookUrl={copyWebhookUrl}
+        onDeleteEndpoint={endpoint.actions.deleteEndpoint}
         onDeleteForwardTarget={endpoint.actions.deleteForwardTarget}
         onLoadEndpointAccountStatus={endpoint.actions.loadEndpointAccountStatus}
         onLoadForwardTargets={endpoint.actions.loadForwardTargets}

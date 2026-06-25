@@ -4,6 +4,7 @@ import {
   openEndpointEventStream,
   publishEndpointAccessRevoked,
   publishEndpointCleared,
+  publishEndpointDeleted,
   publishRequest,
 } from "@webhooks-lol/webhooks-server/endpoint-event-stream"
 import type { CapturedRequest } from "@webhooks-lol/webhooks-core/types"
@@ -124,6 +125,45 @@ describe("openEndpointEventStream", () => {
       expect(lease.release).toHaveBeenCalledTimes(1)
 
       publishRequest(createRequest("claimed-endpoint-id", "after-revoke"))
+    } finally {
+      controller.abort()
+      reader.releaseLock()
+    }
+  })
+
+  it("sends deleted events and closes matching streams", async () => {
+    const controller = new AbortController()
+    const lease = {
+      release: vi.fn(async () => undefined),
+      renew: vi.fn(async () => undefined),
+    }
+    const stream = openEndpointEventStream({
+      endpointId: "deleted-endpoint-id",
+      lease,
+      signal: controller.signal,
+    })
+    const reader = stream.getReader()
+
+    try {
+      await readEvent(reader)
+
+      publishEndpointDeleted("other-endpoint-id")
+      publishRequest(createRequest("deleted-endpoint-id", "before-delete"))
+
+      const event = await readEvent(reader)
+
+      expect(event).toContain('"id":"before-delete"')
+
+      publishEndpointDeleted("deleted-endpoint-id")
+
+      await expect(readEvent(reader)).resolves.toBe(
+        'event: deleted\ndata: {"endpointId":"deleted-endpoint-id"}\n\n'
+      )
+      await expect(reader.read()).resolves.toEqual({
+        done: true,
+        value: undefined,
+      })
+      expect(lease.release).toHaveBeenCalledTimes(1)
     } finally {
       controller.abort()
       reader.releaseLock()

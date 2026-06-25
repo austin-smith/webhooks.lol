@@ -69,6 +69,10 @@ export type EndpointAccessActor = {
   userId: string | null
 }
 
+export type EndpointDeletionActor = EndpointAccessActor & {
+  anonymousSessionId: string | null
+}
+
 export type EndpointStats = {
   endpointId: string
   requestCount: number
@@ -512,6 +516,36 @@ export async function updateEndpointName({
   return mapEndpointRow(row)
 }
 
+export async function deleteEndpointForActor({
+  actor,
+  endpointId,
+}: {
+  actor: EndpointDeletionActor
+  endpointId: string
+}) {
+  await getDatabase().transaction(async (transaction) => {
+    const [row] = await transaction
+      .select({
+        id: endpoints.id,
+        anonymousSessionId: endpoints.anonymousSessionId,
+        ownerUserId: endpoints.ownerUserId,
+      })
+      .from(endpoints)
+      .where(eq(endpoints.id, endpointId))
+      .for("update")
+      .limit(1)
+
+    assertEndpointRowCanBeDeletedByActor(endpointId, row, actor)
+
+    const [deleted] = await transaction
+      .delete(endpoints)
+      .where(eq(endpoints.id, endpointId))
+      .returning({ id: endpoints.id })
+
+    assertEndpointRowIsActive(endpointId, deleted)
+  })
+}
+
 export async function saveCapturedRequest(input: CapturedRequestInput) {
   const receivedAt = new Date()
   const request: CapturedRequest = {
@@ -870,6 +904,37 @@ function assertEndpointRowIsVisibleToActor(
   if (row.ownerUserId && row.ownerUserId !== actor.userId) {
     throw new EndpointNotFoundError(endpointId)
   }
+}
+
+function assertEndpointRowCanBeDeletedByActor(
+  endpointId: string,
+  row:
+    | {
+        id?: string
+        anonymousSessionId: string | null
+        ownerUserId: string | null
+      }
+    | undefined,
+  actor: EndpointDeletionActor
+) {
+  assertEndpointRowIsActive(endpointId, row)
+
+  if (row.ownerUserId) {
+    if (row.ownerUserId !== actor.userId) {
+      throw new EndpointNotFoundError(endpointId)
+    }
+
+    return
+  }
+
+  if (
+    row.anonymousSessionId &&
+    row.anonymousSessionId === actor.anonymousSessionId
+  ) {
+    return
+  }
+
+  throw new EndpointNotFoundError(endpointId)
 }
 
 function normalizeRequestPageLimit(limit = DEFAULT_REQUEST_PAGE_SIZE) {

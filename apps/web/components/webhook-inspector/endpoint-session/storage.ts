@@ -15,8 +15,7 @@ export type StoredEndpointSession = {
 
 export type EndpointSessionStorage = {
   read: () => StoredEndpointSession
-  writeActiveEndpointId: (endpointId: string) => void
-  writeRecentEndpointIds: (endpointIds: string[]) => void
+  write: (session: StoredEndpointSession) => void
 }
 
 export function createBrowserEndpointSessionStorage(
@@ -26,7 +25,7 @@ export function createBrowserEndpointSessionStorage(
 }
 
 export function createEndpointSessionStorageAdapter(
-  getStorage: () => Pick<Storage, "getItem" | "setItem">,
+  getStorage: () => Pick<Storage, "getItem" | "removeItem" | "setItem">,
   options: EndpointSessionStorageOptions = {}
 ): EndpointSessionStorage {
   const activeEndpointIdKey = getStorageKey(
@@ -60,14 +59,23 @@ export function createEndpointSessionStorageAdapter(
         recentEndpointIds,
       }
     },
-    writeActiveEndpointId(endpointId) {
-      getStorage().setItem(activeEndpointIdKey, endpointId)
-    },
-    writeRecentEndpointIds(endpointIds) {
-      getStorage().setItem(
-        recentEndpointIdsKey,
-        JSON.stringify(normalizeEndpointIds(endpointIds))
-      )
+    write(session) {
+      const storage = getStorage()
+      const recentEndpointIds = normalizeEndpointIds(session.recentEndpointIds)
+      const activeEndpointId =
+        (session.activeEndpointId
+          ? parseEndpointId(session.activeEndpointId)
+          : null) ??
+        recentEndpointIds[0] ??
+        null
+
+      if (activeEndpointId) {
+        storage.setItem(activeEndpointIdKey, activeEndpointId)
+      } else {
+        storage.removeItem(activeEndpointIdKey)
+      }
+
+      storage.setItem(recentEndpointIdsKey, JSON.stringify(recentEndpointIds))
     },
   }
 }

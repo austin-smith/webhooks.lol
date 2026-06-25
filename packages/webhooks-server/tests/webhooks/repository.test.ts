@@ -3,10 +3,17 @@ import { afterEach, describe, expect, it } from "vitest"
 
 import { getDatabase } from "@webhooks-lol/database/client"
 import { user } from "@webhooks-lol/database/auth-schema"
-import { capturedRequests, endpoints } from "@webhooks-lol/database/schema"
+import {
+  capturedRequests,
+  endpointForwardDeliveries,
+  endpointForwardTargets,
+  endpointResponses,
+  endpoints,
+} from "@webhooks-lol/database/schema"
 import {
   assertEndpointAccessibleToActor,
   createEndpoint,
+  deleteEndpointForActor,
   EndpointNotFoundError,
   getAccountWebhookStats,
   getEndpointForActor,
@@ -214,6 +221,117 @@ describe("webhook repository request search", () => {
     ).rejects.toBeInstanceOf(EndpointNotFoundError)
     await expect(
       getEndpointForActor(endpoint.endpointId, { userId: owner.id })
+    ).rejects.toBeInstanceOf(EndpointNotFoundError)
+  })
+
+  it("deletes user-owned endpoints only for the owning user and cascades endpoint data", async () => {
+    const owner = await createTrackedUser("owner")
+    const otherUser = await createTrackedUser("other")
+    const endpoint = await createTrackedEndpoint({
+      ownerUserId: owner.id,
+    })
+    const request = await saveTrackedRequest({
+      endpointId: endpoint.endpointId,
+      method: "POST",
+      url: "/delete-me",
+      path: "/delete-me",
+    })
+    const targetId = crypto.randomUUID()
+    const deliveryId = crypto.randomUUID()
+
+    await getDatabase().insert(endpointResponses).values({
+      endpointId: endpoint.endpointId,
+      status: 202,
+      contentType: "application/json",
+      body: "{}",
+    })
+    await getDatabase().insert(endpointForwardTargets).values({
+      id: targetId,
+      endpointId: endpoint.endpointId,
+      url: "https://example.com/webhook",
+      pathMode: "preserve",
+    })
+    await getDatabase().insert(endpointForwardDeliveries).values({
+      id: deliveryId,
+      endpointId: endpoint.endpointId,
+      requestId: request.id,
+      status: "pending",
+      targetId,
+      targetPathMode: "preserve",
+      targetUrl: "https://example.com/webhook",
+    })
+
+    await expect(
+      deleteEndpointForActor({
+        actor: {
+          anonymousSessionId: null,
+          userId: otherUser.id,
+        },
+        endpointId: endpoint.endpointId,
+      })
+    ).rejects.toBeInstanceOf(EndpointNotFoundError)
+    await expect(
+      getEndpointForActor(endpoint.endpointId, { userId: owner.id })
+    ).resolves.toEqual(endpoint)
+
+    await expect(
+      deleteEndpointForActor({
+        actor: {
+          anonymousSessionId: null,
+          userId: owner.id,
+        },
+        endpointId: endpoint.endpointId,
+      })
+    ).resolves.toBeUndefined()
+
+    await expect(
+      getEndpointForActor(endpoint.endpointId, { userId: owner.id })
+    ).rejects.toBeInstanceOf(EndpointNotFoundError)
+    await expectEndpointDataDeleted({
+      deliveryId,
+      endpointId: endpoint.endpointId,
+      requestId: request.id,
+      targetId,
+    })
+  })
+
+  it("deletes anonymous endpoints only for the matching anonymous session", async () => {
+    const anonymousSessionId = `session-${crypto.randomUUID()}`
+    const endpoint = await createTrackedEndpoint({ anonymousSessionId })
+
+    await expect(
+      deleteEndpointForActor({
+        actor: {
+          anonymousSessionId: `session-${crypto.randomUUID()}`,
+          userId: null,
+        },
+        endpointId: endpoint.endpointId,
+      })
+    ).rejects.toBeInstanceOf(EndpointNotFoundError)
+    await expect(
+      deleteEndpointForActor({
+        actor: {
+          anonymousSessionId: null,
+          userId: null,
+        },
+        endpointId: endpoint.endpointId,
+      })
+    ).rejects.toBeInstanceOf(EndpointNotFoundError)
+    await expect(
+      getEndpointForActor(endpoint.endpointId, { userId: null })
+    ).resolves.toEqual(endpoint)
+
+    await expect(
+      deleteEndpointForActor({
+        actor: {
+          anonymousSessionId,
+          userId: null,
+        },
+        endpointId: endpoint.endpointId,
+      })
+    ).resolves.toBeUndefined()
+    await expect(
+      getEndpointForActor(endpoint.endpointId, { userId: null })
     ).rejects.toBeInstanceOf(EndpointNotFoundError)
   })
 
@@ -808,4 +926,46 @@ async function expectRequestIds(
 
 function readRequestIds(requests: CapturedRequest[]) {
   return requests.map((request) => request.id)
+}
+
+async function expectEndpointDataDeleted({
+  deliveryId,
+  endpointId,
+  requestId,
+  targetId,
+}: {
+  deliveryId: string
+  endpointId: string
+  requestId: string
+  targetId: string
+}) {
+  const [endpointRows, requestRows, responseRows, targetRows, deliveryRows] =
+    await Promise.all([
+      getDatabase()
+        .select()
+        .from(endpoints)
+        .where(eq(endpoints.id, endpointId)),
+      getDatabase()
+        .select()
+        .from(capturedRequests)
+        .where(eq(capturedRequests.id, requestId)),
+      getDatabase()
+        .select()
+        .from(endpointResponses)
+        .where(eq(endpointResponses.endpointId, endpointId)),
+      getDatabase()
+        .select()
+        .from(endpointForwardTargets)
+        .where(eq(endpointForwardTargets.id, targetId)),
+      getDatabase()
+        .select()
+        .from(endpointForwardDeliveries)
+        .where(eq(endpointForwardDeliveries.id, deliveryId)),
+    ])
+
+  expect(endpointRows).toEqual([])
+  expect(requestRows).toEqual([])
+  expect(responseRows).toEqual([])
+  expect(targetRows).toEqual([])
+  expect(deliveryRows).toEqual([])
 }

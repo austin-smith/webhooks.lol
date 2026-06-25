@@ -7,9 +7,20 @@ import {
   PencilIcon,
   PlusIcon,
   SearchIcon,
+  Trash2Icon,
   XIcon,
 } from "lucide-react"
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -33,6 +44,7 @@ type EndpointSwitcherProps = {
   disabled: boolean
   endpointAccountStatuses: Record<string, EndpointAccountStatus>
   endpointNames: EndpointNames
+  isDeletingEndpoint: boolean
   isSignedIn: boolean
   isSavingEndpointToAccount: boolean
   name: string
@@ -41,8 +53,9 @@ type EndpointSwitcherProps = {
   onLoadEndpointAccountStatus: (
     endpointId?: string
   ) => Promise<EndpointAccountStatus | null>
+  onDeleteEndpoint: (endpointId: string) => Promise<void>
   onNewEndpoint: () => void
-  onRenameEndpoint: (name: string) => void
+  onRenameEndpoint: (endpointId: string, name: string) => void
   onSaveEndpointToAccount: (
     endpointId?: string
   ) => Promise<EndpointAccountStatus | null>
@@ -53,12 +66,14 @@ export function EndpointSwitcher({
   disabled,
   endpointAccountStatuses,
   endpointNames,
+  isDeletingEndpoint,
   isSignedIn,
   isSavingEndpointToAccount,
   name,
   recentEndpointIds,
   endpointId,
   onLoadEndpointAccountStatus,
+  onDeleteEndpoint,
   onNewEndpoint,
   onRenameEndpoint,
   onSaveEndpointToAccount,
@@ -66,8 +81,13 @@ export function EndpointSwitcher({
 }: EndpointSwitcherProps) {
   const [open, setOpen] = React.useState(false)
   const [query, setQuery] = React.useState("")
-  const [isRenaming, setIsRenaming] = React.useState(false)
+  const [renamingEndpointId, setRenamingEndpointId] = React.useState<
+    string | null
+  >(null)
   const [draftName, setDraftName] = React.useState("")
+  const [deleteConfirmEndpointId, setDeleteConfirmEndpointId] = React.useState<
+    string | null
+  >(null)
   const filteredEndpointIds = React.useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
 
@@ -88,7 +108,7 @@ export function EndpointSwitcher({
 
     if (!nextOpen) {
       setQuery("")
-      setIsRenaming(false)
+      setRenamingEndpointId(null)
       setDraftName("")
     }
   }
@@ -102,8 +122,13 @@ export function EndpointSwitcher({
 
   function saveName(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    onRenameEndpoint(draftName.trim())
-    setIsRenaming(false)
+
+    if (!renamingEndpointId) {
+      return
+    }
+
+    onRenameEndpoint(renamingEndpointId, draftName.trim())
+    setRenamingEndpointId(null)
   }
 
   React.useEffect(() => {
@@ -127,109 +152,131 @@ export function EndpointSwitcher({
   ])
 
   return (
-    <Popover open={open} onOpenChange={changeOpen}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          disabled={disabled}
-          aria-label="Switch endpoint"
-          className="group flex h-10 min-w-0 items-center justify-between gap-2 rounded-l-md px-3 text-left transition-colors hover:bg-muted/55 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 aria-expanded:bg-muted"
-        >
-          {endpointId ? (
-            <span className="min-w-0 animate-in truncate font-mono text-xs font-medium duration-200 fade-in-0 motion-reduce:animate-none">
-              {selectedLabel}
-            </span>
-          ) : (
-            <Skeleton className="h-3 w-20 rounded-sm" aria-hidden="true" />
-          )}
-          <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
-        </button>
-      </PopoverTrigger>
-      <PopoverContent
-        className="w-[min(18rem,calc(100vw-2rem))] overflow-hidden p-0"
-        align="start"
-      >
-        <div className="border-b p-2">
-          <label className="flex h-8 items-center gap-2 rounded-sm border bg-background px-2 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/30">
-            <SearchIcon className="size-3.5 shrink-0 text-muted-foreground" />
-            <span className="sr-only">Search endpoints</span>
-            <Input
-              density="compact"
-              variant="embedded"
-              value={query}
-              onChange={(event) => setQuery(event.currentTarget.value)}
-              className="px-0 font-mono"
-              placeholder="Search endpoints"
-            />
-          </label>
-        </div>
-
-        <div
-          className="overflow-y-auto overscroll-contain"
-          style={{
-            maxHeight:
-              "clamp(8rem, calc(var(--radix-popover-content-available-height) - 6rem), 18rem)",
-          }}
-        >
-          <div className="flex flex-col gap-1 p-1.5">
-            {filteredEndpointIds.length > 0 ? (
-              filteredEndpointIds.map((recentEndpointId) => (
-                <EndpointSwitcherRow
-                  key={recentEndpointId}
-                  endpointNames={endpointNames}
-                  endpointStatus={endpointAccountStatuses[recentEndpointId]}
-                  isSignedIn={isSignedIn}
-                  isSavingEndpointToAccount={isSavingEndpointToAccount}
-                  isRenaming={isRenaming && recentEndpointId === endpointId}
-                  nameDraft={draftName}
-                  selected={recentEndpointId === endpointId}
-                  endpointId={recentEndpointId}
-                  onChangeNameDraft={setDraftName}
-                  onCancelRename={() => {
-                    setDraftName("")
-                    setIsRenaming(false)
-                  }}
-                  onRename={() => {
-                    setDraftName(name)
-                    setIsRenaming(true)
-                  }}
-                  onSaveToAccount={() =>
-                    onSaveEndpointToAccount(recentEndpointId)
-                  }
-                  onSaveName={saveName}
-                  onSelect={() => switchEndpoint(recentEndpointId)}
-                />
-              ))
-            ) : (
-              <div className="px-2 py-6 text-center text-[0.72rem] text-muted-foreground">
-                No matching endpoint
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="border-t bg-popover p-2">
+    <>
+      <Popover open={open} onOpenChange={changeOpen}>
+        <PopoverTrigger asChild>
           <button
             type="button"
             disabled={disabled}
-            onClick={() => {
-              onNewEndpoint()
-              changeOpen(false)
-            }}
-            className="flex h-9 w-full items-center gap-2 rounded-sm border border-transparent px-2 text-left text-xs transition-colors hover:border-border hover:bg-background focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label="Switch endpoint"
+            className="group flex h-10 min-w-0 items-center justify-between gap-2 rounded-l-md px-3 text-left transition-colors hover:bg-muted/55 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 aria-expanded:bg-muted"
           >
-            <PlusIcon className="size-3.5 text-muted-foreground" />
-            <span>New endpoint</span>
+            {endpointId ? (
+              <span className="min-w-0 animate-in truncate font-mono text-xs font-medium duration-200 fade-in-0 motion-reduce:animate-none">
+                {selectedLabel}
+              </span>
+            ) : (
+              <Skeleton className="h-3 w-20 rounded-sm" aria-hidden="true" />
+            )}
+            <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
           </button>
-        </div>
-      </PopoverContent>
-    </Popover>
+        </PopoverTrigger>
+        <PopoverContent
+          className="w-[min(18rem,calc(100vw-2rem))] overflow-hidden p-0"
+          align="start"
+        >
+          <div className="border-b p-2">
+            <label className="flex h-8 items-center gap-2 rounded-sm border bg-background px-2 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/30">
+              <SearchIcon className="size-3.5 shrink-0 text-muted-foreground" />
+              <span className="sr-only">Search endpoints</span>
+              <Input
+                density="compact"
+                variant="embedded"
+                value={query}
+                onChange={(event) => setQuery(event.currentTarget.value)}
+                className="px-0 font-mono"
+                placeholder="Search endpoints"
+              />
+            </label>
+          </div>
+
+          <div
+            className="overflow-y-auto overscroll-contain"
+            style={{
+              maxHeight:
+                "clamp(8rem, calc(var(--radix-popover-content-available-height) - 6rem), 18rem)",
+            }}
+          >
+            <div className="flex flex-col gap-1 p-1.5">
+              {filteredEndpointIds.length > 0 ? (
+                filteredEndpointIds.map((recentEndpointId) => (
+                  <EndpointSwitcherRow
+                    key={recentEndpointId}
+                    endpointNames={endpointNames}
+                    endpointStatus={endpointAccountStatuses[recentEndpointId]}
+                    isDeletingEndpoint={isDeletingEndpoint}
+                    isSignedIn={isSignedIn}
+                    isSavingEndpointToAccount={isSavingEndpointToAccount}
+                    isRenaming={renamingEndpointId === recentEndpointId}
+                    nameDraft={draftName}
+                    selected={recentEndpointId === endpointId}
+                    endpointId={recentEndpointId}
+                    onChangeNameDraft={setDraftName}
+                    onCancelRename={() => {
+                      setDraftName("")
+                      setRenamingEndpointId(null)
+                    }}
+                    onRequestDelete={() => {
+                      changeOpen(false)
+                      setDeleteConfirmEndpointId(recentEndpointId)
+                    }}
+                    onRename={() => {
+                      setDraftName(endpointNames[recentEndpointId] ?? "")
+                      setRenamingEndpointId(recentEndpointId)
+                    }}
+                    onSaveToAccount={() =>
+                      onSaveEndpointToAccount(recentEndpointId)
+                    }
+                    onSaveName={saveName}
+                    onSelect={() => switchEndpoint(recentEndpointId)}
+                  />
+                ))
+              ) : (
+                <div className="px-2 py-6 text-center text-[0.72rem] text-muted-foreground">
+                  No matching endpoint
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="border-t bg-popover p-2">
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => {
+                onNewEndpoint()
+                changeOpen(false)
+              }}
+              className="flex h-9 w-full items-center gap-2 rounded-sm border border-transparent px-2 text-left text-xs transition-colors hover:border-border hover:bg-background focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <PlusIcon className="size-3.5 text-muted-foreground" />
+              <span>New endpoint</span>
+            </button>
+          </div>
+        </PopoverContent>
+      </Popover>
+      <DeleteEndpointAlertDialog
+        endpointId={deleteConfirmEndpointId}
+        name={
+          deleteConfirmEndpointId
+            ? (endpointNames[deleteConfirmEndpointId] ?? "")
+            : ""
+        }
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            setDeleteConfirmEndpointId(null)
+          }
+        }}
+        onDeleteEndpoint={onDeleteEndpoint}
+      />
+    </>
   )
 }
 
 function EndpointSwitcherRow({
   endpointStatus,
   endpointNames,
+  isDeletingEndpoint,
   isSignedIn,
   isSavingEndpointToAccount,
   isRenaming,
@@ -238,6 +285,7 @@ function EndpointSwitcherRow({
   endpointId,
   onChangeNameDraft,
   onCancelRename,
+  onRequestDelete,
   onRename,
   onSaveToAccount,
   onSaveName,
@@ -245,6 +293,7 @@ function EndpointSwitcherRow({
 }: {
   endpointStatus: EndpointAccountStatus | null | undefined
   endpointNames: EndpointNames
+  isDeletingEndpoint: boolean
   isSignedIn: boolean
   isSavingEndpointToAccount: boolean
   isRenaming: boolean
@@ -253,6 +302,7 @@ function EndpointSwitcherRow({
   endpointId: string
   onChangeNameDraft: (name: string) => void
   onCancelRename: () => void
+  onRequestDelete: () => void
   onRename: () => void
   onSaveToAccount: () => Promise<EndpointAccountStatus | null>
   onSaveName: (event: React.FormEvent<HTMLFormElement>) => void
@@ -266,9 +316,15 @@ function EndpointSwitcherRow({
   if (isRenaming) {
     return (
       <form
-        className="flex h-11 items-center gap-1.5 rounded-sm bg-muted p-1.5"
+        className="grid h-11 grid-cols-[1.25rem_minmax(0,1fr)_auto_auto] items-center gap-1.5 rounded-sm bg-muted p-1.5"
         onSubmit={onSaveName}
       >
+        <span
+          className="flex size-5 items-center justify-center text-foreground"
+          aria-hidden="true"
+        >
+          {selected ? <CheckIcon className="size-3.5" /> : null}
+        </span>
         <Input
           autoFocus
           aria-label="Endpoint label"
@@ -293,14 +349,17 @@ function EndpointSwitcherRow({
           <CheckIcon data-icon="inline-start" />
           <span className="sr-only">Save endpoint label</span>
         </Button>
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon-sm"
+          className="rounded-sm"
           aria-label="Cancel rename"
           onClick={onCancelRename}
-          className="flex size-7 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-background hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
         >
-          <XIcon className="size-3.5" />
-        </button>
+          <XIcon data-icon="inline-start" />
+          <span className="sr-only">Cancel rename</span>
+        </Button>
       </form>
     )
   }
@@ -308,15 +367,21 @@ function EndpointSwitcherRow({
   return (
     <div
       className={cn(
-        "grid h-11 grid-cols-[minmax(0,1fr)_auto] items-center gap-1 rounded-sm transition-colors hover:bg-muted",
+        "group/endpoint-row grid h-11 grid-cols-[1.25rem_minmax(0,1fr)_auto] items-center gap-1 rounded-sm transition-colors hover:bg-muted",
         selected && "bg-muted"
       )}
     >
+      <span
+        className="flex size-5 items-center justify-center text-foreground"
+        aria-hidden="true"
+      >
+        {selected ? <CheckIcon className="size-3.5" /> : null}
+      </span>
       <button
         type="button"
         aria-current={selected ? "true" : undefined}
         onClick={onSelect}
-        className="flex min-w-0 flex-col px-2 py-1.5 text-left focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+        className="flex min-w-0 flex-col py-1.5 text-left focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
       >
         <span className="truncate text-xs font-medium">{name || shortId}</span>
         {name ? (
@@ -346,25 +411,107 @@ function EndpointSwitcherRow({
             </TooltipContent>
           </Tooltip>
         ) : null}
-        {selected ? (
-          <>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="Rename selected endpoint"
-                  onClick={onRename}
-                  className="flex size-7 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-background hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
-                >
-                  <PencilIcon className="size-3.5" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="left">Rename endpoint</TooltipContent>
-            </Tooltip>
-            <CheckIcon className="size-3.5 text-foreground" />
-          </>
-        ) : null}
+        <span className="flex items-center gap-0.5 opacity-0 transition-opacity group-focus-within/endpoint-row:opacity-100 group-hover/endpoint-row:opacity-100 [@media(hover:none)]:opacity-100">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="rounded-sm"
+                aria-label={`Rename ${name || shortId}`}
+                onClick={onRename}
+              >
+                <PencilIcon data-icon="inline-start" />
+                <span className="sr-only">Rename {name || shortId}</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left">Rename endpoint</TooltipContent>
+          </Tooltip>
+          <DeleteEndpointButton
+            disabled={isDeletingEndpoint}
+            label={`Delete ${name || shortId}`}
+            onClick={onRequestDelete}
+          />
+        </span>
       </span>
     </div>
+  )
+}
+
+function DeleteEndpointButton({
+  disabled,
+  label,
+  onClick,
+}: {
+  disabled: boolean
+  label: string
+  onClick: () => void
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost-destructive"
+          size="icon-sm"
+          className="rounded-sm"
+          disabled={disabled}
+          aria-label={label}
+          onClick={onClick}
+        >
+          <Trash2Icon data-icon="inline-start" />
+          <span className="sr-only">{label}</span>
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="left">Delete endpoint</TooltipContent>
+    </Tooltip>
+  )
+}
+
+function DeleteEndpointAlertDialog({
+  endpointId,
+  name,
+  onOpenChange,
+  onDeleteEndpoint,
+}: {
+  endpointId: string | null
+  name: string
+  onOpenChange: (open: boolean) => void
+  onDeleteEndpoint: (endpointId: string) => Promise<void>
+}) {
+  const shortId = formatShortEndpointId(endpointId)
+  const endpointLabel = name.trim() ? `${name.trim()} (${shortId})` : shortId
+
+  return (
+    <AlertDialog open={Boolean(endpointId)} onOpenChange={onOpenChange}>
+      <AlertDialogContent size="default" className="gap-3">
+        <AlertDialogHeader className="place-items-start text-left">
+          <AlertDialogTitle className="text-sm leading-snug">
+            Delete {endpointLabel}?
+          </AlertDialogTitle>
+          <AlertDialogDescription className="text-xs leading-relaxed">
+            This will permanently delete the endpoint URL, captured requests,
+            and any configured settings.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel size="sm">Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            variant="destructive"
+            size="sm"
+            onClick={() => {
+              if (!endpointId) {
+                return
+              }
+
+              void onDeleteEndpoint(endpointId).catch(() => undefined)
+            }}
+          >
+            Delete endpoint
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   )
 }

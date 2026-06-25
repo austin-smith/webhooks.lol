@@ -16,6 +16,10 @@ class MemoryStorage {
   setItem(key: string, value: string) {
     this.values.set(key, value)
   }
+
+  removeItem(key: string) {
+    this.values.delete(key)
+  }
 }
 
 describe("endpoint session storage", () => {
@@ -66,16 +70,18 @@ describe("endpoint session storage", () => {
     })
   })
 
-  it("writes normalized session values", () => {
+  it("writes normalized endpoint sessions and clears missing active endpoint IDs", () => {
     const memoryStorage = new MemoryStorage()
     const storage = createEndpointSessionStorageAdapter(() => memoryStorage)
 
-    storage.writeActiveEndpointId(ACTIVE_ENDPOINT_ID)
-    storage.writeRecentEndpointIds([
-      ACTIVE_ENDPOINT_ID,
-      ACTIVE_ENDPOINT_ID,
-      OTHER_ENDPOINT_ID,
-    ])
+    storage.write({
+      activeEndpointId: ACTIVE_ENDPOINT_ID,
+      recentEndpointIds: [
+        ACTIVE_ENDPOINT_ID,
+        ACTIVE_ENDPOINT_ID,
+        OTHER_ENDPOINT_ID,
+      ],
+    })
 
     expect(memoryStorage.getItem("webhooks.lol:endpoint-id")).toBe(
       ACTIVE_ENDPOINT_ID
@@ -83,6 +89,14 @@ describe("endpoint session storage", () => {
     expect(memoryStorage.getItem("webhooks.lol:recent-endpoint-ids")).toBe(
       JSON.stringify([ACTIVE_ENDPOINT_ID, OTHER_ENDPOINT_ID])
     )
+
+    storage.write({
+      activeEndpointId: null,
+      recentEndpointIds: [],
+    })
+
+    expect(memoryStorage.getItem("webhooks.lol:endpoint-id")).toBeNull()
+    expect(memoryStorage.getItem("webhooks.lol:recent-endpoint-ids")).toBe("[]")
   })
 
   it("keeps authenticated endpoint sessions separate from anonymous sessions", () => {
@@ -95,10 +109,14 @@ describe("endpoint session storage", () => {
       { userId: "user:1@example.com" }
     )
 
-    anonymousStorage.writeActiveEndpointId(ACTIVE_ENDPOINT_ID)
-    anonymousStorage.writeRecentEndpointIds([ACTIVE_ENDPOINT_ID])
-    userStorage.writeActiveEndpointId(OTHER_ENDPOINT_ID)
-    userStorage.writeRecentEndpointIds([OTHER_ENDPOINT_ID])
+    anonymousStorage.write({
+      activeEndpointId: ACTIVE_ENDPOINT_ID,
+      recentEndpointIds: [ACTIVE_ENDPOINT_ID],
+    })
+    userStorage.write({
+      activeEndpointId: OTHER_ENDPOINT_ID,
+      recentEndpointIds: [OTHER_ENDPOINT_ID],
+    })
 
     expect(anonymousStorage.read()).toEqual({
       activeEndpointId: ACTIVE_ENDPOINT_ID,

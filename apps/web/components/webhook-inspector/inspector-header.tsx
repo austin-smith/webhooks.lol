@@ -31,6 +31,7 @@ type InspectorHeaderProps = {
   endpointAccountStatuses: Record<string, EndpointAccountStatus>
   endpointNames: Record<string, string>
   forwardTargets: EndpointForwardTarget[]
+  isDeletingEndpoint: boolean
   isLoading: boolean
   isLoadingForwardTargets: boolean
   isSignedIn: boolean
@@ -46,6 +47,7 @@ type InspectorHeaderProps = {
     url: string
   }) => Promise<void>
   onCopyWebhookUrl: () => void
+  onDeleteEndpoint: (endpointId: string) => Promise<void>
   onDeleteForwardTarget: (targetId: string) => Promise<void>
   onLoadEndpointAccountStatus: (
     endpointId?: string
@@ -53,7 +55,7 @@ type InspectorHeaderProps = {
   onLoadForwardTargets: () => Promise<void>
   onLoadEndpointStats: () => Promise<EndpointStats | null>
   onNewEndpoint: () => void
-  onRenameEndpoint: (name: string) => void
+  onRenameEndpoint: (endpointId: string, name: string) => void
   onResetResponseOverride: () => Promise<void>
   onSaveEndpointToAccount: (
     endpointId?: string
@@ -80,6 +82,7 @@ export function InspectorHeader({
   endpointAccountStatuses,
   endpointNames,
   forwardTargets,
+  isDeletingEndpoint,
   isLoading,
   isLoadingForwardTargets,
   isSignedIn,
@@ -97,6 +100,7 @@ export function InspectorHeader({
   endpointId,
   webhookUrl,
   onCopyWebhookUrl,
+  onDeleteEndpoint,
   onLoadEndpointStats,
   onNewEndpoint,
   onRenameEndpoint,
@@ -105,20 +109,24 @@ export function InspectorHeader({
   onUpdateForwardTarget,
 }: InspectorHeaderProps) {
   const endpointName = endpointId ? (endpointNames[endpointId] ?? "") : ""
+  const endpointControlsDisabled =
+    isLoading || isDeletingEndpoint || !endpointId
 
   return (
     <header className="min-w-0">
       <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] overflow-hidden rounded-md border bg-card sm:grid-cols-[minmax(7.5rem,12rem)_minmax(0,1fr)_auto]">
         <EndpointSwitcher
-          disabled={isLoading || !endpointId}
+          disabled={endpointControlsDisabled}
           endpointAccountStatuses={endpointAccountStatuses}
           endpointNames={endpointNames}
+          isDeletingEndpoint={isDeletingEndpoint}
           isSignedIn={isSignedIn}
           isSavingEndpointToAccount={isSavingEndpointToAccount}
           name={endpointName}
           recentEndpointIds={recentEndpointIds}
           endpointId={endpointId}
           onLoadEndpointAccountStatus={onLoadEndpointAccountStatus}
+          onDeleteEndpoint={onDeleteEndpoint}
           onNewEndpoint={onNewEndpoint}
           onRenameEndpoint={onRenameEndpoint}
           onSaveEndpointToAccount={onSaveEndpointToAccount}
@@ -162,13 +170,13 @@ export function InspectorHeader({
 
         <div className="col-start-2 row-start-1 flex items-center gap-0.5 border-l p-1 sm:col-start-3">
           <EndpointDetailsPopover
-            disabled={isLoading || !endpointId}
+            disabled={endpointControlsDisabled}
             endpointId={endpointId}
             name={endpointName}
             onLoadEndpointStats={onLoadEndpointStats}
           />
           <EndpointForwardingControl
-            disabled={isLoading || !endpointId}
+            disabled={endpointControlsDisabled}
             docsUrl={docsUrl}
             isLoading={isLoadingForwardTargets}
             isSaving={isSavingForwardTarget}
@@ -179,7 +187,7 @@ export function InspectorHeader({
             onUpdateTarget={onUpdateForwardTarget}
           />
           <ResponseOverrideControl
-            disabled={isLoading || !endpointId}
+            disabled={endpointControlsDisabled}
             docsUrl={docsUrl}
             isSaving={isSavingResponse}
             responseConfig={responseConfig}

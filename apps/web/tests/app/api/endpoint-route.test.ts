@@ -4,12 +4,14 @@ const {
   assertEndpointAccessibleToActor,
   checkEndpointCreateAdmission,
   createEndpoint,
+  deleteEndpointForActor,
   getEndpointAccessActor,
   getEndpointAccountStatus,
   getEndpoint,
   getEndpointForActor,
   listEndpointsForUser,
   publishEndpointAccessRevoked,
+  publishEndpointDeleted,
   requireEndpointUserId,
   saveEndpointToAccount,
   updateEndpointName,
@@ -17,12 +19,14 @@ const {
   assertEndpointAccessibleToActor: vi.fn(),
   checkEndpointCreateAdmission: vi.fn(),
   createEndpoint: vi.fn(),
+  deleteEndpointForActor: vi.fn(),
   getEndpointAccessActor: vi.fn(),
   getEndpointAccountStatus: vi.fn(),
   getEndpoint: vi.fn(),
   getEndpointForActor: vi.fn(),
   listEndpointsForUser: vi.fn(),
   publishEndpointAccessRevoked: vi.fn(),
+  publishEndpointDeleted: vi.fn(),
   requireEndpointUserId: vi.fn(),
   saveEndpointToAccount: vi.fn(),
   updateEndpointName: vi.fn(),
@@ -34,6 +38,7 @@ vi.mock("@webhooks-lol/webhooks-server/admission-control", () => ({
 
 vi.mock("@webhooks-lol/webhooks-server/endpoint-event-stream", () => ({
   publishEndpointAccessRevoked,
+  publishEndpointDeleted,
 }))
 
 vi.mock("@webhooks-lol/webhooks-server/repository", async (importOriginal) => ({
@@ -42,6 +47,7 @@ vi.mock("@webhooks-lol/webhooks-server/repository", async (importOriginal) => ({
   >()),
   assertEndpointAccessibleToActor,
   createEndpoint,
+  deleteEndpointForActor,
   getEndpointAccountStatus,
   getEndpoint,
   getEndpointForActor,
@@ -61,6 +67,7 @@ import {
   POST as SAVE_ENDPOINT_TO_ACCOUNT,
 } from "@/app/api/endpoints/[endpointId]/account/route"
 import {
+  DELETE,
   GET,
   MAX_ENDPOINT_METADATA_REQUEST_BYTES,
   PATCH,
@@ -116,6 +123,7 @@ describe("endpoint route", () => {
     checkEndpointCreateAdmission.mockResolvedValue(createAllowedAdmission())
     assertEndpointAccessibleToActor.mockReset()
     createEndpoint.mockReset()
+    deleteEndpointForActor.mockReset()
     getEndpointAccessActor.mockReset()
     getEndpointAccessActor.mockResolvedValue({ userId: null })
     getEndpointAccountStatus.mockReset()
@@ -123,6 +131,7 @@ describe("endpoint route", () => {
     getEndpointForActor.mockReset()
     listEndpointsForUser.mockReset()
     publishEndpointAccessRevoked.mockReset()
+    publishEndpointDeleted.mockReset()
     requireEndpointUserId.mockReset()
     requireEndpointUserId.mockResolvedValue("user-1")
     saveEndpointToAccount.mockReset()
@@ -376,6 +385,64 @@ describe("endpoint route", () => {
       error: "Endpoint name must be 32 characters or fewer.",
     })
     expect(updateEndpointName).not.toHaveBeenCalled()
+  })
+
+  it("deletes an endpoint for the current authenticated or anonymous owner", async () => {
+    getEndpointAccessActor.mockResolvedValueOnce({ userId: "user-1" })
+
+    const response = await DELETE(
+      new Request(`https://hooks.example.com/api/endpoints/${ENDPOINT_ID}`, {
+        headers: {
+          cookie: `webhooks_lol_endpoint_session=${ANONYMOUS_SESSION_ID}`,
+        },
+        method: "DELETE",
+      }),
+      createContext()
+    )
+
+    expect(response.status).toBe(204)
+    expect(await response.text()).toBe("")
+    expect(deleteEndpointForActor).toHaveBeenCalledWith({
+      actor: {
+        anonymousSessionId: ANONYMOUS_SESSION_ID,
+        userId: "user-1",
+      },
+      endpointId: ENDPOINT_ID,
+    })
+    expect(publishEndpointDeleted).toHaveBeenCalledWith(ENDPOINT_ID)
+  })
+
+  it("rejects malformed endpoint IDs before deleting", async () => {
+    const response = await DELETE(
+      new Request("https://hooks.example.com/api/endpoints/not-an-id", {
+        method: "DELETE",
+      }),
+      createContext("not-an-id")
+    )
+
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toEqual({
+      ok: false,
+      error: "Invalid endpoint ID.",
+    })
+    expect(deleteEndpointForActor).not.toHaveBeenCalled()
+    expect(publishEndpointDeleted).not.toHaveBeenCalled()
+  })
+
+  it("hides endpoint delete ownership failures behind the endpoint not found response", async () => {
+    deleteEndpointForActor.mockRejectedValueOnce(
+      new EndpointNotFoundError(ENDPOINT_ID)
+    )
+
+    const response = await DELETE(
+      new Request(`https://hooks.example.com/api/endpoints/${ENDPOINT_ID}`, {
+        method: "DELETE",
+      }),
+      createContext()
+    )
+
+    expect(response.status).toBe(404)
+    expect(publishEndpointDeleted).not.toHaveBeenCalled()
   })
 
   it("rejects oversized metadata requests before storing", async () => {

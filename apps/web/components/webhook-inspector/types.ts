@@ -20,6 +20,7 @@ export type EndpointActions = {
     pathMode?: EndpointForwardPathMode
     url: string
   }) => Promise<void>
+  deleteEndpoint: (endpointId: string) => Promise<void>
   deleteForwardTarget: (targetId: string) => Promise<void>
   loadEndpointAccountStatus: (
     endpointId?: string
@@ -27,7 +28,7 @@ export type EndpointActions = {
   loadForwardTargets: () => Promise<void>
   loadEndpointStats: () => Promise<EndpointStats | null>
   loadOlderRequests: () => void
-  renameEndpoint: (name: string) => void
+  renameEndpoint: (endpointId: string, name: string) => void
   refreshEndpoint: () => void
   replayRequest: (requestId: string) => Promise<void>
   saveEndpointToAccount: (
@@ -60,6 +61,7 @@ export type EndpointState = {
   endpointAccountStatuses: Record<string, EndpointAccountStatus>
   forwardTargets: EndpointForwardTarget[]
   isClearing: boolean
+  isDeletingEndpoint: boolean
   isLoadingForwardTargets: boolean
   isLoading: boolean
   isLoadingOlderRequests: boolean

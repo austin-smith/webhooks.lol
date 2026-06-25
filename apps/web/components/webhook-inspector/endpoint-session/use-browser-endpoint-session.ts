@@ -28,6 +28,7 @@ import {
   mergeForwardTarget,
   mergeCapturedRequestPage,
   mergeCapturedRequest,
+  removeEndpointId,
   rememberEndpointId,
   reconcileLoadedRequests,
   removeForwardTarget,
@@ -47,6 +48,7 @@ import {
   type EndpointForwardTarget,
   type EndpointMetadata,
   type EndpointStats,
+  EndpointTransportError,
 } from "./transport"
 
 type EndpointRenameSaveState = {
@@ -116,6 +118,7 @@ export function useBrowserEndpointSession(): Endpoint {
   const [isClearing, setIsClearing] = React.useState(false)
   const [isLoadingForwardTargets, setIsLoadingForwardTargets] =
     React.useState(false)
+  const [isDeletingEndpoint, setIsDeletingEndpoint] = React.useState(false)
   const [isLoadingOlderRequests, setIsLoadingOlderRequests] =
     React.useState(false)
   const [isSavingForwardTarget, setIsSavingForwardTarget] =
@@ -269,6 +272,33 @@ export function useBrowserEndpointSession(): Endpoint {
     []
   )
 
+  const forgetEndpointId = React.useCallback((forgottenEndpointId: string) => {
+    endpointAccountStatusLoadPromises.current.delete(forgottenEndpointId)
+    renameSaveStatesByEndpoint.current.delete(forgottenEndpointId)
+    setEndpointNames((currentNames) => {
+      if (
+        !Object.prototype.hasOwnProperty.call(currentNames, forgottenEndpointId)
+      ) {
+        return currentNames
+      }
+
+      const nextNames = { ...currentNames }
+
+      delete nextNames[forgottenEndpointId]
+
+      return nextNames
+    })
+    endpointAccountStatusesRef.current = Object.fromEntries(
+      Object.entries(endpointAccountStatusesRef.current).filter(
+        ([endpointId]) => endpointId !== forgottenEndpointId
+      )
+    )
+    setEndpointAccountStatuses(endpointAccountStatusesRef.current)
+    setRecentEndpointIds((current) =>
+      removeEndpointId(forgottenEndpointId, current)
+    )
+  }, [])
+
   const applyNewEndpoint = React.useCallback(
     (metadata: EndpointMetadata) => {
       const nextEndpointId = metadata.endpointId
@@ -294,6 +324,115 @@ export function useBrowserEndpointSession(): Endpoint {
 
     applyNewEndpoint(metadata)
   }, [applyNewEndpoint, transport])
+
+  const loadReplacementEndpointAfterDeletion = React.useCallback(
+    async ({
+      deletedEndpointId,
+      message,
+    }: {
+      deletedEndpointId: string
+      message: string | null
+    }) => {
+      const replacementEndpointIds = removeEndpointId(
+        deletedEndpointId,
+        recentEndpointIds
+      )
+
+      forgetEndpointId(deletedEndpointId)
+
+      if (activeEndpointIdRef.current !== deletedEndpointId) {
+        return
+      }
+
+      activeEndpointIdRef.current = null
+      setEndpointId(null)
+      resetEndpointLoadState()
+      setIsLoading(true)
+
+      for (const replacementEndpointId of replacementEndpointIds) {
+        let metadata: EndpointMetadata
+
+        try {
+          metadata = await transport.loadEndpoint(replacementEndpointId)
+        } catch (error) {
+          if (isEndpointUnavailableTransportError(error)) {
+            forgetEndpointId(replacementEndpointId)
+            continue
+          }
+
+          if (activeEndpointIdRef.current === null) {
+            setErrorMessage(readErrorMessage(error))
+            setIsLoading(false)
+          }
+
+          return
+        }
+
+        try {
+          const [nextRequestPage, nextResponseConfig, nextForwardTargets] =
+            await Promise.all([
+              transport.loadRequests(replacementEndpointId),
+              transport.loadEndpointResponseConfig(replacementEndpointId),
+              transport.listForwardTargets(replacementEndpointId),
+            ])
+
+          if (activeEndpointIdRef.current !== null) {
+            return
+          }
+
+          updateEndpointId(replacementEndpointId)
+          resetEndpointLoadState()
+          const requestIdsAtLoadStart = new Set<string>()
+          const requestListVersionAtLoadStart = requestListVersion.current
+
+          applyEndpointMetadata(metadata)
+          applyLoadedRequests({
+            requestListVersionAtLoadStart,
+            page: nextRequestPage,
+            requestIdsAtLoadStart,
+          })
+          setForwardTargets(nextForwardTargets)
+          setResponseConfig(nextResponseConfig)
+          setErrorMessage(message)
+          setIsLoading(false)
+
+          return
+        } catch (error) {
+          if (activeEndpointIdRef.current === null) {
+            updateEndpointId(replacementEndpointId)
+            resetEndpointLoadState()
+            applyEndpointMetadata(metadata)
+            setErrorMessage(readErrorMessage(error))
+            setIsLoading(false)
+          }
+
+          return
+        }
+      }
+
+      try {
+        const metadata = await transport.createEndpoint()
+
+        applyNewEndpoint(metadata)
+        setErrorMessage(message)
+      } catch (error) {
+        if (!activeEndpointIdRef.current) {
+          setErrorMessage(readErrorMessage(error))
+          setIsLoading(false)
+        }
+      }
+    },
+    [
+      applyEndpointMetadata,
+      applyLoadedRequests,
+      applyNewEndpoint,
+      forgetEndpointId,
+      recentEndpointIds,
+      resetEndpointLoadState,
+      transport,
+      updateEndpointId,
+    ]
+  )
 
   React.useEffect(() => {
     let isActive = true
@@ -523,20 +662,15 @@ export function useBrowserEndpointSession(): Endpoint {
   ])
 
   React.useEffect(() => {
-    if (!hasLoadedStorage.current || !endpointId) {
-      return
-    }
-
-    storage.writeActiveEndpointId(endpointId)
-  }, [storage, endpointId])
-
-  React.useEffect(() => {
     if (!hasLoadedStorage.current) {
       return
     }
 
-    storage.writeRecentEndpointIds(recentEndpointIds)
-  }, [recentEndpointIds, storage])
+    storage.write({
+      activeEndpointId: endpointId,
+      recentEndpointIds,
+    })
+  }, [endpointId, recentEndpointIds, storage])
 
   React.useEffect(() => {
     if (!endpointId) {
@@ -554,6 +688,12 @@ export function useBrowserEndpointSession(): Endpoint {
         })
         setIsLoadingOlderRequests(false)
         setConnectionState("live")
+      },
+      onDeleted() {
+        void loadReplacementEndpointAfterDeletion({
+          deletedEndpointId: endpointId,
+          message: "Endpoint was deleted.",
+        })
       },
       onError() {
         setConnectionState("offline")
@@ -576,7 +716,7 @@ export function useBrowserEndpointSession(): Endpoint {
         setConnectionState("live")
       },
     })
-  }, [eventStream, endpointId])
+  }, [eventStream, endpointId, loadReplacementEndpointAfterDeletion])
 
   const refreshEndpoint = React.useCallback(async () => {
     if (!endpointId) {
@@ -749,6 +889,31 @@ export function useBrowserEndpointSession(): Endpoint {
       setIsClearing(false)
     }
   }, [isClearing, endpointId, transport])
+
+  const deleteEndpoint = React.useCallback(
+    async (deletingEndpointId: string) => {
+      if (!deletingEndpointId || isDeletingEndpoint) {
+        return
+      }
+
+      setIsDeletingEndpoint(true)
+      setErrorMessage(null)
+
+      try {
+        await transport.deleteEndpoint(deletingEndpointId)
+        await loadReplacementEndpointAfterDeletion({
+          deletedEndpointId: deletingEndpointId,
+          message: null,
+        })
+      } catch (error) {
+        setErrorMessage(readErrorMessage(error))
+        throw error
+      } finally {
+        setIsDeletingEndpoint(false)
+      }
+    },
+    [isDeletingEndpoint, loadReplacementEndpointAfterDeletion, transport]
+  )
 
   const loadForwardTargets = React.useCallback(async () => {
     if (!endpointId || isLoadingForwardTargets) {
@@ -1147,13 +1312,12 @@ export function useBrowserEndpointSession(): Endpoint {
     [applyEndpointMetadata, transport]
   )
 
-  const renameCurrentEndpoint = React.useCallback(
-    (name: string) => {
-      if (!endpointId) {
+  const renameEndpoint = React.useCallback(
+    (renamingEndpointId: string, name: string) => {
+      if (!renamingEndpointId) {
         return
       }
 
-      const renamingEndpointId = endpointId
       const saveState = renameSaveStatesByEndpoint.current.get(
         renamingEndpointId
       ) ?? {
@@ -1165,7 +1329,7 @@ export function useBrowserEndpointSession(): Endpoint {
       renameSaveStatesByEndpoint.current.set(renamingEndpointId, saveState)
       processEndpointRenameQueue(renamingEndpointId)
     },
-    [endpointId, processEndpointRenameQueue]
+    [processEndpointRenameQueue]
   )
 
   const switchEndpoint = React.useCallback(
@@ -1304,12 +1468,13 @@ export function useBrowserEndpointSession(): Endpoint {
       clearEndpoint,
       clearResponseOverride,
       createForwardTarget,
+      deleteEndpoint,
       deleteForwardTarget,
       loadEndpointAccountStatus,
       loadForwardTargets,
       loadEndpointStats,
       loadOlderRequests,
-      renameEndpoint: renameCurrentEndpoint,
+      renameEndpoint,
       refreshEndpoint,
       replayRequest,
       saveEndpointToAccount: saveCurrentEndpointToAccount,
@@ -1324,13 +1489,14 @@ export function useBrowserEndpointSession(): Endpoint {
       clearEndpoint,
       clearResponseOverride,
       createForwardTarget,
+      deleteEndpoint,
       deleteForwardTarget,
       loadEndpointAccountStatus,
       loadForwardTargets,
       loadEndpointStats,
       loadOlderRequests,
       refreshEndpoint,
-      renameCurrentEndpoint,
+      renameEndpoint,
       replayRequest,
       saveCurrentEndpointToAccount,
       saveResponseOverride,
@@ -1344,7 +1510,8 @@ export function useBrowserEndpointSession(): Endpoint {
 
   return {
     actions,
-    canRefresh: Boolean(endpointId) && !isLoading && !isClearing,
+    canRefresh:
+      Boolean(endpointId) && !isLoading && !isClearing && !isDeletingEndpoint,
     connectionState,
     errorMessage,
     endpointAccountStatuses,
@@ -1352,6 +1519,7 @@ export function useBrowserEndpointSession(): Endpoint {
     forwardTargets,
     hasMoreRequests,
     isClearing,
+    isDeletingEndpoint,
     isLoadingForwardTargets,
     isLoading,
     isLoadingOlderRequests,
@@ -1376,6 +1544,10 @@ function readErrorMessage(error: unknown) {
   }
 
   return "Something went wrong."
+}
+
+function isEndpointUnavailableTransportError(error: unknown) {
+  return error instanceof EndpointTransportError && error.status === 404
 }
 
 function createEndpointSaveSignUpHref(endpointId: string) {

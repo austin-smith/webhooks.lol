@@ -7,6 +7,7 @@ export type EndpointEventStream = {
 
 export type EndpointEventHandlers = {
   onClear: () => void
+  onDeleted: () => void
   onError: () => void
   onReady: () => void
   onRequest: (request: CapturedRequest) => void
@@ -43,15 +44,23 @@ export function createBrowserEndpointEventStream(
         }
       }
 
+      const onDeleted = (event: Event) => {
+        if (readEndpointIdEvent(event) === endpointId) {
+          handlers.onDeleted()
+        }
+      }
+
       events.addEventListener("ready", onReady)
       events.addEventListener("request", onRequest)
       events.addEventListener("clear", onClear)
+      events.addEventListener("deleted", onDeleted)
       events.onerror = handlers.onError
 
       return () => {
         events.removeEventListener("ready", onReady)
         events.removeEventListener("request", onRequest)
         events.removeEventListener("clear", onClear)
+        events.removeEventListener("deleted", onDeleted)
         events.close()
       }
     },

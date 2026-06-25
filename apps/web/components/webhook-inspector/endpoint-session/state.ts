@@ -114,6 +114,21 @@ export function rememberEndpointId(
   ])
 }
 
+export function removeEndpointId(
+  endpointId: string,
+  recentEndpointIds: string[]
+) {
+  const normalizedEndpointId = normalizeEndpointIds([endpointId])[0]
+
+  if (!normalizedEndpointId) {
+    return normalizeEndpointIds(recentEndpointIds)
+  }
+
+  return normalizeEndpointIds(recentEndpointIds).filter(
+    (recentEndpointId) => recentEndpointId !== normalizedEndpointId
+  )
+}
+
 export function normalizeEndpointIds(endpointIds: unknown[]) {
   const uniqueEndpointIds = new Set<string>()
 

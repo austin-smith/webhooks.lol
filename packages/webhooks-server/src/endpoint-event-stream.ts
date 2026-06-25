@@ -7,6 +7,7 @@ import type { CapturedRequest } from "@webhooks-lol/webhooks-core/types"
 
 const REQUEST_EVENT = "request"
 const CLEAR_EVENT = "clear"
+const DELETE_EVENT = "deleted"
 const ACCESS_REVOKED_EVENT = "access-revoked"
 const HEARTBEAT_INTERVAL_MS = 25_000
 
@@ -34,6 +35,10 @@ export function publishRequest(request: CapturedRequest) {
 
 export function publishEndpointCleared(endpointId: string) {
   getWebhookEvents().emit(CLEAR_EVENT, { endpointId })
+}
+
+export function publishEndpointDeleted(endpointId: string) {
+  getWebhookEvents().emit(DELETE_EVENT, { endpointId })
 }
 
 export function publishEndpointAccessRevoked(endpointId: string) {
@@ -89,6 +94,13 @@ export function openEndpointEventStream({
         }
       }
 
+      const onDelete = (event: EndpointEvent) => {
+        if (event.endpointId === endpointId) {
+          send(DELETE_EVENT, event)
+          cleanup()
+        }
+      }
+
       const onAccessRevoked = (event: EndpointEvent) => {
         if (event.endpointId === endpointId) {
           cleanup()
@@ -115,6 +127,7 @@ export function openEndpointEventStream({
         clearInterval(heartbeat)
         events.off(REQUEST_EVENT, onRequest)
         events.off(CLEAR_EVENT, onClear)
+        events.off(DELETE_EVENT, onDelete)
         events.off(ACCESS_REVOKED_EVENT, onAccessRevoked)
         signal.removeEventListener("abort", cleanup)
         void lease?.release().catch(() => {
@@ -132,6 +145,7 @@ export function openEndpointEventStream({
 
       events.on(REQUEST_EVENT, onRequest)
       events.on(CLEAR_EVENT, onClear)
+      events.on(DELETE_EVENT, onDelete)
       events.on(ACCESS_REVOKED_EVENT, onAccessRevoked)
       send("ready", { endpointId, readyAt: new Date().toISOString() })
 

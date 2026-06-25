@@ -89,6 +89,7 @@ describe("endpoint event stream", () => {
     })
     const handlers = {
       onClear: vi.fn(),
+      onDeleted: vi.fn(),
       onError: vi.fn(),
       onReady: vi.fn(),
       onRequest: vi.fn(),
@@ -105,11 +106,14 @@ describe("endpoint event stream", () => {
     source.emit("request", createRequest(ENDPOINT_ID))
     source.emit("clear", { endpointId: OTHER_ENDPOINT_ID })
     source.emit("clear", { endpointId: ENDPOINT_ID })
+    source.emit("deleted", { endpointId: OTHER_ENDPOINT_ID })
+    source.emit("deleted", { endpointId: ENDPOINT_ID })
     source.fail()
 
     expect(handlers.onReady).toHaveBeenCalledTimes(1)
     expect(handlers.onRequest).toHaveBeenCalledWith(createRequest(ENDPOINT_ID))
     expect(handlers.onClear).toHaveBeenCalledTimes(1)
+    expect(handlers.onDeleted).toHaveBeenCalledTimes(1)
     expect(handlers.onError).toHaveBeenCalledTimes(1)
 
     unsubscribe()

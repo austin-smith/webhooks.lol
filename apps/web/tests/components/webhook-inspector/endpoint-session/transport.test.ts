@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest"
 
 import {
   createFetchEndpointTransport,
+  EndpointTransportError,
   type EndpointForwardTarget,
 } from "@/components/webhook-inspector/endpoint-session/transport"
 import { DEFAULT_ENDPOINT_RESPONSE_CONFIG } from "@webhooks-lol/webhooks-core/endpoint-response"
@@ -129,6 +130,7 @@ describe("endpoint transport", () => {
           name: "Payments",
         })
       )
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
     const transport = createFetchEndpointTransport(fetcher)
     const override = {
       status: 201,
@@ -172,6 +174,7 @@ describe("endpoint transport", () => {
       endpointId: ENDPOINT_ID,
       name: "Payments",
     })
+    await expect(transport.deleteEndpoint(ENDPOINT_ID)).resolves.toBeUndefined()
 
     expect(fetcher).toHaveBeenNthCalledWith(1, "/api/endpoints", {
       method: "POST",
@@ -238,6 +241,13 @@ describe("endpoint transport", () => {
           "content-type": "application/json",
         },
         method: "PATCH",
+      }
+    )
+    expect(fetcher).toHaveBeenNthCalledWith(
+      10,
+      `/api/endpoints/${ENDPOINT_ID}`,
+      {
+        method: "DELETE",
       }
     )
   })
@@ -655,5 +665,28 @@ describe("endpoint transport", () => {
     await expect(transport.saveEndpointToAccount(ENDPOINT_ID)).rejects.toThrow(
       "Could not save endpoint."
     )
+  })
+
+  it("preserves response status on failed responses", async () => {
+    const transport = createFetchEndpointTransport(
+      vi.fn().mockResolvedValue(
+        createResponse(
+          {
+            error: "Endpoint was not found.",
+          },
+          {
+            status: 404,
+            statusText: "Not Found",
+          }
+        )
+      )
+    )
+
+    await expect(transport.loadEndpoint(ENDPOINT_ID)).rejects.toMatchObject({
+      message: "Endpoint was not found.",
+      name: "EndpointTransportError",
+      status: 404,
+      statusText: "Not Found",
+    } satisfies Partial<EndpointTransportError>)
   })
 })

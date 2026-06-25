@@ -39,6 +39,7 @@ export type EndpointTransport = {
     target: CreateEndpointForwardTargetRequest
   ) => Promise<EndpointForwardTarget>
   createEndpoint: () => Promise<EndpointMetadata>
+  deleteEndpoint: (endpointId: string) => Promise<void>
   deleteForwardTarget: (endpointId: string, targetId: string) => Promise<void>
   listForwardTargets: (endpointId: string) => Promise<EndpointForwardTarget[]>
   listOwnedEndpoints: () => Promise<EndpointMetadata[]>
@@ -87,6 +88,26 @@ export type EndpointStats = EndpointStatsResponse
 export type EndpointForwardTarget =
   EndpointForwardTargetsResponse["targets"][number]
 
+export class EndpointTransportError extends Error {
+  readonly status: number
+  readonly statusText: string
+
+  constructor({
+    message,
+    status,
+    statusText,
+  }: {
+    message: string
+    status: number
+    statusText: string
+  }) {
+    super(message)
+    this.name = "EndpointTransportError"
+    this.status = status
+    this.statusText = statusText
+  }
+}
+
 type Fetcher = (
   input: RequestInfo | URL,
   init?: RequestInit
@@ -106,11 +127,9 @@ export function createFetchEndpointTransport(
       )
 
       if (!response.ok) {
-        throw new Error(
-          await readResponseError(
-            response,
-            "Could not reset response override."
-          )
+        throw await createEndpointTransportError(
+          response,
+          "Could not reset response override."
         )
       }
 
@@ -128,8 +147,9 @@ export function createFetchEndpointTransport(
       )
 
       if (!response.ok) {
-        throw new Error(
-          await readResponseError(response, "Could not clear endpoint.")
+        throw await createEndpointTransportError(
+          response,
+          "Could not clear endpoint."
         )
       }
     },
@@ -147,8 +167,9 @@ export function createFetchEndpointTransport(
       )
 
       if (!response.ok) {
-        throw new Error(
-          await readResponseError(response, "Could not create forward target.")
+        throw await createEndpointTransportError(
+          response,
+          "Could not create forward target."
         )
       }
 
@@ -162,14 +183,28 @@ export function createFetchEndpointTransport(
       })
 
       if (!response.ok) {
-        throw new Error(
-          await readResponseError(response, "Could not create endpoint.")
+        throw await createEndpointTransportError(
+          response,
+          "Could not create endpoint."
         )
       }
 
       const data = (await response.json()) as CreateEndpointResponse
 
       return mapEndpointMetadata(data)
+    },
+    async deleteEndpoint(endpointId) {
+      const encodedEndpointId = encodeEndpointId(endpointId)
+      const response = await fetcher(`/api/endpoints/${encodedEndpointId}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        throw await createEndpointTransportError(
+          response,
+          "Could not delete endpoint."
+        )
+      }
     },
     async deleteForwardTarget(endpointId, targetId) {
       const encodedEndpointId = encodeEndpointId(endpointId)
@@ -181,8 +216,9 @@ export function createFetchEndpointTransport(
       )
 
       if (!response.ok) {
-        throw new Error(
-          await readResponseError(response, "Could not delete forward target.")
+        throw await createEndpointTransportError(
+          response,
+          "Could not delete forward target."
         )
       }
     },
@@ -192,8 +228,9 @@ export function createFetchEndpointTransport(
       })
 
       if (!response.ok) {
-        throw new Error(
-          await readResponseError(response, "Could not load endpoints.")
+        throw await createEndpointTransportError(
+          response,
+          "Could not load endpoints."
         )
       }
 
@@ -211,8 +248,9 @@ export function createFetchEndpointTransport(
       )
 
       if (!response.ok) {
-        throw new Error(
-          await readResponseError(response, "Could not load forward targets.")
+        throw await createEndpointTransportError(
+          response,
+          "Could not load forward targets."
         )
       }
 
@@ -230,11 +268,9 @@ export function createFetchEndpointTransport(
       )
 
       if (!response.ok) {
-        throw new Error(
-          await readResponseError(
-            response,
-            "Could not load endpoint account status."
-          )
+        throw await createEndpointTransportError(
+          response,
+          "Could not load endpoint account status."
         )
       }
 
@@ -247,8 +283,9 @@ export function createFetchEndpointTransport(
       })
 
       if (!response.ok) {
-        throw new Error(
-          await readResponseError(response, "Could not load endpoint.")
+        throw await createEndpointTransportError(
+          response,
+          "Could not load endpoint."
         )
       }
 
@@ -266,8 +303,9 @@ export function createFetchEndpointTransport(
       )
 
       if (!response.ok) {
-        throw new Error(
-          await readResponseError(response, "Could not load endpoint details.")
+        throw await createEndpointTransportError(
+          response,
+          "Could not load endpoint details."
         )
       }
 
@@ -283,8 +321,9 @@ export function createFetchEndpointTransport(
       )
 
       if (!response.ok) {
-        throw new Error(
-          await readResponseError(response, "Could not load response override.")
+        throw await createEndpointTransportError(
+          response,
+          "Could not load response override."
         )
       }
 
@@ -317,8 +356,9 @@ export function createFetchEndpointTransport(
       )
 
       if (!response.ok) {
-        throw new Error(
-          await readResponseError(response, "Could not load requests.")
+        throw await createEndpointTransportError(
+          response,
+          "Could not load requests."
         )
       }
 
@@ -344,8 +384,9 @@ export function createFetchEndpointTransport(
       )
 
       if (!response.ok) {
-        throw new Error(
-          await readResponseError(response, "Could not save response override.")
+        throw await createEndpointTransportError(
+          response,
+          "Could not save response override."
         )
       }
 
@@ -363,8 +404,9 @@ export function createFetchEndpointTransport(
       )
 
       if (!response.ok) {
-        throw new Error(
-          await readResponseError(response, "Could not replay request.")
+        throw await createEndpointTransportError(
+          response,
+          "Could not replay request."
         )
       }
 
@@ -382,8 +424,9 @@ export function createFetchEndpointTransport(
       )
 
       if (!response.ok) {
-        throw new Error(
-          await readResponseError(response, "Could not save endpoint.")
+        throw await createEndpointTransportError(
+          response,
+          "Could not save endpoint."
         )
       }
 
@@ -400,8 +443,9 @@ export function createFetchEndpointTransport(
       })
 
       if (!response.ok) {
-        throw new Error(
-          await readResponseError(response, "Could not save endpoint.")
+        throw await createEndpointTransportError(
+          response,
+          "Could not save endpoint."
         )
       }
 
@@ -423,8 +467,9 @@ export function createFetchEndpointTransport(
       )
 
       if (!response.ok) {
-        throw new Error(
-          await readResponseError(response, "Could not save forward target.")
+        throw await createEndpointTransportError(
+          response,
+          "Could not save forward target."
         )
       }
 
@@ -433,6 +478,17 @@ export function createFetchEndpointTransport(
       return data.target
     },
   }
+}
+
+async function createEndpointTransportError(
+  response: Response,
+  fallback: string
+) {
+  return new EndpointTransportError({
+    message: await readResponseError(response, fallback),
+    status: response.status,
+    statusText: response.statusText,
+  })
 }
 
 async function readResponseError(response: Response, fallback: string) {

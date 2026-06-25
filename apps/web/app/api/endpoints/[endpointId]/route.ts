@@ -1,4 +1,5 @@
 import { getEndpointAccessActor } from "@/lib/auth/endpoint-access"
+import { getAnonymousEndpointSessionId } from "@/lib/endpoint-session-cookie"
 import { NO_STORE_HEADERS } from "@webhooks-lol/webhooks-server/http/headers"
 import {
   readBoundedTextBody,
@@ -11,11 +12,13 @@ import type {
 import { parseEndpointId } from "@webhooks-lol/webhooks-core/endpoint-id"
 import {
   assertEndpointAccessibleToActor,
+  deleteEndpointForActor,
   getEndpointForActor,
   isEndpointUnavailableError,
   MAX_ENDPOINT_NAME_LENGTH,
   updateEndpointName,
 } from "@webhooks-lol/webhooks-server/repository"
+import { publishEndpointDeleted } from "@webhooks-lol/webhooks-server/endpoint-event-stream"
 import {
   createEndpointNotFoundResponse,
   createInvalidEndpointResponse,
@@ -129,6 +132,38 @@ export async function PATCH(
   return Response.json(response satisfies EndpointMetadataResponse, {
     headers: NO_STORE_HEADERS,
   })
+}
+
+export async function DELETE(
+  request: Request,
+  context: RouteContext<"/api/endpoints/[endpointId]">
+) {
+  const { endpointId: rawEndpointId } = await context.params
+  const endpointId = parseEndpointId(rawEndpointId)
+
+  if (!endpointId) {
+    return createInvalidEndpointResponse()
+  }
+
+  try {
+    await deleteEndpointForActor({
+      actor: {
+        ...(await getEndpointAccessActor(request)),
+        anonymousSessionId: getAnonymousEndpointSessionId(request),
+      },
+      endpointId,
+    })
+  } catch (error) {
+    if (isEndpointUnavailableError(error)) {
+      return createEndpointNotFoundResponse()
+    }
+
+    throw error
+  }
+
+  publishEndpointDeleted(endpointId)
+
+  return new Response(null, { headers: NO_STORE_HEADERS, status: 204 })
 }
 
 function parseUpdateEndpointMetadataRequest(value: unknown):
