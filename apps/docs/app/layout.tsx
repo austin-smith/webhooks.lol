@@ -3,10 +3,10 @@ import type { ReactNode } from "react"
 import { RootProvider } from "fumadocs-ui/provider/next"
 
 import "./global.css"
-import { readAppUrl } from "@/lib/app-urls"
+import { readDocsUrl } from "@/lib/app-urls"
 
 export const metadata: Metadata = {
-  metadataBase: readAppUrl(),
+  metadataBase: readDocsUrl(),
   title: {
     default: "webhooks.lol docs",
     template: "%s | webhooks.lol docs",

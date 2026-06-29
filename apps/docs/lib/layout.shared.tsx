@@ -1,9 +1,22 @@
 import Image from "next/image"
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared"
+import { ExternalLinkIcon } from "lucide-react"
+
+import { readAppUrl } from "@/lib/app-urls"
 
 export function baseOptions(): BaseLayoutProps {
   return {
     githubUrl: "https://github.com/austin-smith/webhooks.lol",
+    links: [
+      {
+        type: "button",
+        icon: <ExternalLinkIcon />,
+        text: "Open webhooks.lol",
+        url: readAppUrl().toString(),
+        external: true,
+        active: "none",
+      },
+    ],
     nav: {
       title: (
         <span className="inline-flex items-center gap-2">
