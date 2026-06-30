@@ -70,7 +70,8 @@ jobs:
 
       - name: Verify docs
         env:
-          NEXT_PUBLIC_APP_URL: http://localhost:4666
+          NEXT_PUBLIC_APP_URL: http://localhost:4665
+          NEXT_PUBLIC_DOCS_URL: http://localhost:4666
         run: pnpm docs:verify
 
       - name: Verify CLI
