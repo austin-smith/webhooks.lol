@@ -339,20 +339,22 @@ export function AdminConsole({ dashboard }: { dashboard: AdminConsoleData }) {
         onValueChange={(value) => setActiveTable(value as AdminTableId)}
         className="gap-4"
       >
-        <TabsList className="w-full justify-start gap-1 overflow-x-auto sm:w-fit">
-          <TabsTrigger value="requests">
-            <BracesIcon data-icon="inline-start" aria-hidden="true" />
-            Requests
-          </TabsTrigger>
-          <TabsTrigger value="endpoints">
-            <WebhookIcon data-icon="inline-start" aria-hidden="true" />
-            Endpoints
-          </TabsTrigger>
-          <TabsTrigger value="users">
-            <UsersIcon data-icon="inline-start" aria-hidden="true" />
-            Users
-          </TabsTrigger>
-        </TabsList>
+        <div className="min-w-0 overflow-x-auto overflow-y-hidden">
+          <TabsList className="justify-start gap-1">
+            <TabsTrigger value="requests">
+              <BracesIcon data-icon="inline-start" aria-hidden="true" />
+              Requests
+            </TabsTrigger>
+            <TabsTrigger value="endpoints">
+              <WebhookIcon data-icon="inline-start" aria-hidden="true" />
+              Endpoints
+            </TabsTrigger>
+            <TabsTrigger value="users">
+              <UsersIcon data-icon="inline-start" aria-hidden="true" />
+              Users
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="requests">
           <AdminTablePanel title="Requests">
