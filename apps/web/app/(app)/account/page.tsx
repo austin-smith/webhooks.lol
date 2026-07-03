@@ -9,6 +9,8 @@ import { AccountProfileEditDialog } from "@/components/auth/account-profile-edit
 import { ChangePasswordForm } from "@/components/auth/change-password-form"
 import { getUserDisplayName, UserAvatar } from "@/components/auth/user-avatar"
 import { AccountDisplaySettings } from "@/components/theme/account-display-settings"
+import { readDisplayPreferences } from "@/components/theme/display-preferences"
+import { getSyntaxThemePreviewHtml } from "@/components/theme/syntax-theme-preview-html"
 import { formatRelativeTime } from "@/components/webhook-inspector/request-formatters"
 import { getCurrentAccountSecurity } from "@/lib/auth/account-security"
 import { getCurrentSession } from "@/lib/auth/session"
@@ -31,10 +33,15 @@ export default async function AccountPage() {
     redirect("/login")
   }
 
-  const [accountSecurity, accountStats] = await Promise.all([
-    getCurrentAccountSecurity(),
-    getAccountWebhookStats(session.user.id),
-  ])
+  const [accountSecurity, accountStats, syntaxThemePreview] =
+    await Promise.all([
+      getCurrentAccountSecurity(),
+      getAccountWebhookStats(session.user.id),
+      readDisplayPreferences().then(async ({ syntaxTheme }) => ({
+        html: await getSyntaxThemePreviewHtml(syntaxTheme),
+        syntaxTheme,
+      })),
+    ])
 
   return (
     <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-5 px-4 py-6 sm:px-6">
@@ -78,7 +85,7 @@ export default async function AccountPage() {
             </dd>
           </div>
         </dl>
-        <AccountDisplaySettings />
+        <AccountDisplaySettings syntaxThemePreview={syntaxThemePreview} />
         {accountSecurity.canChangePassword ? <ChangePasswordForm /> : null}
         <AccountActions />
       </div>

@@ -16,15 +16,17 @@ export const APPEARANCE_VALUES = APPEARANCE_OPTIONS.map(
 
 export const DEFAULT_APPEARANCE: AppearanceOption = APPEARANCE.BRANDED.value
 
-export function getAppearanceLabel(appearance: AppearanceOption) {
-  return APPEARANCE_OPTIONS.find((option) => option.value === appearance)!.label
-}
-
 export const THEME = {
   SYSTEM: { value: "system", label: "System", icon: MonitorIcon },
   LIGHT: { value: "light", label: "Light", icon: SunIcon },
   DARK: { value: "dark", label: "Dark", icon: MoonIcon },
 } as const
+
+// The class name must match the selectors in app/globals.css
+// (@custom-variant dark and the .dark token blocks).
+export const DARK_CLASS_NAME = "dark"
+
+export const SYSTEM_DARK_MEDIA_QUERY = "(prefers-color-scheme: dark)"
 
 export type ThemeOption = (typeof THEME)[keyof typeof THEME]["value"]
 

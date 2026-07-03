@@ -54,6 +54,7 @@
 }
 
 :root {
+  color-scheme: light;
   --font-sans-stack: ui-sans-serif, system-ui, sans-serif;
   --font-mono-stack:
     ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas,
@@ -146,6 +147,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   --background: oklch(0.135 0.028 285);
   --foreground: oklch(0.985 0.008 326);
   --card: oklch(0.185 0.03 285);

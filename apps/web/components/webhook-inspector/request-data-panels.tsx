@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { useSyntaxTheme } from "@/components/theme/use-syntax-theme"
+import { useSyntaxTheme } from "@/components/theme/syntax-theme-provider"
 import { cn } from "@/lib/utils"
 
 import { highlightRequestBody } from "./request-body-highlighting"

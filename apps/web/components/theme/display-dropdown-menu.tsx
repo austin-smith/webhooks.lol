@@ -2,10 +2,9 @@
 
 import * as React from "react"
 import { MoreHorizontalIcon } from "lucide-react"
-import { useTheme } from "next-themes"
 
 import { useAppTheme } from "@/components/theme/app-theme-provider"
-import { useHydratedThemeOption } from "@/components/theme/use-hydrated-theme-option"
+import { useTheme } from "@/components/theme/theme-provider"
 import {
   APPEARANCE,
   THEME_OPTIONS,
@@ -58,7 +57,6 @@ export function DisplayDropdownMenuItems({
   const { appTheme, setAppTheme } = useAppTheme()
   const { theme, setTheme } = useTheme()
   const neutralAppearanceSwitchId = React.useId()
-  const currentTheme = useHydratedThemeOption(theme)
   const neutralAppearanceEnabled = appTheme === APPEARANCE.NEUTRAL.value
 
   return (
@@ -87,7 +85,7 @@ export function DisplayDropdownMenuItems({
       <DropdownMenuGroup>
         <DropdownMenuLabel>Theme</DropdownMenuLabel>
         <DropdownMenuRadioGroup
-          value={currentTheme}
+          value={theme}
           onValueChange={(value) => {
             if (isThemeOption(value)) {
               setTheme(value)

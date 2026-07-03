@@ -3,57 +3,32 @@
 import * as React from "react"
 
 import {
-  APP_THEME_STORAGE_KEY,
-  APP_THEMES,
-  DEFAULT_APP_THEME,
-  type AppTheme,
-  getAppThemeStorage,
-  readAppThemeFromStorage,
-  writeAppThemeToStorage,
-} from "@/components/theme/app-theme"
+  isAppearanceOption,
+  type AppearanceOption,
+} from "@/components/theme/display-options"
+import { APP_THEME_COOKIE_NAME } from "@/components/theme/preference-cookies"
+import { usePreferenceState } from "@/components/theme/use-preference-state"
 
 type AppThemeContextValue = {
-  appTheme: AppTheme
-  setAppTheme: (theme: AppTheme) => void
+  appTheme: AppearanceOption
+  setAppTheme: (theme: AppearanceOption) => void
 }
-
-const APP_THEME_CHANGE_EVENT = "webhooks.lol:app-theme-change"
 
 const AppThemeContext = React.createContext<AppThemeContextValue | null>(null)
 
-const appThemeBootstrapScript = `
-(() => {
-  const storageKey = ${JSON.stringify(APP_THEME_STORAGE_KEY)}
-  const defaultTheme = ${JSON.stringify(DEFAULT_APP_THEME)}
-  const themes = new Set(${JSON.stringify(APP_THEMES)})
-
-  try {
-    const storedTheme = window.localStorage.getItem(storageKey)
-    const appTheme = themes.has(storedTheme) ? storedTheme : defaultTheme
-
-    document.documentElement.dataset.appTheme = appTheme
-  } catch {
-    document.documentElement.dataset.appTheme = defaultTheme
-  }
-})()
-`
-
-export function AppThemeProvider({ children }: { children: React.ReactNode }) {
-  const appTheme = React.useSyncExternalStore(
-    subscribeAppTheme,
-    getAppThemeSnapshot,
-    getAppThemeServerSnapshot
-  )
-
-  React.useEffect(() => {
-    applyAppTheme(getAppThemeSnapshot())
-  }, [appTheme])
-
-  const setAppTheme = React.useCallback((theme: AppTheme) => {
-    applyAppTheme(theme)
-    writeAppThemeToStorage(getAppThemeStorage(), theme)
-    publishAppThemeChange()
-  }, [])
+export function AppThemeProvider({
+  initialAppTheme,
+  children,
+}: {
+  initialAppTheme: AppearanceOption
+  children: React.ReactNode
+}) {
+  const [appTheme, setAppTheme] = usePreferenceState({
+    cookieName: APP_THEME_COOKIE_NAME,
+    initialValue: initialAppTheme,
+    isValid: isAppearanceOption,
+    onValueChange: applyAppThemeToDocument,
+  })
 
   const contextValue = React.useMemo(
     () => ({ appTheme, setAppTheme }),
@@ -62,10 +37,6 @@ export function AppThemeProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AppThemeContext.Provider value={contextValue}>
-      <script
-        suppressHydrationWarning
-        dangerouslySetInnerHTML={{ __html: appThemeBootstrapScript }}
-      />
       {children}
     </AppThemeContext.Provider>
   )
@@ -81,34 +52,6 @@ export function useAppTheme() {
   return context
 }
 
-function applyAppTheme(theme: AppTheme) {
+function applyAppThemeToDocument(theme: AppearanceOption) {
   document.documentElement.dataset.appTheme = theme
-}
-
-function getAppThemeSnapshot() {
-  return readAppThemeFromStorage(getAppThemeStorage())
-}
-
-function getAppThemeServerSnapshot() {
-  return DEFAULT_APP_THEME
-}
-
-function subscribeAppTheme(onStoreChange: () => void) {
-  function onStorage(event: StorageEvent) {
-    if (event.key === APP_THEME_STORAGE_KEY) {
-      onStoreChange()
-    }
-  }
-
-  window.addEventListener("storage", onStorage)
-  window.addEventListener(APP_THEME_CHANGE_EVENT, onStoreChange)
-
-  return () => {
-    window.removeEventListener("storage", onStorage)
-    window.removeEventListener(APP_THEME_CHANGE_EVENT, onStoreChange)
-  }
-}
-
-function publishAppThemeChange() {
-  window.dispatchEvent(new Event(APP_THEME_CHANGE_EVENT))
 }

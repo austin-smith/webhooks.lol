@@ -1,9 +1,9 @@
 "use client"
 
 import * as React from "react"
-import { useTheme } from "next-themes"
 
 import { THEME } from "@/components/theme/display-options"
+import { useTheme } from "@/components/theme/theme-provider"
 
 export function ThemeKeyboardShortcut() {
   const { resolvedTheme, setTheme } = useTheme()

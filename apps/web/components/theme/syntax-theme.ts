@@ -1,6 +1,9 @@
 import type { BundledTheme } from "shiki"
 
-export const SYNTAX_THEME_STORAGE_KEY = "webhooks.lol:syntax-theme"
+export const SYNTAX_THEME_PREVIEW_CODE = `{
+  "event": "request.created",
+  "status": 200
+}`
 
 type SyntaxThemeDefinition = {
   value: string
@@ -79,12 +82,6 @@ export const SYNTAX_THEME_VALUES = SYNTAX_THEME_OPTIONS.map(
 export const DEFAULT_SYNTAX_THEME: SyntaxThemeOption =
   SYNTAX_THEME.VITESSE.value
 
-export type SyntaxThemeStorage = Pick<Storage, "getItem" | "setItem">
-
-type SyntaxThemeStorageSource = {
-  readonly localStorage: SyntaxThemeStorage
-}
-
 export function getSyntaxThemeLabel(theme: SyntaxThemeOption) {
   return SYNTAX_THEME_OPTIONS.find((option) => option.value === theme)!.label
 }
@@ -104,54 +101,4 @@ export function isSyntaxThemeOption(
 
 export function normalizeSyntaxThemeOption(value: unknown): SyntaxThemeOption {
   return isSyntaxThemeOption(value) ? value : DEFAULT_SYNTAX_THEME
-}
-
-export function getSyntaxThemeStorage(
-  source?: SyntaxThemeStorageSource | null
-): SyntaxThemeStorage | null {
-  const storageSource =
-    source === undefined
-      ? typeof window === "undefined"
-        ? null
-        : window
-      : source
-
-  if (!storageSource) {
-    return null
-  }
-
-  try {
-    return storageSource.localStorage
-  } catch {
-    return null
-  }
-}
-
-export function readSyntaxThemeFromStorage(
-  storage: Pick<Storage, "getItem"> | null
-): SyntaxThemeOption {
-  if (!storage) {
-    return DEFAULT_SYNTAX_THEME
-  }
-
-  try {
-    return normalizeSyntaxThemeOption(storage.getItem(SYNTAX_THEME_STORAGE_KEY))
-  } catch {
-    return DEFAULT_SYNTAX_THEME
-  }
-}
-
-export function writeSyntaxThemeToStorage(
-  storage: Pick<Storage, "setItem"> | null,
-  theme: SyntaxThemeOption
-) {
-  if (!storage) {
-    return
-  }
-
-  try {
-    storage.setItem(SYNTAX_THEME_STORAGE_KEY, theme)
-  } catch {
-    // The current page can still keep the selected value in memory.
-  }
 }

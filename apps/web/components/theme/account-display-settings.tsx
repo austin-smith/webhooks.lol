@@ -1,12 +1,14 @@
 "use client"
 
 import * as React from "react"
-import { useTheme } from "next-themes"
 
 import { useAppTheme } from "@/components/theme/app-theme-provider"
-import { useHydratedThemeOption } from "@/components/theme/use-hydrated-theme-option"
-import { useSyntaxTheme } from "@/components/theme/use-syntax-theme"
-import { SyntaxThemePreview } from "@/components/theme/syntax-theme-preview"
+import { useSyntaxTheme } from "@/components/theme/syntax-theme-provider"
+import {
+  SyntaxThemePreview,
+  type SyntaxThemePreviewData,
+} from "@/components/theme/syntax-theme-preview"
+import { useTheme } from "@/components/theme/theme-provider"
 import {
   APPEARANCE_OPTIONS,
   THEME_OPTIONS,
@@ -30,14 +32,17 @@ import {
 } from "@/components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 
-export function AccountDisplaySettings() {
+export function AccountDisplaySettings({
+  syntaxThemePreview,
+}: {
+  syntaxThemePreview: SyntaxThemePreviewData
+}) {
   const { appTheme, setAppTheme } = useAppTheme()
   const { theme, setTheme } = useTheme()
   const { syntaxTheme, setSyntaxTheme } = useSyntaxTheme()
   const appearanceLabelId = React.useId()
   const themeLabelId = React.useId()
   const syntaxThemeLabelId = React.useId()
-  const currentTheme = useHydratedThemeOption(theme)
 
   return (
     <section className="flex flex-col gap-3 rounded-md border bg-card p-3">
@@ -84,7 +89,7 @@ export function AccountDisplaySettings() {
           </div>
           <ToggleGroup
             type="single"
-            value={currentTheme}
+            value={theme}
             variant="outline"
             size="sm"
             spacing={0}
@@ -166,7 +171,10 @@ export function AccountDisplaySettings() {
               </SelectGroup>
             </SelectContent>
           </Select>
-          <SyntaxThemePreview syntaxTheme={syntaxTheme} />
+          <SyntaxThemePreview
+            initialPreview={syntaxThemePreview}
+            syntaxTheme={syntaxTheme}
+          />
         </div>
       </div>
     </section>

@@ -3,50 +3,49 @@
 import * as React from "react"
 
 import type { SyntaxThemeOption } from "@/components/theme/syntax-theme"
-import { highlightRequestBody } from "@/components/webhook-inspector/request-body-highlighting"
+import { getSyntaxThemePreviewHtml } from "@/components/theme/syntax-theme-preview-html"
 import { cn } from "@/lib/utils"
 
-const previewValue = `{
-  "event": "request.created",
-  "status": 200
-}`
-
-const previewHtmlPromises = new Map<SyntaxThemeOption, Promise<string>>()
+export type SyntaxThemePreviewData = {
+  html: string
+  syntaxTheme: SyntaxThemeOption
+}
 
 export function SyntaxThemePreview({
   className,
+  initialPreview,
   syntaxTheme,
 }: {
   className?: string
+  initialPreview: SyntaxThemePreviewData
   syntaxTheme: SyntaxThemeOption
 }) {
-  const [previewResult, setPreviewResult] = React.useState({
-    html: "",
-    theme: null as SyntaxThemeOption | null,
-  })
+  const [preview, setPreview] = React.useState(initialPreview)
 
+  // The initial preview comes from the request-time cookie, which can lag the
+  // live provider value (e.g. a replayed router-cache payload after the theme
+  // changed), so re-highlight whenever the rendered theme disagrees.
   React.useEffect(() => {
+    if (preview.syntaxTheme === syntaxTheme) {
+      return
+    }
+
     let ignore = false
 
     void getSyntaxThemePreviewHtml(syntaxTheme)
       .then((html) => {
         if (!ignore) {
-          setPreviewResult({ html, theme: syntaxTheme })
+          setPreview({ html, syntaxTheme })
         }
       })
       .catch(() => {
-        if (!ignore) {
-          setPreviewResult({ html: "", theme: syntaxTheme })
-        }
+        // Keep the last rendered preview.
       })
 
     return () => {
       ignore = true
     }
-  }, [syntaxTheme])
-
-  const previewHtml =
-    previewResult.theme === syntaxTheme ? previewResult.html : ""
+  }, [preview.syntaxTheme, syntaxTheme])
 
   return (
     <div
@@ -56,32 +55,7 @@ export function SyntaxThemePreview({
         className
       )}
     >
-      {previewHtml ? (
-        <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
-      ) : (
-        <pre className="m-0 min-w-0 overflow-x-auto p-3 text-xs leading-relaxed text-foreground">
-          {previewValue}
-        </pre>
-      )}
+      <div dangerouslySetInnerHTML={{ __html: preview.html }} />
     </div>
   )
-}
-
-function getSyntaxThemePreviewHtml(syntaxTheme: SyntaxThemeOption) {
-  const cachedHtml = previewHtmlPromises.get(syntaxTheme)
-
-  if (cachedHtml) {
-    return cachedHtml
-  }
-
-  const htmlPromise = highlightRequestBody({
-    language: "json",
-    syntaxTheme,
-    tabIndex: false,
-    value: previewValue,
-  })
-
-  previewHtmlPromises.set(syntaxTheme, htmlPromise)
-
-  return htmlPromise
 }

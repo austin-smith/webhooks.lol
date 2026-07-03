@@ -13,12 +13,11 @@ import {
   MenuIcon,
   SettingsIcon,
 } from "lucide-react"
-import { useTheme } from "next-themes"
 
 import { AccountMenuIdentity } from "@/components/auth/account-menu-identity"
 import { GithubIcon } from "@/components/icons/github-icon"
 import { useAppTheme } from "@/components/theme/app-theme-provider"
-import { useHydratedThemeOption } from "@/components/theme/use-hydrated-theme-option"
+import { useTheme } from "@/components/theme/theme-provider"
 import {
   APPEARANCE,
   THEME_OPTIONS,
@@ -59,7 +58,6 @@ export function AppHeaderMenu({ docsUrl, user }: AppHeaderMenuProps) {
   const [open, setOpen] = React.useState(false)
   const [menuView, setMenuView] = React.useState<MenuView>("main")
   const [isSigningOut, setIsSigningOut] = React.useState(false)
-  const currentTheme = useHydratedThemeOption(theme)
   const neutralThemeEnabled = appTheme === APPEARANCE.NEUTRAL.value
   const neutralSwitchId = React.useId()
 
@@ -146,7 +144,7 @@ export function AppHeaderMenu({ docsUrl, user }: AppHeaderMenuProps) {
         )}
         {menuView === "theme" ? (
           <ThemeMenuView
-            currentTheme={currentTheme}
+            currentTheme={theme}
             onThemeChange={(nextTheme) => {
               setTheme(nextTheme)
               setMenuView("main")
@@ -204,14 +202,14 @@ export function AppHeaderMenu({ docsUrl, user }: AppHeaderMenuProps) {
                     mobileMenuActionClassName,
                     "flex items-center justify-between gap-3 text-left"
                   )}
-                  aria-label={`Theme, ${getThemeLabel(currentTheme)}`}
+                  aria-label={`Theme, ${getThemeLabel(theme)}`}
                   onClick={() => {
                     setMenuView("theme")
                   }}
                 >
                   <span>Theme</span>
                   <span className="flex items-center gap-2 text-muted-foreground">
-                    <span>{getThemeLabel(currentTheme)}</span>
+                    <span>{getThemeLabel(theme)}</span>
                     <ChevronRightIcon aria-hidden="true" />
                   </span>
                 </button>
