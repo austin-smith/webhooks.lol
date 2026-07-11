@@ -1,0 +1,33 @@
+name: Feature request
+description: Propose a focused improvement or new capability.
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Search open and closed issues first, and keep the request focused on one change.
+
+        Redact private endpoint URLs, authorization headers, cookies, webhook payload secrets, forwarding destinations, and other credentials from all examples and evidence.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or goal
+      description: Explain what is difficult, missing, or not possible today.
+    validations:
+      required: true
+
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: Describe the proposed behavior and the acceptance criteria that would make the request complete.
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add related issues, sanitized examples, screenshots, mockups, or references.

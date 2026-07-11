@@ -1,0 +1,68 @@
+name: Bug report
+description: Report broken behavior, a regression, or an unexpected failure.
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Search open and closed issues first, and keep the report focused on one problem.
+
+        Redact private endpoint URLs, authorization headers, cookies, webhook payload secrets, forwarding destinations, and other credentials from all examples and evidence.
+
+  - type: textarea
+    id: current-behavior
+    attributes:
+      label: Current behavior
+      description: Explain what happened, including any error messages or visible symptoms.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected behavior
+      description: Explain what you expected to happen instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Provide the smallest reliable reproduction you have.
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      description: Select the part of webhooks.lol where the problem appears.
+      options:
+        - Web inspector
+        - Webhook capture or API
+        - CLI
+        - Endpoint forwarding or worker
+        - Documentation
+        - Deployment or infrastructure
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include relevant browser, OS, whlol, Node.js, deployment, or runtime versions.
+      placeholder: Chrome 140 on macOS 26, or whlol 1.0 with Node.js 24 on Ubuntu 24.04
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Additional evidence
+      description: Add relevant screenshots, recordings, logs, or sanitized request examples.
