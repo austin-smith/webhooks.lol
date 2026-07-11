@@ -30,8 +30,7 @@ body:
     id: environment
     attributes:
       label: Environment
-      description: Include the browser, OS, webhooks.lol or whlol version, and Node.js version when known.
-      placeholder: Chrome on macOS 26, webhooks.lol 1.0, whlol 1.0, Node.js 24
+      description: Include relevant environment details when known.
 
   - type: textarea
     id: evidence
