@@ -8,8 +8,6 @@ body:
       value: |
         Search open and closed issues first, and keep the request focused on one change.
 
-        Redact private endpoint URLs, authorization headers, cookies, webhook payload secrets, forwarding destinations, and other credentials from all examples and evidence.
-
   - type: textarea
     id: problem
     attributes:
@@ -19,10 +17,10 @@ body:
       required: true
 
   - type: textarea
-    id: outcome
+    id: proposal
     attributes:
-      label: Desired outcome
-      description: Describe the proposed behavior and the acceptance criteria that would make the request complete.
+      label: Proposed change
+      description: Describe the desired behavior and what would make the request complete.
     validations:
       required: true
 
@@ -30,4 +28,4 @@ body:
     id: context
     attributes:
       label: Additional context
-      description: Add related issues, sanitized examples, screenshots, mockups, or references.
+      description: Add related issues, screenshots, mockups, examples, or references.
