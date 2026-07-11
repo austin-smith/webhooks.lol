@@ -26,12 +26,6 @@ body:
         2.
         3.
 
-  - type: input
-    id: environment
-    attributes:
-      label: Environment
-      description: Include relevant environment details when known.
-
   - type: textarea
     id: evidence
     attributes:
