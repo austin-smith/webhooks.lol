@@ -5,7 +5,9 @@ import {
 import {
   createMissingClientIdentityHeaderResponse,
   createRateLimitedResponse,
+  createRateLimitServiceUnavailableResponse,
   isMissingClientIdentityHeaderError,
+  isRateLimitStoreUnavailableError,
 } from "@webhooks-lol/webhooks-server/rate-limits/http"
 import { checkWebhookCaptureAdmission } from "@webhooks-lol/webhooks-server/admission-control"
 import { parseEndpointId } from "@webhooks-lol/webhooks-core/endpoint-id"
@@ -46,6 +48,13 @@ async function capture(
       })
     }
 
+    if (isRateLimitStoreUnavailableError(error)) {
+      return createRateLimitServiceUnavailableResponse({
+        error,
+        headers: CORS_NO_STORE_HEADERS,
+      })
+    }
+
     throw error
   }
 
@@ -63,6 +72,13 @@ async function capture(
   } catch (error) {
     if (isEndpointUnavailableError(error)) {
       return createEndpointNotFoundResponse(CORS_NO_STORE_HEADERS)
+    }
+
+    if (isRateLimitStoreUnavailableError(error)) {
+      return createRateLimitServiceUnavailableResponse({
+        error,
+        headers: CORS_NO_STORE_HEADERS,
+      })
     }
 
     throw error

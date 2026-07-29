@@ -10,6 +10,7 @@ import {
   parseAdvancedRequestSearchQuery,
   parseRequestSearchCriteria,
 } from "@webhooks-lol/webhooks-core/request-search"
+import { RATE_LIMIT_SERVICE_UNAVAILABLE_ERROR_CODE } from "@webhooks-lol/webhooks-core/api-contracts"
 import type { CapturedRequest } from "@webhooks-lol/webhooks-core/types"
 
 const ENDPOINT_ID = "11111111-1111-4111-8111-111111111111"
@@ -560,6 +561,86 @@ describe("endpoint transport", () => {
         method: "POST",
       }
     )
+  })
+
+  it("retries endpoint creation after an explicit rate-limit service outage", async () => {
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(
+        createResponse(
+          {
+            ok: false,
+            code: RATE_LIMIT_SERVICE_UNAVAILABLE_ERROR_CODE,
+            error: "Rate limit service temporarily unavailable.",
+            retryAfterSeconds: 2,
+          },
+          {
+            headers: {
+              "content-type": "application/json",
+              "retry-after": "2",
+            },
+            status: 503,
+          }
+        )
+      )
+      .mockResolvedValueOnce(
+        createResponse({ endpointId: NEW_ENDPOINT_ID, name: null })
+      )
+    const wait = vi.fn().mockResolvedValue(undefined)
+    const transport = createFetchEndpointTransport(fetcher, { wait })
+
+    await expect(transport.createEndpoint()).resolves.toEqual({
+      endpointId: NEW_ENDPOINT_ID,
+      name: null,
+    })
+
+    expect(fetcher).toHaveBeenCalledTimes(2)
+    expect(wait).toHaveBeenCalledOnce()
+    expect(wait).toHaveBeenCalledWith(2_000)
+  })
+
+  it("bounds endpoint creation recovery attempts", async () => {
+    const unavailableResponse = () =>
+      createResponse(
+        {
+          ok: false,
+          code: RATE_LIMIT_SERVICE_UNAVAILABLE_ERROR_CODE,
+          error: "Rate limit service temporarily unavailable.",
+          retryAfterSeconds: 1,
+        },
+        {
+          headers: {
+            "content-type": "application/json",
+            "retry-after": "1",
+          },
+          status: 503,
+        }
+      )
+    const fetcher = vi.fn(() => Promise.resolve(unavailableResponse()))
+    const wait = vi.fn().mockResolvedValue(undefined)
+    const transport = createFetchEndpointTransport(fetcher, { wait })
+
+    await expect(transport.createEndpoint()).rejects.toThrow(
+      "Rate limit service temporarily unavailable."
+    )
+
+    expect(fetcher).toHaveBeenCalledTimes(3)
+    expect(wait).toHaveBeenCalledTimes(2)
+  })
+
+  it("does not retry unrelated service failures", async () => {
+    const fetcher = vi
+      .fn()
+      .mockResolvedValue(createResponse({}, { status: 503 }))
+    const wait = vi.fn().mockResolvedValue(undefined)
+    const transport = createFetchEndpointTransport(fetcher, { wait })
+
+    await expect(transport.createEndpoint()).rejects.toThrow(
+      "Could not create endpoint."
+    )
+
+    expect(fetcher).toHaveBeenCalledOnce()
+    expect(wait).not.toHaveBeenCalled()
   })
 
   it("surfaces server validation errors for forwarding and replay", async () => {

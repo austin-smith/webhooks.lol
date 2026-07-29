@@ -1,19 +1,21 @@
 import type { CapturedRequest } from "@webhooks-lol/webhooks-core/types"
-import type {
-  CreateEndpointForwardTargetRequest,
-  CreateEndpointResponse,
-  EndpointAccountResponse,
-  EndpointForwardTargetResponse,
-  EndpointForwardTargetsResponse,
-  EndpointMetadataResponse,
-  EndpointResponseConfigResponse,
-  EndpointStatsResponse,
-  EndpointsResponse,
-  ReplayRequestResponse,
-  RequestsResponse,
-  UpdateEndpointForwardTargetRequest,
-  UpdateEndpointMetadataRequest,
-  UpdateEndpointResponseOverrideRequest,
+import {
+  RATE_LIMIT_SERVICE_UNAVAILABLE_ERROR_CODE,
+  type CreateEndpointForwardTargetRequest,
+  type CreateEndpointResponse,
+  type EndpointAccountResponse,
+  type EndpointForwardTargetResponse,
+  type EndpointForwardTargetsResponse,
+  type EndpointMetadataResponse,
+  type EndpointResponseConfigResponse,
+  type EndpointStatsResponse,
+  type EndpointsResponse,
+  type RateLimitServiceUnavailableResponse,
+  type ReplayRequestResponse,
+  type RequestsResponse,
+  type UpdateEndpointForwardTargetRequest,
+  type UpdateEndpointMetadataRequest,
+  type UpdateEndpointResponseOverrideRequest,
 } from "@webhooks-lol/webhooks-core/api-contracts"
 import type { EndpointResponseConfig } from "@webhooks-lol/webhooks-core/endpoint-response"
 import { encodeEndpointId } from "@webhooks-lol/webhooks-core/endpoint-id"
@@ -113,8 +115,16 @@ type Fetcher = (
   init?: RequestInit
 ) => Promise<Response>
 
+type FetchEndpointTransportOptions = {
+  wait?: (delayMs: number) => Promise<void>
+}
+
+const ENDPOINT_CREATE_MAX_ATTEMPTS = 3
+const ENDPOINT_CREATE_MAX_RETRY_DELAY_MS = 5_000
+
 export function createFetchEndpointTransport(
-  fetcher: Fetcher = (...args) => fetch(...args)
+  fetcher: Fetcher = (...args) => fetch(...args),
+  { wait = waitForDelay }: FetchEndpointTransportOptions = {}
 ): EndpointTransport {
   return {
     async clearEndpointResponseOverride(endpointId) {
@@ -178,20 +188,7 @@ export function createFetchEndpointTransport(
       return data.target
     },
     async createEndpoint() {
-      const response = await fetcher("/api/endpoints", {
-        method: "POST",
-      })
-
-      if (!response.ok) {
-        throw await createEndpointTransportError(
-          response,
-          "Could not create endpoint."
-        )
-      }
-
-      const data = (await response.json()) as CreateEndpointResponse
-
-      return mapEndpointMetadata(data)
+      return createEndpointWithRecovery(fetcher, wait)
     },
     async deleteEndpoint(endpointId) {
       const encodedEndpointId = encodeEndpointId(endpointId)
@@ -478,6 +475,76 @@ export function createFetchEndpointTransport(
       return data.target
     },
   }
+}
+
+async function createEndpointWithRecovery(
+  fetcher: Fetcher,
+  wait: (delayMs: number) => Promise<void>
+) {
+  for (let attempt = 1; attempt <= ENDPOINT_CREATE_MAX_ATTEMPTS; attempt += 1) {
+    const response = await fetcher("/api/endpoints", {
+      method: "POST",
+    })
+
+    if (response.ok) {
+      const data = (await response.json()) as CreateEndpointResponse
+
+      return mapEndpointMetadata(data)
+    }
+
+    const retryDelayMs = await readEndpointCreateRetryDelay(response)
+
+    if (retryDelayMs === null || attempt === ENDPOINT_CREATE_MAX_ATTEMPTS) {
+      throw await createEndpointTransportError(
+        response,
+        "Could not create endpoint."
+      )
+    }
+
+    await wait(retryDelayMs)
+  }
+
+  throw new Error("Endpoint creation exhausted its retry attempts.")
+}
+
+async function readEndpointCreateRetryDelay(response: Response) {
+  if (response.status !== 503) {
+    return null
+  }
+
+  let data: RateLimitServiceUnavailableResponse
+
+  try {
+    data = (await response
+      .clone()
+      .json()) as RateLimitServiceUnavailableResponse
+  } catch {
+    return null
+  }
+
+  if (data.code !== RATE_LIMIT_SERVICE_UNAVAILABLE_ERROR_CODE) {
+    return null
+  }
+
+  const retryAfterHeader = response.headers.get("retry-after")
+  const retryAfterSeconds = retryAfterHeader
+    ? Number(retryAfterHeader)
+    : data.retryAfterSeconds
+
+  if (!Number.isFinite(retryAfterSeconds) || retryAfterSeconds <= 0) {
+    return null
+  }
+
+  return Math.min(
+    Math.ceil(retryAfterSeconds * 1_000),
+    ENDPOINT_CREATE_MAX_RETRY_DELAY_MS
+  )
+}
+
+function waitForDelay(delayMs: number) {
+  return new Promise<void>((resolve) => {
+    setTimeout(resolve, delayMs)
+  })
 }
 
 async function createEndpointTransportError(

@@ -30,6 +30,7 @@ vi.mock("@webhooks-lol/webhooks-server/repository", () => ({
 
 import { POST } from "@/app/api/endpoints/[endpointId]/requests/[requestId]/replay/route"
 import { MissingClientIdentityHeaderError } from "@webhooks-lol/webhooks-server/rate-limits/client-identity"
+import { RateLimitStoreUnavailableError } from "@webhooks-lol/webhooks-server/rate-limits/store"
 
 const ENDPOINT_ID = "11111111-1111-4111-8111-111111111111"
 const REQUEST_ID = "22222222-2222-4222-8222-222222222222"
@@ -167,6 +168,45 @@ describe("endpoint request replay route", () => {
       error: 'Required client identity header "x-forwarded-for" is missing.',
     })
     expect(replayCapturedRequest).not.toHaveBeenCalled()
+  })
+
+  it("returns a retryable service response when replay admission is unavailable", async () => {
+    checkRequestReplayAdmission.mockRejectedValueOnce(
+      new RateLimitStoreUnavailableError()
+    )
+
+    const response = await POST(
+      new Request(
+        `https://hooks.example.com/api/endpoints/${ENDPOINT_ID}/requests/${REQUEST_ID}/replay`,
+        {
+          method: "POST",
+        }
+      ),
+      createContext()
+    )
+
+    expect(response.status).toBe(503)
+    expect(response.headers.get("retry-after")).toBe("1")
+    expect(replayCapturedRequest).not.toHaveBeenCalled()
+  })
+
+  it("returns a retryable service response when replay body admission is unavailable", async () => {
+    replayCapturedRequest.mockRejectedValueOnce(
+      new RateLimitStoreUnavailableError()
+    )
+
+    const response = await POST(
+      new Request(
+        `https://hooks.example.com/api/endpoints/${ENDPOINT_ID}/requests/${REQUEST_ID}/replay`,
+        {
+          method: "POST",
+        }
+      ),
+      createContext()
+    )
+
+    expect(response.status).toBe(503)
+    expect(response.headers.get("retry-after")).toBe("1")
   })
 })
 

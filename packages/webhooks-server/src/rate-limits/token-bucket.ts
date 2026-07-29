@@ -38,7 +38,7 @@ export async function checkRateLimit(
   const cost = Math.max(1, Math.ceil(options.cost ?? 1))
   const now = options.now ?? new Date()
   const windowMs = policy.windowSeconds * 1000
-  const store = options.store ?? (await getRateLimitStore())
+  const store = options.store ?? getRateLimitStore()
   const result = parseScriptTuple(
     await store.eval(
       TOKEN_BUCKET_SCRIPT,
