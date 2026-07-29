@@ -596,7 +596,72 @@ describe("endpoint transport", () => {
 
     expect(fetcher).toHaveBeenCalledTimes(2)
     expect(wait).toHaveBeenCalledOnce()
-    expect(wait).toHaveBeenCalledWith(2_000)
+    expect(wait).toHaveBeenCalledWith(2_000, undefined)
+  })
+
+  it("stops endpoint creation before retrying an inactive session", async () => {
+    const fetcher = vi.fn().mockResolvedValue(
+      createResponse(
+        {
+          ok: false,
+          code: RATE_LIMIT_SERVICE_UNAVAILABLE_ERROR_CODE,
+          error: "Rate limit service temporarily unavailable.",
+          retryAfterSeconds: 2,
+        },
+        {
+          headers: {
+            "content-type": "application/json",
+            "retry-after": "2",
+          },
+          status: 503,
+        }
+      )
+    )
+    const wait = vi.fn(
+      (_delayMs: number, signal?: AbortSignal) =>
+        new Promise<void>((_resolve, reject) => {
+          signal?.addEventListener("abort", () => reject(signal.reason), {
+            once: true,
+          })
+        })
+    )
+    const transport = createFetchEndpointTransport(fetcher, { wait })
+    const controller = new AbortController()
+    const creation = transport.createEndpoint({
+      signal: controller.signal,
+    })
+    const rejection = expect(creation).rejects.toMatchObject({
+      name: "AbortError",
+    })
+
+    await vi.waitFor(() => {
+      expect(wait).toHaveBeenCalledOnce()
+    })
+
+    controller.abort()
+
+    await rejection
+    expect(fetcher).toHaveBeenCalledOnce()
+  })
+
+  it.each([
+    { body: null, description: "null" },
+    { body: [], description: "an array" },
+    { body: "unavailable", description: "a string" },
+    { body: 503, description: "a number" },
+  ])("does not retry a 503 containing $description", async ({ body }) => {
+    const fetcher = vi
+      .fn()
+      .mockResolvedValue(createResponse(body, { status: 503 }))
+    const wait = vi.fn().mockResolvedValue(undefined)
+    const transport = createFetchEndpointTransport(fetcher, { wait })
+
+    await expect(transport.createEndpoint()).rejects.toThrow(
+      "Could not create endpoint."
+    )
+
+    expect(fetcher).toHaveBeenCalledOnce()
+    expect(wait).not.toHaveBeenCalled()
   })
 
   it("bounds endpoint creation recovery attempts", async () => {

@@ -10,7 +10,6 @@ import {
   type EndpointResponseConfigResponse,
   type EndpointStatsResponse,
   type EndpointsResponse,
-  type RateLimitServiceUnavailableResponse,
   type ReplayRequestResponse,
   type RequestsResponse,
   type UpdateEndpointForwardTargetRequest,
@@ -40,7 +39,9 @@ export type EndpointTransport = {
     endpointId: string,
     target: CreateEndpointForwardTargetRequest
   ) => Promise<EndpointForwardTarget>
-  createEndpoint: () => Promise<EndpointMetadata>
+  createEndpoint: (options?: {
+    signal?: AbortSignal
+  }) => Promise<EndpointMetadata>
   deleteEndpoint: (endpointId: string) => Promise<void>
   deleteForwardTarget: (endpointId: string, targetId: string) => Promise<void>
   listForwardTargets: (endpointId: string) => Promise<EndpointForwardTarget[]>
@@ -116,7 +117,7 @@ type Fetcher = (
 ) => Promise<Response>
 
 type FetchEndpointTransportOptions = {
-  wait?: (delayMs: number) => Promise<void>
+  wait?: (delayMs: number, signal?: AbortSignal) => Promise<void>
 }
 
 const ENDPOINT_CREATE_MAX_ATTEMPTS = 3
@@ -187,8 +188,8 @@ export function createFetchEndpointTransport(
 
       return data.target
     },
-    async createEndpoint() {
-      return createEndpointWithRecovery(fetcher, wait)
+    async createEndpoint(options) {
+      return createEndpointWithRecovery(fetcher, wait, options)
     },
     async deleteEndpoint(endpointId) {
       const encodedEndpointId = encodeEndpointId(endpointId)
@@ -479,9 +480,12 @@ export function createFetchEndpointTransport(
 
 async function createEndpointWithRecovery(
   fetcher: Fetcher,
-  wait: (delayMs: number) => Promise<void>
+  wait: (delayMs: number, signal?: AbortSignal) => Promise<void>,
+  { signal }: { signal?: AbortSignal } = {}
 ) {
   for (let attempt = 1; attempt <= ENDPOINT_CREATE_MAX_ATTEMPTS; attempt += 1) {
+    signal?.throwIfAborted()
+
     const response = await fetcher("/api/endpoints", {
       method: "POST",
     })
@@ -501,7 +505,7 @@ async function createEndpointWithRecovery(
       )
     }
 
-    await wait(retryDelayMs)
+    await wait(retryDelayMs, signal)
   }
 
   throw new Error("Endpoint creation exhausted its retry attempts.")
@@ -512,26 +516,28 @@ async function readEndpointCreateRetryDelay(response: Response) {
     return null
   }
 
-  let data: RateLimitServiceUnavailableResponse
+  let data: unknown
 
   try {
-    data = (await response
-      .clone()
-      .json()) as RateLimitServiceUnavailableResponse
+    data = await response.clone().json()
   } catch {
     return null
   }
 
-  if (data.code !== RATE_LIMIT_SERVICE_UNAVAILABLE_ERROR_CODE) {
+  if (
+    !isJsonObject(data) ||
+    data.code !== RATE_LIMIT_SERVICE_UNAVAILABLE_ERROR_CODE
+  ) {
     return null
   }
 
   const retryAfterHeader = response.headers.get("retry-after")
-  const retryAfterSeconds = retryAfterHeader
-    ? Number(retryAfterHeader)
-    : data.retryAfterSeconds
+  const retryAfterSeconds =
+    readPositiveNumber(
+      retryAfterHeader === null ? null : Number(retryAfterHeader)
+    ) ?? readPositiveNumber(data.retryAfterSeconds)
 
-  if (!Number.isFinite(retryAfterSeconds) || retryAfterSeconds <= 0) {
+  if (retryAfterSeconds === null) {
     return null
   }
 
@@ -541,10 +547,31 @@ async function readEndpointCreateRetryDelay(response: Response) {
   )
 }
 
-function waitForDelay(delayMs: number) {
-  return new Promise<void>((resolve) => {
-    setTimeout(resolve, delayMs)
+function waitForDelay(delayMs: number, signal?: AbortSignal) {
+  signal?.throwIfAborted()
+
+  return new Promise<void>((resolve, reject) => {
+    const handleAbort = () => {
+      clearTimeout(timeout)
+      reject(signal?.reason)
+    }
+    const timeout = setTimeout(() => {
+      signal?.removeEventListener("abort", handleAbort)
+      resolve()
+    }, delayMs)
+
+    signal?.addEventListener("abort", handleAbort, { once: true })
   })
+}
+
+function isJsonObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+function readPositiveNumber(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) && value > 0
+    ? value
+    : null
 }
 
 async function createEndpointTransportError(

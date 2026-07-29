@@ -1,6 +1,7 @@
 import { EventEmitter } from "node:events"
 
 import {
+  ConnectionTimeoutError,
   DisconnectsClientError,
   ErrorReply,
   SocketClosedUnexpectedlyError,
@@ -116,6 +117,46 @@ describe("Redis rate-limit store", () => {
       1, 1,
     ])
     expect(client.eval).toHaveBeenCalledTimes(2)
+  })
+
+  it("rotates clients after an initial connection failure and cooldown", async () => {
+    let timeMs = 0
+    const failedClient = new FakeRedisClient(
+      async () => 1,
+      async () => {
+        throw new ConnectionTimeoutError()
+      }
+    )
+    const recoveredClient = new FakeRedisClient(async () => 2)
+    const clients = [failedClient, recoveredClient]
+    const clientFactory = vi.fn(() =>
+      asRateLimitClient(clients.shift() ?? recoveredClient)
+    )
+    const store = createRedisRateLimitStore({
+      clientFactory,
+      logger: silentLogger,
+      now: () => timeMs,
+      random: () => 0,
+    })
+
+    await expect(store.eval(SCRIPT, KEYS, ARGS)).rejects.toBeInstanceOf(
+      RateLimitStoreUnavailableError
+    )
+    expect(failedClient.connect).toHaveBeenCalledOnce()
+    expect(failedClient.eval).not.toHaveBeenCalled()
+    expect(failedClient.destroy).toHaveBeenCalledOnce()
+
+    await expect(store.eval(SCRIPT, KEYS, ARGS)).rejects.toBeInstanceOf(
+      RateLimitStoreUnavailableError
+    )
+    expect(clientFactory).toHaveBeenCalledOnce()
+
+    timeMs = 250
+
+    await expect(store.eval(SCRIPT, KEYS, ARGS)).resolves.toBe(2)
+    expect(clientFactory).toHaveBeenCalledTimes(2)
+    expect(recoveredClient.connect).toHaveBeenCalledOnce()
+    expect(recoveredClient.eval).toHaveBeenCalledOnce()
   })
 
   it("never replays a failed mutating command and rotates after cooldown", async () => {
