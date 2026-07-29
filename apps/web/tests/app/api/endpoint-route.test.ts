@@ -74,6 +74,7 @@ import {
 } from "@/app/api/endpoints/[endpointId]/route"
 import { AuthenticationRequiredError } from "@/lib/auth/session"
 import { MissingClientIdentityHeaderError } from "@webhooks-lol/webhooks-server/rate-limits/client-identity"
+import { RateLimitStoreUnavailableError } from "@webhooks-lol/webhooks-server/rate-limits/store"
 import { EndpointNotFoundError } from "@webhooks-lol/webhooks-server/repository"
 
 const ENDPOINT_ID = "11111111-1111-4111-8111-111111111111"
@@ -285,6 +286,29 @@ describe("endpoint route", () => {
     await expect(response.json()).resolves.toEqual({
       ok: false,
       error: 'Required client identity header "x-forwarded-for" is missing.',
+    })
+    expect(createEndpoint).not.toHaveBeenCalled()
+  })
+
+  it("returns a retryable service response when endpoint admission is unavailable", async () => {
+    checkEndpointCreateAdmission.mockRejectedValueOnce(
+      new RateLimitStoreUnavailableError({ retryAfterSeconds: 2 })
+    )
+
+    const response = await POST(
+      new Request("https://hooks.example.com/api/endpoints", {
+        method: "POST",
+      })
+    )
+
+    expect(response.status).toBe(503)
+    expect(response.headers.get("cache-control")).toBe("no-store")
+    expect(response.headers.get("retry-after")).toBe("2")
+    await expect(response.json()).resolves.toEqual({
+      ok: false,
+      code: "rate-limit-service-unavailable",
+      error: "Rate limit service temporarily unavailable.",
+      retryAfterSeconds: 2,
     })
     expect(createEndpoint).not.toHaveBeenCalled()
   })

@@ -436,6 +436,7 @@ export function useBrowserEndpointSession(): Endpoint {
 
   React.useEffect(() => {
     let isActive = true
+    const restoreAbortController = new AbortController()
     hasLoadedStorage.current = false
 
     queueMicrotask(() => {
@@ -513,7 +514,9 @@ export function useBrowserEndpointSession(): Endpoint {
             setRecentEndpointIds(restoredSession.endpointIds)
 
             if (!restoredSession.activeEndpoint) {
-              const metadata = await transport.createEndpoint()
+              const metadata = await transport.createEndpoint({
+                signal: restoreAbortController.signal,
+              })
 
               if (isActive) {
                 applyNewEndpoint(metadata)
@@ -629,7 +632,9 @@ export function useBrowserEndpointSession(): Endpoint {
 
       void (async () => {
         try {
-          const metadata = await transport.createEndpoint()
+          const metadata = await transport.createEndpoint({
+            signal: restoreAbortController.signal,
+          })
 
           if (isActive) {
             applyNewEndpoint(metadata)
@@ -645,6 +650,7 @@ export function useBrowserEndpointSession(): Endpoint {
 
     return () => {
       isActive = false
+      restoreAbortController.abort()
     }
   }, [
     applyEndpointAccountStatus,

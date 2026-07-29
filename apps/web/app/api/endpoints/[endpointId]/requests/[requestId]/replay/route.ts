@@ -3,7 +3,9 @@ import { NO_STORE_HEADERS } from "@webhooks-lol/webhooks-server/http/headers"
 import {
   createMissingClientIdentityHeaderResponse,
   createRateLimitedResponse,
+  createRateLimitServiceUnavailableResponse,
   isMissingClientIdentityHeaderError,
+  isRateLimitStoreUnavailableError,
 } from "@webhooks-lol/webhooks-server/rate-limits/http"
 import type { ReplayRequestResponse } from "@webhooks-lol/webhooks-core/api-contracts"
 import { checkRequestReplayAdmission } from "@webhooks-lol/webhooks-server/admission-control"
@@ -66,6 +68,13 @@ export async function POST(
       })
     }
 
+    if (isRateLimitStoreUnavailableError(error)) {
+      return createRateLimitServiceUnavailableResponse({
+        error,
+        headers: NO_STORE_HEADERS,
+      })
+    }
+
     throw error
   }
 
@@ -101,6 +110,13 @@ export async function POST(
       return createRateLimitedResponse({
         headers: NO_STORE_HEADERS,
         rateLimit: error.rateLimit,
+      })
+    }
+
+    if (isRateLimitStoreUnavailableError(error)) {
+      return createRateLimitServiceUnavailableResponse({
+        error,
+        headers: NO_STORE_HEADERS,
       })
     }
 

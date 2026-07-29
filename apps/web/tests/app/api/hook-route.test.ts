@@ -21,6 +21,7 @@ import {
   POST,
 } from "@/app/api/hook/[endpointId]/[[...path]]/route"
 import { MissingClientIdentityHeaderError } from "@webhooks-lol/webhooks-server/rate-limits/client-identity"
+import { RateLimitStoreUnavailableError } from "@webhooks-lol/webhooks-server/rate-limits/store"
 import { DEFAULT_ENDPOINT_RESPONSE_CONFIG } from "@webhooks-lol/webhooks-core/endpoint-response"
 
 const ENDPOINT_ID = "11111111-1111-4111-8111-111111111111"
@@ -182,6 +183,41 @@ describe("hook route responses", () => {
       error: 'Required client identity header "x-forwarded-for" is missing.',
     })
     expect(captureInboundRequest).not.toHaveBeenCalled()
+  })
+
+  it("returns a retryable service response when initial admission is unavailable", async () => {
+    checkWebhookCaptureAdmission.mockRejectedValueOnce(
+      new RateLimitStoreUnavailableError()
+    )
+
+    const response = await POST(
+      new Request(`https://hooks.example.com/api/hook/${ENDPOINT_ID}`, {
+        method: "POST",
+      }),
+      createContext()
+    )
+
+    expect(response.status).toBe(503)
+    expect(response.headers.get("access-control-allow-origin")).toBe("*")
+    expect(response.headers.get("retry-after")).toBe("1")
+    expect(captureInboundRequest).not.toHaveBeenCalled()
+  })
+
+  it("returns a retryable service response when body admission is unavailable", async () => {
+    captureInboundRequest.mockRejectedValueOnce(
+      new RateLimitStoreUnavailableError()
+    )
+
+    const response = await POST(
+      new Request(`https://hooks.example.com/api/hook/${ENDPOINT_ID}`, {
+        method: "POST",
+      }),
+      createContext()
+    )
+
+    expect(response.status).toBe(503)
+    expect(response.headers.get("access-control-allow-origin")).toBe("*")
+    expect(response.headers.get("retry-after")).toBe("1")
   })
 
   it("returns custom response overrides after capture", async () => {

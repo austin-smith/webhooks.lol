@@ -42,7 +42,7 @@ export async function acquireConnectionLease(
 ): Promise<ConnectionLease> {
   const now = options.now ?? new Date()
   const leaseId = options.leaseId ?? crypto.randomUUID()
-  const store = options.store ?? (await getRateLimitStore())
+  const store = options.store ?? getRateLimitStore()
   const leaseMs = policy.leaseSeconds * 1000
   const expiresAtMs = now.getTime() + leaseMs
   const storeKey = connectionLeaseKey(key, policy)

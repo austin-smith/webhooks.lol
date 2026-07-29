@@ -2,6 +2,14 @@ import {
   isMissingClientIdentityHeaderError,
   type MissingClientIdentityHeaderError,
 } from "@webhooks-lol/webhooks-server/rate-limits/client-identity"
+import {
+  isRateLimitStoreUnavailableError,
+  type RateLimitStoreUnavailableError,
+} from "@webhooks-lol/webhooks-server/rate-limits/store"
+import {
+  RATE_LIMIT_SERVICE_UNAVAILABLE_ERROR_CODE,
+  type RateLimitServiceUnavailableResponse,
+} from "@webhooks-lol/webhooks-core/api-contracts"
 
 export type RateLimitHeadersInput = {
   limit: number
@@ -57,7 +65,31 @@ export function createMissingClientIdentityHeaderResponse({
   )
 }
 
-export { isMissingClientIdentityHeaderError }
+export function createRateLimitServiceUnavailableResponse({
+  error,
+  headers,
+}: {
+  error: RateLimitStoreUnavailableError
+  headers?: HeadersInit
+}) {
+  const body = {
+    ok: false,
+    code: RATE_LIMIT_SERVICE_UNAVAILABLE_ERROR_CODE,
+    error: error.message,
+    retryAfterSeconds: error.retryAfterSeconds,
+  } satisfies RateLimitServiceUnavailableResponse
+
+  return Response.json(body, {
+    headers: {
+      ...headers,
+      "Cache-Control": "no-store",
+      "Retry-After": String(error.retryAfterSeconds),
+    },
+    status: 503,
+  })
+}
+
+export { isMissingClientIdentityHeaderError, isRateLimitStoreUnavailableError }
 
 export function createRateLimitHeaders({
   limit,

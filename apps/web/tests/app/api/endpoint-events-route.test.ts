@@ -27,6 +27,7 @@ vi.mock("@webhooks-lol/webhooks-server/repository", async (importOriginal) => ({
 
 import { GET } from "@/app/api/endpoints/[endpointId]/events/route"
 import { MissingClientIdentityHeaderError } from "@webhooks-lol/webhooks-server/rate-limits/client-identity"
+import { RateLimitStoreUnavailableError } from "@webhooks-lol/webhooks-server/rate-limits/store"
 import { EndpointNotFoundError } from "@webhooks-lol/webhooks-server/repository"
 
 const ENDPOINT_ID = "11111111-1111-4111-8111-111111111111"
@@ -156,6 +157,24 @@ describe("endpoint events route", () => {
       ok: false,
       error: 'Required client identity header "x-forwarded-for" is missing.',
     })
+    expect(assertEndpointAccessibleToActor).not.toHaveBeenCalled()
+    expect(openEndpointEventStream).not.toHaveBeenCalled()
+  })
+
+  it("returns a retryable service response when lease admission is unavailable", async () => {
+    acquireEndpointEventStreamAdmission.mockRejectedValueOnce(
+      new RateLimitStoreUnavailableError()
+    )
+
+    const response = await GET(
+      new Request(
+        `https://hooks.example.com/api/endpoints/${ENDPOINT_ID}/events`
+      ),
+      createContext()
+    )
+
+    expect(response.status).toBe(503)
+    expect(response.headers.get("retry-after")).toBe("1")
     expect(assertEndpointAccessibleToActor).not.toHaveBeenCalled()
     expect(openEndpointEventStream).not.toHaveBeenCalled()
   })

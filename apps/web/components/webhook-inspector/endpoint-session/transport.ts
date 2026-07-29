@@ -1,19 +1,20 @@
 import type { CapturedRequest } from "@webhooks-lol/webhooks-core/types"
-import type {
-  CreateEndpointForwardTargetRequest,
-  CreateEndpointResponse,
-  EndpointAccountResponse,
-  EndpointForwardTargetResponse,
-  EndpointForwardTargetsResponse,
-  EndpointMetadataResponse,
-  EndpointResponseConfigResponse,
-  EndpointStatsResponse,
-  EndpointsResponse,
-  ReplayRequestResponse,
-  RequestsResponse,
-  UpdateEndpointForwardTargetRequest,
-  UpdateEndpointMetadataRequest,
-  UpdateEndpointResponseOverrideRequest,
+import {
+  RATE_LIMIT_SERVICE_UNAVAILABLE_ERROR_CODE,
+  type CreateEndpointForwardTargetRequest,
+  type CreateEndpointResponse,
+  type EndpointAccountResponse,
+  type EndpointForwardTargetResponse,
+  type EndpointForwardTargetsResponse,
+  type EndpointMetadataResponse,
+  type EndpointResponseConfigResponse,
+  type EndpointStatsResponse,
+  type EndpointsResponse,
+  type ReplayRequestResponse,
+  type RequestsResponse,
+  type UpdateEndpointForwardTargetRequest,
+  type UpdateEndpointMetadataRequest,
+  type UpdateEndpointResponseOverrideRequest,
 } from "@webhooks-lol/webhooks-core/api-contracts"
 import type { EndpointResponseConfig } from "@webhooks-lol/webhooks-core/endpoint-response"
 import { encodeEndpointId } from "@webhooks-lol/webhooks-core/endpoint-id"
@@ -38,7 +39,9 @@ export type EndpointTransport = {
     endpointId: string,
     target: CreateEndpointForwardTargetRequest
   ) => Promise<EndpointForwardTarget>
-  createEndpoint: () => Promise<EndpointMetadata>
+  createEndpoint: (options?: {
+    signal?: AbortSignal
+  }) => Promise<EndpointMetadata>
   deleteEndpoint: (endpointId: string) => Promise<void>
   deleteForwardTarget: (endpointId: string, targetId: string) => Promise<void>
   listForwardTargets: (endpointId: string) => Promise<EndpointForwardTarget[]>
@@ -113,8 +116,16 @@ type Fetcher = (
   init?: RequestInit
 ) => Promise<Response>
 
+type FetchEndpointTransportOptions = {
+  wait?: (delayMs: number, signal?: AbortSignal) => Promise<void>
+}
+
+const ENDPOINT_CREATE_MAX_ATTEMPTS = 3
+const ENDPOINT_CREATE_MAX_RETRY_DELAY_MS = 5_000
+
 export function createFetchEndpointTransport(
-  fetcher: Fetcher = (...args) => fetch(...args)
+  fetcher: Fetcher = (...args) => fetch(...args),
+  { wait = waitForDelay }: FetchEndpointTransportOptions = {}
 ): EndpointTransport {
   return {
     async clearEndpointResponseOverride(endpointId) {
@@ -177,21 +188,8 @@ export function createFetchEndpointTransport(
 
       return data.target
     },
-    async createEndpoint() {
-      const response = await fetcher("/api/endpoints", {
-        method: "POST",
-      })
-
-      if (!response.ok) {
-        throw await createEndpointTransportError(
-          response,
-          "Could not create endpoint."
-        )
-      }
-
-      const data = (await response.json()) as CreateEndpointResponse
-
-      return mapEndpointMetadata(data)
+    async createEndpoint(options) {
+      return createEndpointWithRecovery(fetcher, wait, options)
     },
     async deleteEndpoint(endpointId) {
       const encodedEndpointId = encodeEndpointId(endpointId)
@@ -478,6 +476,102 @@ export function createFetchEndpointTransport(
       return data.target
     },
   }
+}
+
+async function createEndpointWithRecovery(
+  fetcher: Fetcher,
+  wait: (delayMs: number, signal?: AbortSignal) => Promise<void>,
+  { signal }: { signal?: AbortSignal } = {}
+) {
+  for (let attempt = 1; attempt <= ENDPOINT_CREATE_MAX_ATTEMPTS; attempt += 1) {
+    signal?.throwIfAborted()
+
+    const response = await fetcher("/api/endpoints", {
+      method: "POST",
+    })
+
+    if (response.ok) {
+      const data = (await response.json()) as CreateEndpointResponse
+
+      return mapEndpointMetadata(data)
+    }
+
+    const retryDelayMs = await readEndpointCreateRetryDelay(response)
+
+    if (retryDelayMs === null || attempt === ENDPOINT_CREATE_MAX_ATTEMPTS) {
+      throw await createEndpointTransportError(
+        response,
+        "Could not create endpoint."
+      )
+    }
+
+    await wait(retryDelayMs, signal)
+  }
+
+  throw new Error("Endpoint creation exhausted its retry attempts.")
+}
+
+async function readEndpointCreateRetryDelay(response: Response) {
+  if (response.status !== 503) {
+    return null
+  }
+
+  let data: unknown
+
+  try {
+    data = await response.clone().json()
+  } catch {
+    return null
+  }
+
+  if (
+    !isJsonObject(data) ||
+    data.code !== RATE_LIMIT_SERVICE_UNAVAILABLE_ERROR_CODE
+  ) {
+    return null
+  }
+
+  const retryAfterHeader = response.headers.get("retry-after")
+  const retryAfterSeconds =
+    readPositiveNumber(
+      retryAfterHeader === null ? null : Number(retryAfterHeader)
+    ) ?? readPositiveNumber(data.retryAfterSeconds)
+
+  if (retryAfterSeconds === null) {
+    return null
+  }
+
+  return Math.min(
+    Math.ceil(retryAfterSeconds * 1_000),
+    ENDPOINT_CREATE_MAX_RETRY_DELAY_MS
+  )
+}
+
+function waitForDelay(delayMs: number, signal?: AbortSignal) {
+  signal?.throwIfAborted()
+
+  return new Promise<void>((resolve, reject) => {
+    const handleAbort = () => {
+      clearTimeout(timeout)
+      reject(signal?.reason)
+    }
+    const timeout = setTimeout(() => {
+      signal?.removeEventListener("abort", handleAbort)
+      resolve()
+    }, delayMs)
+
+    signal?.addEventListener("abort", handleAbort, { once: true })
+  })
+}
+
+function isJsonObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+function readPositiveNumber(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) && value > 0
+    ? value
+    : null
 }
 
 async function createEndpointTransportError(

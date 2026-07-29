@@ -5,6 +5,16 @@ import type {
 } from "./endpoint-response.js"
 import type { EndpointForwardTarget } from "./endpoint-forwarding.js"
 
+export const RATE_LIMIT_SERVICE_UNAVAILABLE_ERROR_CODE =
+  "rate-limit-service-unavailable"
+
+export type RateLimitServiceUnavailableResponse = {
+  ok: false
+  code: typeof RATE_LIMIT_SERVICE_UNAVAILABLE_ERROR_CODE
+  error: string
+  retryAfterSeconds: number
+}
+
 export type CreateEndpointResponse = {
   endpointId: string
   name: string | null

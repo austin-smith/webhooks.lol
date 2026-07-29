@@ -153,33 +153,38 @@ export async function acquireEndpointEventStreamAdmission({
   const clientIdentity = readClientIdentity(request)
   const acquiredLeases: Extract<ConnectionLease, { kind: "acquired" }>[] = []
 
-  for (const [key, policy] of [
-    [
-      `endpoint:${endpointId}`,
-      webhookEventStreamPolicies.perEndpointConnections,
-    ],
-    [clientIdentity.key, webhookEventStreamPolicies.perClientConnections],
-    ["global", webhookEventStreamPolicies.globalConnections],
-  ] satisfies [string, ConnectionLeasePolicy][]) {
-    const lease = await acquireConnectionLease(key, policy)
+  try {
+    for (const [key, policy] of [
+      [
+        `endpoint:${endpointId}`,
+        webhookEventStreamPolicies.perEndpointConnections,
+      ],
+      [clientIdentity.key, webhookEventStreamPolicies.perClientConnections],
+      ["global", webhookEventStreamPolicies.globalConnections],
+    ] satisfies [string, ConnectionLeasePolicy][]) {
+      const lease = await acquireConnectionLease(key, policy)
 
-    if (lease.kind === "denied") {
-      await releaseLeases(acquiredLeases)
+      if (lease.kind === "denied") {
+        await releaseLeases(acquiredLeases)
 
-      return {
-        kind: "denied",
-        rateLimit: {
-          limit: lease.limit,
-          policyId: lease.policy.id,
-          remaining: lease.remaining,
-          resetSeconds: lease.retryAfterSeconds,
-          retryAfterSeconds: lease.retryAfterSeconds,
-          windowSeconds: lease.policy.leaseSeconds,
-        },
+        return {
+          kind: "denied",
+          rateLimit: {
+            limit: lease.limit,
+            policyId: lease.policy.id,
+            remaining: lease.remaining,
+            resetSeconds: lease.retryAfterSeconds,
+            retryAfterSeconds: lease.retryAfterSeconds,
+            windowSeconds: lease.policy.leaseSeconds,
+          },
+        }
       }
-    }
 
-    acquiredLeases.push(lease)
+      acquiredLeases.push(lease)
+    }
+  } catch (error) {
+    await releaseLeases(acquiredLeases)
+    throw error
   }
 
   return {
