@@ -1,5 +1,10 @@
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { PHASE_PRODUCTION_BUILD, PHASE_PRODUCTION_SERVER } from "next/constants"
+
+beforeEach(() => {
+  vi.stubEnv("GITHUB_ACTIONS", undefined)
+  vi.stubEnv("RAILWAY_ENVIRONMENT_NAME", undefined)
+})
 
 afterEach(() => {
   vi.doUnmock("node:child_process")
