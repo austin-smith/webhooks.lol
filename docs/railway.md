@@ -45,8 +45,10 @@ the only value that suppresses the environment badge in the web app.
 Railway builds require Railway's Git metadata and embed it into the application
 for the badge. Railway metadata is used only for build provenance; application
 environment identity continues to come exclusively from `APP_ENV`. Non-Railway
-builds require metadata from the local Git repository. Missing build metadata
-fails the build instead of changing badge behavior.
+builds in GitHub Actions require GitHub's workflow and ref metadata. Other
+non-Railway builds require an attached branch in the local Git repository.
+Missing or ambiguous build metadata fails the build instead of changing badge
+behavior.
 
 Keep these settings in the app-local `railway.json` files:
 

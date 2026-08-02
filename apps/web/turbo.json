@@ -6,6 +6,11 @@
       "dependsOn": ["$TURBO_EXTENDS$", "typecheck"],
       "env": [
         "APP_ENV",
+        "GITHUB_ACTIONS",
+        "GITHUB_EVENT_NAME",
+        "GITHUB_HEAD_REF",
+        "GITHUB_REF_NAME",
+        "GITHUB_REF_TYPE",
         "RAILWAY_ENVIRONMENT_NAME",
         "RAILWAY_GIT_BRANCH",
         "RAILWAY_GIT_COMMIT_MESSAGE",
@@ -26,6 +31,11 @@
     "typegen": {
       "dependsOn": ["^build"],
       "env": [
+        "GITHUB_ACTIONS",
+        "GITHUB_EVENT_NAME",
+        "GITHUB_HEAD_REF",
+        "GITHUB_REF_NAME",
+        "GITHUB_REF_TYPE",
         "RAILWAY_ENVIRONMENT_NAME",
         "RAILWAY_GIT_BRANCH",
         "RAILWAY_GIT_COMMIT_MESSAGE",
