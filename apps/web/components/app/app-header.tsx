@@ -58,10 +58,12 @@ export function AppHeader({
               WEBHOOKS<span className="text-brand">.LOL</span>
             </span>
           </Link>
-          <AppEnvironmentBadge
-            buildMetadata={buildMetadata}
-            environment={environment}
-          />
+          {environment.kind === "production" ? null : (
+            <AppEnvironmentBadge
+              buildMetadata={buildMetadata}
+              environment={environment}
+            />
+          )}
         </div>
         <div className="hidden shrink-0 items-center gap-2 text-muted-foreground sm:flex">
           <nav aria-label="Resources" className="flex items-center gap-0.5">

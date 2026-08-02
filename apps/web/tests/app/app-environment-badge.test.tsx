@@ -12,17 +12,6 @@ const buildMetadata = {
 }
 
 describe("AppEnvironmentBadge", () => {
-  it("does not render in production", () => {
-    const html = renderToStaticMarkup(
-      <AppEnvironmentBadge
-        buildMetadata={buildMetadata}
-        environment={{ kind: "production", name: "production" }}
-      />
-    )
-
-    expect(html).toBe("")
-  })
-
   it("renders an interactive non-production environment label", () => {
     const html = renderToStaticMarkup(
       <AppEnvironmentBadge

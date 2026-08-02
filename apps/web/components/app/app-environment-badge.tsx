@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils"
 
 type AppEnvironmentBadgeProps = {
   buildMetadata: AppBuildMetadata
-  environment: AppEnvironment
+  environment: Exclude<AppEnvironment, { kind: "production" }>
 }
 
 const HOVER_OPEN_DELAY_MS = 200
@@ -32,10 +32,6 @@ export function AppEnvironmentBadge({
   const closingFromHover = React.useRef(false)
 
   React.useEffect(() => clearTimers, [])
-
-  if (environment.kind === "production") {
-    return null
-  }
 
   const invalid = environment.kind === "invalid"
   const label = invalid ? "ENV UNKNOWN" : environment.name.toUpperCase()
