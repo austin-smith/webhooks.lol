@@ -27,6 +27,37 @@ Keep these settings in Railway service configuration:
 - Custom config file path: the app-local path from the services table
 - Domains, variables, and managed database services
 
+## App Environment Identity
+
+The web app uses its provider-independent `APP_ENV` variable to identify the
+deployment. Set it explicitly in each Railway environment:
+
+| Railway environment | `APP_ENV` value |
+| ------------------- | --------------- |
+| `develop`           | `develop`       |
+| `production`        | `production`    |
+
+Do not derive `APP_ENV` from Railway-provided environment metadata. Keeping the
+application contract provider-independent makes the same configuration work in
+local development and on other deployment platforms. The production value is
+the only value that suppresses the environment badge in the web app.
+
+The badge's detail popover uses provider-independent build metadata variables.
+For GitHub-triggered Railway deployments, define these aliases on the web
+service so the application remains decoupled from Railway's variable names:
+
+| Application variable       | Railway value                     |
+| -------------------------- | --------------------------------- |
+| `APP_BUILD_BRANCH`         | `${{RAILWAY_GIT_BRANCH}}`         |
+| `APP_BUILD_COMMIT_SHA`     | `${{RAILWAY_GIT_COMMIT_SHA}}`     |
+| `APP_BUILD_COMMIT_SUBJECT` | `${{RAILWAY_GIT_COMMIT_MESSAGE}}` |
+
+`APP_BUILD_AT` and `APP_BUILD_DIRTY` are optional build-time overrides. The
+build timestamp defaults to the time the web build starts, and provider builds
+default to a clean working tree. Local builds discover all five values directly
+from Git. If neither a complete provider identity nor Git metadata is available,
+the environment badge remains visible without the detail popover.
+
 Keep these settings in the app-local `railway.json` files:
 
 - Railpack builder

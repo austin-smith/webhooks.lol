@@ -2,7 +2,16 @@
   "extends": ["//"],
   "tasks": {
     "build": {
+      "cache": false,
       "dependsOn": ["$TURBO_EXTENDS$", "typecheck"],
+      "env": [
+        "APP_BUILD_AT",
+        "APP_BUILD_BRANCH",
+        "APP_BUILD_COMMIT_SHA",
+        "APP_BUILD_COMMIT_SUBJECT",
+        "APP_BUILD_DIRTY",
+        "APP_ENV"
+      ],
       "outputs": [".next/**", "!.next/cache/**", "!.next/types/**"]
     },
     "dev": {
