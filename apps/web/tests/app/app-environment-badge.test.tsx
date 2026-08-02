@@ -43,20 +43,6 @@ describe("AppEnvironmentBadge", () => {
     expect(html).toContain('aria-haspopup="dialog"')
   })
 
-  it("renders a non-interactive label when build metadata is unavailable", () => {
-    const html = renderToStaticMarkup(
-      <AppEnvironmentBadge
-        buildMetadata={null}
-        environment={{ kind: "non-production", name: "develop" }}
-      />
-    )
-
-    expect(html).toContain("DEVELOP")
-    expect(html).toContain('data-slot="badge"')
-    expect(html).not.toContain("<button")
-    expect(html).not.toContain('aria-haspopup="dialog"')
-  })
-
   it.each(["missing", "invalid-format", "too-long"] as const)(
     "renders an explicit unknown state for an %s environment",
     (issue) => {

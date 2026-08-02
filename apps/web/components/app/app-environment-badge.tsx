@@ -14,7 +14,7 @@ import type { AppEnvironment } from "@/lib/app-environment"
 import { cn } from "@/lib/utils"
 
 type AppEnvironmentBadgeProps = {
-  buildMetadata: AppBuildMetadata | null
+  buildMetadata: AppBuildMetadata
   environment: AppEnvironment
 }
 
@@ -46,17 +46,6 @@ export function AppEnvironmentBadge({
     "max-w-28 sm:max-w-40",
     !invalid && "text-muted-foreground"
   )
-
-  if (buildMetadata === null) {
-    return (
-      <Badge
-        variant={invalid ? "destructive" : "outline"}
-        className={badgeClassName}
-      >
-        <span className="truncate">{label}</span>
-      </Badge>
-    )
-  }
 
   function clearTimers() {
     if (openTimer.current !== null) {

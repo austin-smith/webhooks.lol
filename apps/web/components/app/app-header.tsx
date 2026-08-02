@@ -22,7 +22,7 @@ export type AppHeaderUser = {
 }
 
 type AppHeaderProps = {
-  buildMetadata: AppBuildMetadata | null
+  buildMetadata: AppBuildMetadata
   docsUrl: string | null
   environment: AppEnvironment
   user: AppHeaderUser | null

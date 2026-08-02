@@ -1,9 +1,9 @@
 import "server-only"
 
-import { parseOptionalAppBuildMetadata } from "./app-build-metadata"
+import { parseAppBuildMetadata } from "./app-build-metadata"
 
 export function readAppBuildMetadata() {
-  return parseOptionalAppBuildMetadata({
+  return parseAppBuildMetadata({
     branch: process.env.APP_BUILD_BRANCH,
     builtAt: process.env.APP_BUILD_AT,
     commitSha: process.env.APP_BUILD_COMMIT_SHA,

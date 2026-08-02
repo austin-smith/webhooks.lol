@@ -55,18 +55,6 @@ export function parseAppBuildMetadata(
   }
 }
 
-export function parseOptionalAppBuildMetadata(
-  input: AppBuildMetadataInput
-): AppBuildMetadata | null {
-  const values = Object.values(input)
-
-  if (values.every((value) => value === undefined)) {
-    return null
-  }
-
-  return parseAppBuildMetadata(input)
-}
-
 function requireValue(name: string, value: string | undefined) {
   if (!value) {
     throw new Error(`${name} is required`)

@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import {
-  parseAppBuildMetadata,
-  parseOptionalAppBuildMetadata,
-} from "@/lib/app-build-metadata"
+import { parseAppBuildMetadata } from "@/lib/app-build-metadata"
 
 const validInput = {
   branch: "env-badge",
@@ -55,31 +52,5 @@ describe("parseAppBuildMetadata", () => {
     expect(() => parseAppBuildMetadata({ ...validInput, ...override })).toThrow(
       message
     )
-  })
-})
-
-describe("parseOptionalAppBuildMetadata", () => {
-  it("returns null when build metadata is entirely unavailable", () => {
-    expect(
-      parseOptionalAppBuildMetadata({
-        branch: undefined,
-        builtAt: undefined,
-        commitSha: undefined,
-        commitSubject: undefined,
-        dirty: undefined,
-      })
-    ).toBeNull()
-  })
-
-  it("rejects a partial metadata snapshot", () => {
-    expect(() =>
-      parseOptionalAppBuildMetadata({
-        branch: "env-badge",
-        builtAt: undefined,
-        commitSha: undefined,
-        commitSubject: undefined,
-        dirty: undefined,
-      })
-    ).toThrow("APP_BUILD_AT is required")
   })
 })

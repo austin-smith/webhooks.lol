@@ -5,12 +5,11 @@
       "cache": false,
       "dependsOn": ["$TURBO_EXTENDS$", "typecheck"],
       "env": [
-        "APP_BUILD_AT",
-        "APP_BUILD_BRANCH",
-        "APP_BUILD_COMMIT_SHA",
-        "APP_BUILD_COMMIT_SUBJECT",
-        "APP_BUILD_DIRTY",
-        "APP_ENV"
+        "APP_ENV",
+        "RAILWAY_ENVIRONMENT_NAME",
+        "RAILWAY_GIT_BRANCH",
+        "RAILWAY_GIT_COMMIT_MESSAGE",
+        "RAILWAY_GIT_COMMIT_SHA"
       ],
       "outputs": [".next/**", "!.next/cache/**", "!.next/types/**"]
     },
