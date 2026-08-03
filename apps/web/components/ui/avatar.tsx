@@ -1,7 +1,6 @@
 "use client"
 
 import * as React from "react"
-import { Avatar as AvatarPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 
@@ -9,11 +8,11 @@ function Avatar({
   className,
   size = "default",
   ...props
-}: React.ComponentProps<typeof AvatarPrimitive.Root> & {
+}: React.ComponentProps<"span"> & {
   size?: "default" | "sm" | "lg"
 }) {
   return (
-    <AvatarPrimitive.Root
+    <span
       data-slot="avatar"
       data-size={size}
       className={cn(
@@ -25,15 +24,58 @@ function Avatar({
   )
 }
 
+// Render the image in the server HTML so cached avatars do not flash the
+// fallback before hydration.
 function AvatarImage({
+  alt,
   className,
+  onError,
+  onLoad,
+  src,
   ...props
-}: React.ComponentProps<typeof AvatarPrimitive.Image>) {
+}: Omit<React.ComponentProps<"img">, "ref"> & { alt: string }) {
+  const imageRef = React.useRef<HTMLImageElement>(null)
+  const [status, setStatus] = React.useState<"loading" | "loaded" | "error">(
+    "loading"
+  )
+  const [prevSrc, setPrevSrc] = React.useState(src)
+
+  // Reset when the image source changes in place.
+  if (prevSrc !== src) {
+    setPrevSrc(src)
+    setStatus("loading")
+  }
+
+  // A cached image may load before hydration and miss onLoad.
+  React.useEffect(() => {
+    const image = imageRef.current
+
+    if (image?.complete && status === "loading") {
+      setStatus(image.naturalWidth > 0 ? "loaded" : "error")
+    }
+  }, [status])
+
   return (
-    <AvatarPrimitive.Image
+    // OAuth avatars are small external images; optimization adds a proxy hop
+    // and requires configuration for each remote host.
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      alt={alt}
+      src={src}
+      ref={imageRef}
       data-slot="avatar-image"
+      data-status={status}
+      onLoad={(event) => {
+        setStatus("loaded")
+        onLoad?.(event)
+      }}
+      onError={(event) => {
+        setStatus("error")
+        onError?.(event)
+      }}
       className={cn(
-        "aspect-square size-full rounded-full object-cover",
+        "peer/avatar-image absolute inset-0 aspect-square size-full rounded-full object-cover",
+        status === "error" && "hidden",
         className
       )}
       {...props}
@@ -44,12 +86,12 @@ function AvatarImage({
 function AvatarFallback({
   className,
   ...props
-}: React.ComponentProps<typeof AvatarPrimitive.Fallback>) {
+}: React.ComponentProps<"span">) {
   return (
-    <AvatarPrimitive.Fallback
+    <span
       data-slot="avatar-fallback"
       className={cn(
-        "flex size-full items-center justify-center rounded-full bg-muted text-sm text-muted-foreground group-data-[size=sm]/avatar:text-xs",
+        "flex size-full items-center justify-center rounded-full bg-muted text-sm text-muted-foreground group-data-[size=sm]/avatar:text-xs peer-data-[status=loaded]/avatar-image:invisible",
         className
       )}
       {...props}
