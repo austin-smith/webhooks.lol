@@ -106,9 +106,13 @@ app-owned endpoint ownership data remains in the `public` schema.
   auth forms.
 - `TURNSTILE_SECRET_KEY`: Cloudflare Turnstile secret key verified by the auth
   server.
-- `APP_ENV`: Environment label used in outbound auth email sender names.
-  `production` sends as `webhooks.lol`; any other value sends as
-  `webhooks.lol (<APP_ENV>)`, such as `webhooks.lol (staging)`.
+- `APP_ENV`: Portable deployment environment identifier used by the app header
+  and outbound auth email sender names. Use `production` only for production.
+  Other values must be 24 characters or fewer and contain lowercase
+  alphanumeric segments separated by single hyphens or underscores. Production
+  omits the header badge and sends as `webhooks.lol`; other environments show
+  the identifier in the header and send as `webhooks.lol (<APP_ENV>)`, such as
+  `webhooks.lol (staging)`.
 - `EMAIL_FROM_ADDRESS`: Outbound sender address for auth email.
 - `CLOUDFLARE_ACCOUNT_ID`: Cloudflare account ID used for Email Sending.
 - `CLOUDFLARE_EMAIL_API_TOKEN`: Scoped Cloudflare API token with Email Sending

@@ -8,6 +8,9 @@ import { GithubIcon } from "@/components/icons/github-icon"
 import { DisplayDropdownMenu } from "@/components/theme/display-dropdown-menu"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+import type { AppBuildMetadata } from "@/lib/app-build-metadata"
+import type { AppEnvironment } from "@/lib/app-environment"
+import { AppEnvironmentBadge } from "./app-environment-badge"
 import { AppHeaderMenu } from "./app-header-menu"
 
 const GITHUB_URL = "https://github.com/austin-smith/webhooks.lol"
@@ -19,34 +22,49 @@ export type AppHeaderUser = {
 }
 
 type AppHeaderProps = {
+  buildMetadata: AppBuildMetadata
   docsUrl: string | null
+  environment: AppEnvironment
   user: AppHeaderUser | null
 }
 
-export function AppHeader({ docsUrl, user }: AppHeaderProps) {
+export function AppHeader({
+  buildMetadata,
+  docsUrl,
+  environment,
+  user,
+}: AppHeaderProps) {
   return (
     <header className="shrink-0 border-b bg-background px-4 py-3 lg:px-5">
       <div className="flex min-w-0 items-center justify-between gap-3">
-        <Link
-          href="/"
-          className="flex min-w-0 items-center gap-2 text-foreground transition-colors hover:text-foreground/80 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
-          aria-label="webhooks.lol home"
-        >
-          <span className="flex size-5 shrink-0 items-center justify-center">
-            <Image
-              src="/icon.png"
-              alt=""
-              width={20}
-              height={20}
-              aria-hidden="true"
-              className="size-5"
-              priority
+        <div className="flex min-w-0 items-center gap-2">
+          <Link
+            href="/"
+            className="flex min-w-0 items-center gap-2 text-foreground transition-colors hover:text-foreground/80 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+            aria-label="webhooks.lol home"
+          >
+            <span className="flex size-5 shrink-0 items-center justify-center">
+              <Image
+                src="/icon.png"
+                alt=""
+                width={20}
+                height={20}
+                aria-hidden="true"
+                className="size-5"
+                priority
+              />
+            </span>
+            <span className="truncate font-heading text-sm font-semibold tracking-tight">
+              WEBHOOKS<span className="text-brand">.LOL</span>
+            </span>
+          </Link>
+          {environment.kind === "production" ? null : (
+            <AppEnvironmentBadge
+              buildMetadata={buildMetadata}
+              environment={environment}
             />
-          </span>
-          <span className="truncate font-heading text-sm font-semibold tracking-tight">
-            WEBHOOKS<span className="text-brand">.LOL</span>
-          </span>
-        </Link>
+          )}
+        </div>
         <div className="hidden shrink-0 items-center gap-2 text-muted-foreground sm:flex">
           <nav aria-label="Resources" className="flex items-center gap-0.5">
             {docsUrl ? (

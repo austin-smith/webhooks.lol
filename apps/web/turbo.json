@@ -2,7 +2,20 @@
   "extends": ["//"],
   "tasks": {
     "build": {
+      "cache": false,
       "dependsOn": ["$TURBO_EXTENDS$", "typecheck"],
+      "env": [
+        "APP_ENV",
+        "GITHUB_ACTIONS",
+        "GITHUB_EVENT_NAME",
+        "GITHUB_HEAD_REF",
+        "GITHUB_REF_NAME",
+        "GITHUB_REF_TYPE",
+        "RAILWAY_ENVIRONMENT_NAME",
+        "RAILWAY_GIT_BRANCH",
+        "RAILWAY_GIT_COMMIT_MESSAGE",
+        "RAILWAY_GIT_COMMIT_SHA"
+      ],
       "outputs": [".next/**", "!.next/cache/**", "!.next/types/**"]
     },
     "dev": {
@@ -17,6 +30,17 @@
     },
     "typegen": {
       "dependsOn": ["^build"],
+      "env": [
+        "GITHUB_ACTIONS",
+        "GITHUB_EVENT_NAME",
+        "GITHUB_HEAD_REF",
+        "GITHUB_REF_NAME",
+        "GITHUB_REF_TYPE",
+        "RAILWAY_ENVIRONMENT_NAME",
+        "RAILWAY_GIT_BRANCH",
+        "RAILWAY_GIT_COMMIT_MESSAGE",
+        "RAILWAY_GIT_COMMIT_SHA"
+      ],
       "outputs": [".next/types/**"]
     }
   }

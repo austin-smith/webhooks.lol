@@ -140,7 +140,7 @@ describe("sendEmail", () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it("rejects blank APP_ENV before sending", async () => {
+  it("rejects whitespace-only APP_ENV before sending", async () => {
     const fetchMock = stubFetch(
       createCloudflareResponse({
         result: {
@@ -155,12 +155,12 @@ describe("sendEmail", () => {
     stubCloudflareEmailEnv({ appEnv: " " })
 
     await expect(sendEmail(authEmail)).rejects.toThrow(
-      "APP_ENV is required to send email."
+      "APP_ENV must contain lowercase alphanumeric segments separated by single hyphens or underscores and be 24 characters or fewer."
     )
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it("rejects control characters in APP_ENV before sending", async () => {
+  it("rejects malformed APP_ENV identifiers before sending", async () => {
     const fetchMock = stubFetch(
       createCloudflareResponse({
         result: {
@@ -175,7 +175,7 @@ describe("sendEmail", () => {
     stubCloudflareEmailEnv({ appEnv: "staging\nbcc" })
 
     await expect(sendEmail(authEmail)).rejects.toThrow(
-      "APP_ENV must not contain control characters."
+      "APP_ENV must contain lowercase alphanumeric segments separated by single hyphens or underscores and be 24 characters or fewer."
     )
     expect(fetchMock).not.toHaveBeenCalled()
   })

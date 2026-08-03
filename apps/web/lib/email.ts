@@ -1,5 +1,7 @@
 import "server-only"
 
+import { readAppEnvironment } from "@/lib/app-environment"
+
 export type OutboundEmail = {
   html: string
   subject: string
@@ -41,7 +43,6 @@ type CloudflareSendEmailResponse = {
 const CLOUDFLARE_EMAIL_SEND_URL =
   "https://api.cloudflare.com/client/v4/accounts"
 const PRODUCT_EMAIL_SENDER_NAME = "webhooks.lol"
-const PRODUCTION_APP_ENV = "production"
 
 export async function sendOutboundEmail({
   html,
@@ -101,13 +102,23 @@ function buildCloudflareEmailSendUrl() {
 }
 
 function readEmailFromName() {
-  const appEnv = readRequiredEnv("APP_ENV")
+  const environment = readAppEnvironment()
 
-  if (appEnv === PRODUCTION_APP_ENV) {
+  if (environment.kind === "invalid") {
+    if (environment.issue === "missing") {
+      throw new Error("APP_ENV is required to send email.")
+    }
+
+    throw new Error(
+      "APP_ENV must contain lowercase alphanumeric segments separated by single hyphens or underscores and be 24 characters or fewer."
+    )
+  }
+
+  if (environment.kind === "production") {
     return PRODUCT_EMAIL_SENDER_NAME
   }
 
-  return `${PRODUCT_EMAIL_SENDER_NAME} (${appEnv})`
+  return `${PRODUCT_EMAIL_SENDER_NAME} (${environment.name})`
 }
 
 async function readJsonResponse(response: Response) {

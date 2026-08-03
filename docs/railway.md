@@ -27,6 +27,29 @@ Keep these settings in Railway service configuration:
 - Custom config file path: the app-local path from the services table
 - Domains, variables, and managed database services
 
+## App Environment Identity
+
+The web app uses its provider-independent `APP_ENV` variable to identify the
+deployment. Set it explicitly in each Railway environment:
+
+| Railway environment | `APP_ENV` value |
+| ------------------- | --------------- |
+| `develop`           | `develop`       |
+| `production`        | `production`    |
+
+Do not derive `APP_ENV` from Railway-provided environment metadata. Keeping the
+application contract provider-independent makes the same configuration work in
+local development and on other deployment platforms. The production value is
+the only value that suppresses the environment badge in the web app.
+
+Railway builds require Railway's Git metadata and embed it into the application
+for the badge. Railway metadata is used only for build provenance; application
+environment identity continues to come exclusively from `APP_ENV`. Non-Railway
+builds in GitHub Actions require GitHub's workflow and ref metadata. Other
+non-Railway builds require an attached branch in the local Git repository.
+Missing or ambiguous build metadata fails the build instead of changing badge
+behavior.
+
 Keep these settings in the app-local `railway.json` files:
 
 - Railpack builder
