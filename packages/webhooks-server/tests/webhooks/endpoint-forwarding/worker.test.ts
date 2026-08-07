@@ -99,6 +99,8 @@ function createJob(
 ) {
   return {
     id: DELIVERY_ID,
+    blocked: false,
+    blocking: false,
     createdOn: new Date(),
     completedOn: null,
     data: { deliveryId: DELIVERY_ID },
@@ -111,6 +113,7 @@ function createJob(
     keepUntil: new Date(),
     name: "endpoint-forward-delivery",
     output: {},
+    pendingDependencies: 0,
     policy: "standard",
     priority: 0,
     retryBackoff: true,
@@ -121,6 +124,10 @@ function createJob(
     signal: new AbortController().signal,
     singletonKey: null,
     singletonOn: null,
+    sourceCreatedOn: null,
+    sourceId: null,
+    sourceName: null,
+    sourceRetryCount: null,
     startAfter: new Date(),
     startedOn: new Date(),
     state: "active",

@@ -83,10 +83,7 @@ function AvatarImage({
   )
 }
 
-function AvatarFallback({
-  className,
-  ...props
-}: React.ComponentProps<"span">) {
+function AvatarFallback({ className, ...props }: React.ComponentProps<"span">) {
   return (
     <span
       data-slot="avatar-fallback"

@@ -5,10 +5,10 @@ import { RotateCwIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 export default function Error({
-  unstable_retry,
+  retry,
 }: {
   error: Error & { digest?: string }
-  unstable_retry: () => void
+  retry: () => void
 }) {
   return (
     <main className="flex min-h-svh items-center justify-center bg-background p-4 font-mono text-xs">
@@ -25,7 +25,7 @@ export default function Error({
             type="button"
             variant="outline"
             className="w-fit rounded-md"
-            onClick={unstable_retry}
+            onClick={retry}
           >
             <RotateCwIcon data-icon="inline-start" />
             Retry

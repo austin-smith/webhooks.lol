@@ -33,15 +33,16 @@ export default async function AccountPage() {
     redirect("/login")
   }
 
-  const [accountSecurity, accountStats, syntaxThemePreview] =
-    await Promise.all([
+  const [accountSecurity, accountStats, syntaxThemePreview] = await Promise.all(
+    [
       getCurrentAccountSecurity(),
       getAccountWebhookStats(session.user.id),
       readDisplayPreferences().then(async ({ syntaxTheme }) => ({
         html: await getSyntaxThemePreviewHtml(syntaxTheme),
         syntaxTheme,
       })),
-    ])
+    ]
+  )
 
   return (
     <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-5 px-4 py-6 sm:px-6">

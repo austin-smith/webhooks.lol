@@ -237,10 +237,7 @@ export function createRedisRateLimitStore({
       }
     }
 
-    void pendingConnection.then(
-      clearPendingConnection,
-      clearPendingConnection
-    )
+    void pendingConnection.then(clearPendingConnection, clearPendingConnection)
 
     return pendingConnection
   }

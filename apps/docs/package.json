@@ -15,20 +15,20 @@
     "fumadocs-core": "16.9.3",
     "fumadocs-mdx": "15.0.10",
     "fumadocs-ui": "16.9.3",
-    "lucide-react": "^1.17.0",
-    "next": "16.2.7",
+    "lucide-react": "^1.28.0",
+    "next": "16.3.0",
     "react": "19.2.7",
     "react-dom": "19.2.7"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
+    "@tailwindcss/postcss": "^4.3.3",
     "@types/mdx": "2.0.13",
-    "@types/node": "^25.9.4",
-    "@types/react": "^19.2.17",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.7",
-    "tailwindcss": "^4",
+    "@types/node": "^25.9.5",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "16.3.0",
+    "tailwindcss": "^4.3.3",
     "typescript": "^5"
   }
 }

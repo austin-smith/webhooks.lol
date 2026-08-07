@@ -5,13 +5,7 @@ import type { CapturedRequest } from "@webhooks-lol/webhooks-core/types"
 import type { ConnectionState } from "./types"
 
 export type RequestBodyLanguage =
-  | "css"
-  | "html"
-  | "javascript"
-  | "json"
-  | "text"
-  | "xml"
-  | "yaml"
+  "css" | "html" | "javascript" | "json" | "text" | "xml" | "yaml"
 
 export type FormattedRequestBody = {
   language: RequestBodyLanguage

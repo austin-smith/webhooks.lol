@@ -1,4 +1,4 @@
-import type { JobWithMetadata } from "pg-boss"
+import type { JobWithMetadata, WorkOptions } from "pg-boss"
 
 import {
   ENDPOINT_FORWARDING_DELIVERY_TIMEOUT_MS,
@@ -24,6 +24,12 @@ import {
 
 const WORKER_CONCURRENCY = 10
 const TARGET_CONCURRENCY = 2
+const WORK_OPTIONS = {
+  groupConcurrency: TARGET_CONCURRENCY,
+  includeMetadata: true,
+  localConcurrency: WORKER_CONCURRENCY,
+  pollingIntervalSeconds: 1,
+} as const satisfies WorkOptions
 
 type DeliveryOutcome =
   | {
@@ -51,14 +57,9 @@ export async function startEndpointForwardingWorker({
 } = {}) {
   const boss = await getEndpointForwardingBoss()
 
-  return boss.work<EndpointForwardDeliveryJob>(
+  return boss.work<EndpointForwardDeliveryJob, void, typeof WORK_OPTIONS>(
     ENDPOINT_FORWARDING_QUEUE,
-    {
-      groupConcurrency: TARGET_CONCURRENCY,
-      includeMetadata: true,
-      localConcurrency: WORKER_CONCURRENCY,
-      pollingIntervalSeconds: 1,
-    },
+    WORK_OPTIONS,
     async ([job]) => {
       if (!job) {
         return

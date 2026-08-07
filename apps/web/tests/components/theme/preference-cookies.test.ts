@@ -23,9 +23,7 @@ describe("preference cookies", () => {
   it("serializes a long-lived, site-wide, lax cookie", () => {
     expect(
       serializePreferenceCookie(THEME_COOKIE_NAME, "dark", { secure: false })
-    ).toBe(
-      `${THEME_COOKIE_NAME}=dark; Path=/; Max-Age=31536000; SameSite=Lax`
-    )
+    ).toBe(`${THEME_COOKIE_NAME}=dark; Path=/; Max-Age=31536000; SameSite=Lax`)
   })
 
   it("adds the Secure attribute on secure origins", () => {

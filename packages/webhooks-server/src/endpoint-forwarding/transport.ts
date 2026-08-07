@@ -81,12 +81,10 @@ function createPinnedLookup(
     if (options.all) {
       callback(
         null,
-        addresses.map(
-          (address): LookupAddress => ({
-            address: address.address,
-            family: address.family,
-          })
-        )
+        addresses.map((address): LookupAddress => ({
+          address: address.address,
+          family: address.family,
+        }))
       )
       return
     }

@@ -6,10 +6,10 @@ import "./globals.css"
 import { Button } from "@/components/ui/button"
 
 export default function GlobalError({
-  unstable_retry,
+  retry,
 }: {
   error: Error & { digest?: string }
-  unstable_retry: () => void
+  retry: () => void
 }) {
   return (
     <html lang="en" className="font-mono antialiased">
@@ -29,7 +29,7 @@ export default function GlobalError({
                 type="button"
                 variant="outline"
                 className="w-fit rounded-md"
-                onClick={unstable_retry}
+                onClick={retry}
               >
                 <RotateCwIcon data-icon="inline-start" />
                 Retry
