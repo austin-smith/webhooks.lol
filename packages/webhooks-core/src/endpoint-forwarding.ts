@@ -1,10 +1,7 @@
 export type EndpointForwardPathMode = "strip" | "preserve"
 
 export type EndpointForwardDeliveryStatus =
-  | "pending"
-  | "delivered"
-  | "failed"
-  | "cancelled"
+  "pending" | "delivered" | "failed" | "cancelled"
 
 export type EndpointForwardTarget = {
   id: string

@@ -67,8 +67,7 @@ export type AdvancedRequestSearchCriteria = {
 }
 
 export type RequestSearchCriteria =
-  | BasicRequestSearchCriteria
-  | AdvancedRequestSearchCriteria
+  BasicRequestSearchCriteria | AdvancedRequestSearchCriteria
 
 export type AdvancedRequestSearchScalarField =
   | "method"

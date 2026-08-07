@@ -22,10 +22,10 @@
     "watch": "tsc -b tsconfig.build.json --watch --preserveWatchOutput"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.4",
-    "eslint": "^9.39.4",
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
     "typescript": "^5",
-    "typescript-eslint": "^8.61.0",
-    "vitest": "^4.1.8"
+    "typescript-eslint": "^8.66.0",
+    "vitest": "^4.1.10"
   }
 }

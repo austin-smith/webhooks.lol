@@ -28,9 +28,7 @@ import {
 } from "@/lib/auth/password-policy"
 
 type ChangePasswordField =
-  | "confirmedPassword"
-  | "currentPassword"
-  | "newPassword"
+  "confirmedPassword" | "currentPassword" | "newPassword"
 
 type ChangePasswordFieldErrors = Partial<Record<ChangePasswordField, string>>
 

@@ -20,9 +20,7 @@ export function UserAvatar({ user, size = "default" }: UserAvatarProps) {
   return (
     <Avatar size={size} role="img" aria-label={displayName}>
       {user.image ? <AvatarImage src={user.image} alt="" /> : null}
-      <AvatarFallback
-        className="[&_svg]:size-3.5 group-data-[size=lg]/avatar:[&_svg]:size-5 group-data-[size=sm]/avatar:[&_svg]:size-3"
-      >
+      <AvatarFallback className="[&_svg]:size-3.5 group-data-[size=lg]/avatar:[&_svg]:size-5 group-data-[size=sm]/avatar:[&_svg]:size-3">
         <UserRound aria-hidden="true" />
       </AvatarFallback>
     </Avatar>
