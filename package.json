@@ -39,12 +39,14 @@
     "redis:local:logs": "docker logs --follow webhooks-lol-redis",
     "redis:local:start": "docker start webhooks-lol-redis || docker run --name webhooks-lol-redis --detach --publish 6379:6379 --volume webhooks-lol-redis-data:/data redis:8 redis-server --appendonly yes",
     "redis:local:stop": "docker stop webhooks-lol-redis",
+    "railway:check": "tsc --noEmit -p .railway/tsconfig.json && node .railway/validate.ts",
     "verify": "turbo run typecheck lint test build"
   },
   "devDependencies": {
     "@types/node": "^25.9.5",
     "prettier": "^3.9.6",
     "prettier-plugin-tailwindcss": "^0.8.1",
+    "railway": "3.10.0",
     "turbo": "^2.10.8",
     "typescript": "^5",
     "wrangler": "^4.118.0"

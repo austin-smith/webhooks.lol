@@ -102,11 +102,11 @@ tooling variables in `packages/database/.env.local`, web runtime variables in
 `apps/web/.env.local`, docs runtime variables in `apps/docs/.env.local`, and
 PgBoss worker variables in `apps/pgboss/.env.local`.
 
-Railway deployments use app-local config-as-code files:
-`apps/web/railway.json`, `apps/docs/railway.json`, and
-`apps/pgboss/railway.json`. Keep Railway service roots at the repository root so
-pnpm workspace packages resolve correctly, and point each Railway service at its
-own config file path. Do not add a root `railway.json` for this monorepo.
+Railway infrastructure is defined at the project level in
+`.railway/railway.ts`. Keep Railway service roots at the repository root so pnpm
+workspace packages resolve correctly, and keep each app's build and start
+commands explicit in the project graph. Run `pnpm railway:check` before planning
+or applying Railway changes.
 
 ## Branches, Commits, and Pull Requests
 
