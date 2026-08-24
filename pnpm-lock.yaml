@@ -17,6 +17,9 @@ importers:
       prettier-plugin-tailwindcss:
         specifier: ^0.8.1
         version: 0.8.1(prettier@3.9.6)
+      railway:
+        specifier: 3.10.0
+        version: 3.10.0
       turbo:
         specifier: ^2.10.8
         version: 2.10.8
@@ -1271,6 +1274,11 @@ packages:
         optional: true
       tailwindcss:
         optional: true
+
+  '@graphql-typed-document-node/core@3.2.0':
+    resolution: {integrity: sha512-mB9oAsNCm9aM3/SOv4YtBMqZbYj10R7dkq8byBqxGY/ncFwhf2oQzMV+LCRlWoDSEBJ3COiR1yeDvMtsoOsuFQ==}
+    peerDependencies:
+      graphql: ^0.8.0 || ^0.9.0 || ^0.10.0 || ^0.11.0 || ^0.12.0 || ^0.13.0 || ^14.0.0 || ^15.0.0 || ^16.0.0 || ^17.0.0
 
   '@hono/node-server@2.1.0':
     resolution: {integrity: sha512-XovyyCCnBzW+zKu+z/zq8hwNs4KOR5rEMAOxo2f40Q5xoOI37IMm6MIg2COOUtUApo0i6850MTBKH2u4QLGIqg==}
@@ -6040,6 +6048,11 @@ packages:
       '@types/react-dom':
         optional: true
 
+  railway@3.10.0:
+    resolution: {integrity: sha512-yQtWGFkeGpIdyfwiQQOkWHLfXvSQH7gW6kz83nlre+ZeH9J1J8vX03pzL4zseTLbLKx2AhWs/e/6lZPASGogEw==}
+    engines: {node: '>=22'}
+    hasBin: true
+
   range-parser@1.3.0:
     resolution: {integrity: sha512-hek2mFQpPuI4E1BBKrSto+BU3e3x4xuarsbiwr3+lf7p44juvFMV0XFWQAP3xUyqXA4RrXLIoaSUGbSt056ZMw==}
     engines: {node: '>= 0.6'}
@@ -7695,6 +7708,10 @@ snapshots:
     optionalDependencies:
       '@tailwindcss/oxide': 4.3.3
       tailwindcss: 4.3.3
+
+  '@graphql-typed-document-node/core@3.2.0(graphql@16.14.2)':
+    dependencies:
+      graphql: 16.14.2
 
   '@hono/node-server@2.1.0(hono@4.13.0)':
     dependencies:
@@ -11022,8 +11039,7 @@ snapshots:
 
   graceful-fs@4.2.11: {}
 
-  graphql@16.14.2:
-    optional: true
+  graphql@16.14.2: {}
 
   has-bigints@1.1.0: {}
 
@@ -12653,6 +12669,12 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.18
       '@types/react-dom': 19.2.4(@types/react@19.2.18)
+
+  railway@3.10.0:
+    dependencies:
+      '@graphql-typed-document-node/core': 3.2.0(graphql@16.14.2)
+      graphql: 16.14.2
+      tsx: 4.23.5
 
   range-parser@1.3.0: {}
 
