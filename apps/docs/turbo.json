@@ -3,7 +3,7 @@
   "tasks": {
     "build": {
       "dependsOn": ["$TURBO_EXTENDS$", "typecheck"],
-      "outputs": [".next/**", "!.next/cache/**"]
+      "outputs": [".next/**", "!.next/cache/**", "!.next/dev/**"]
     },
     "source": {
       "outputs": [".source/**"]
