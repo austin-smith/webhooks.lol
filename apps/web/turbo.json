@@ -16,7 +16,12 @@
         "RAILWAY_GIT_COMMIT_MESSAGE",
         "RAILWAY_GIT_COMMIT_SHA"
       ],
-      "outputs": [".next/**", "!.next/cache/**", "!.next/types/**"]
+      "outputs": [
+        ".next/**",
+        "!.next/cache/**",
+        "!.next/dev/**",
+        "!.next/types/**"
+      ]
     },
     "dev": {
       "with": [
