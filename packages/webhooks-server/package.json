@@ -41,8 +41,8 @@
     "@webhooks-lol/database": "workspace:*",
     "@webhooks-lol/webhooks-core": "workspace:*",
     "drizzle-orm": "^0.45.3",
-    "pg-boss": "^12.35.0",
-    "redis": "^6.2.1",
+    "pg-boss": "^12.37.0",
+    "redis": "^6.3.0",
     "server-only": "^0.0.1"
   },
   "devDependencies": {
@@ -50,7 +50,7 @@
     "@types/node": "^24.19.0",
     "eslint": "^9.39.5",
     "typescript": "^5",
-    "typescript-eslint": "^8.70.1",
+    "typescript-eslint": "^8.71.1",
     "vitest": "^4.1.11"
   }
 }
