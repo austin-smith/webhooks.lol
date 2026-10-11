@@ -20,8 +20,10 @@ are available on clean builds.
 
 The repository exact-pins the Railway TypeScript SDK, which provides the
 `railway/iac` authoring API used by `.railway/railway.ts`. The Railway CLI
-evaluates that file and owns planning and applying; the pinned SDK requires
-Railway CLI 5.42.1 or newer. Install the Railway CLI from Railway's official
+evaluates that file and owns planning and applying. Use Railway CLI 5.45.2 or
+newer: earlier native-engine releases evaluate the file without an environment
+context, so `.railway/railway.ts` rejects the unset environment before
+producing a plan. Install the Railway CLI from Railway's official
 distribution rather than adding its npm wrapper to this workspace. Update it
 immediately before a cutover, confirm that it supports `config plan` and
 `config apply`, and record the version used in the change record:
