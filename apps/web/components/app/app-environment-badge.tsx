@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { formatDistanceStrict } from "date-fns"
+import { formatDistanceStrict } from "date-fns/formatDistanceStrict"
 
 import { Badge } from "@/components/ui/badge"
 import {

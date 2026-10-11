@@ -1,4 +1,4 @@
-import { formatDistanceStrict } from "date-fns"
+import { formatDistanceStrict } from "date-fns/formatDistanceStrict"
 
 import type { CapturedRequest } from "@webhooks-lol/webhooks-core/types"
 
