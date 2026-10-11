@@ -1,11 +1,15 @@
 import assert from "node:assert/strict"
-import { fileURLToPath } from "node:url"
 
-import { diffGraphs, evaluateRailwayFile, validateGraph } from "railway/iac"
+import {
+  createRailwayContext,
+  project,
+  type ProjectDefinition,
+  type ResourceNode,
+} from "railway/iac"
 
-const configurationFile = fileURLToPath(
-  new URL("./railway.ts", import.meta.url)
-)
+import railwayProgram from "./railway.ts"
+
+const deploymentEnvironments = ["develop", "production"] as const
 
 const expectedResourceAddresses = [
   "database.Postgres",
@@ -29,61 +33,56 @@ const preservedWebVariables = [
   "TURNSTILE_SECRET_KEY",
 ] as const
 
-for (const environment of ["develop", "production"] as const) {
-  const { desiredConfig, graph } = await evaluateRailwayFile(
-    configurationFile,
-    {
-      context: {
-        command: "validate",
-        environment,
-        environmentName: environment,
-        projectName: "webhooks.lol",
-      },
-    }
-  )
+for (const environment of deploymentEnvironments) {
+  const definition = await evaluateProjectDefinition(environment)
+  const resources = definition.resources?.flat() ?? []
 
-  assert.deepEqual(validateGraph(graph), [])
-  assert.equal(graph.project.name, "webhooks.lol")
+  assert.equal(definition.name, "webhooks.lol")
+  assert.deepEqual(definition.environments, [...deploymentEnvironments])
   assert.deepEqual(
-    graph.resources.map((resource) => resource.address).sort(),
+    resources.map((resource) => resource.address).sort(),
     expectedResourceAddresses
   )
 
-  const resources = new Map(
-    graph.resources.map((resource) => [resource.address, resource])
+  const web = findResource(resources, "service.web", "service")
+  const docs = findResource(resources, "service.docs", "service")
+  const pgboss = findResource(resources, "service.pgboss", "service")
+  const postgres = findResource(resources, "database.Postgres", "database")
+  const redis = findResource(resources, "database.Redis", "database")
+  const postgresVolume = findResource(
+    resources,
+    "volume.postgres-volume",
+    "volume"
   )
-  const graphWeb = resources.get("service.web")
-  const graphDocs = resources.get("service.docs")
-  const graphPgboss = resources.get("service.pgboss")
-  const graphPostgres = resources.get("database.Postgres")
-  const graphRedis = resources.get("database.Redis")
-  const graphPostgresVolume = resources.get("volume.postgres-volume")
-  const graphRedisVolume = resources.get("volume.redis-volume")
+  const redisVolume = findResource(resources, "volume.redis-volume", "volume")
 
-  assert.equal(graphWeb?.type, "service")
-  assert.equal(graphDocs?.type, "service")
-  assert.equal(graphPgboss?.type, "service")
-  assert.equal(graphPostgres?.type, "database")
-  assert.equal(graphRedis?.type, "database")
-  assert.equal(graphPostgresVolume?.type, "volume")
-  assert.equal(graphRedisVolume?.type, "volume")
+  const expectedWebDomain =
+    environment === "production" ? "webhooks.lol" : "dev.webhooks.lol"
+  const expectedDocsDomain =
+    environment === "production" ? "docs.webhooks.lol" : "dev-docs.webhooks.lol"
 
-  assert.equal(graphWeb.source?.repo, "austin-smith/webhooks.lol")
-  assert.equal(graphWeb.source?.branch, "main")
-  assert.equal(graphWeb.source?.rootDirectory, undefined)
-  assert.deepEqual(graphWeb.build?.watchPatterns, [
+  assert.equal(web.source?.repo, "austin-smith/webhooks.lol")
+  assert.equal(web.source?.branch, "main")
+  assert.equal(web.source?.rootDirectory, undefined)
+  assert.equal(web.build?.buildCommand, "pnpm web:build")
+  assert.deepEqual(web.build?.watchPatterns, [
     "**",
     "!/apps/cli/**",
     "!/apps/docs/**",
     "!/apps/pgboss/**",
   ])
-  assert.equal(graphWeb.deploy?.runtime, "V2")
-  assert.equal(graphWeb.deploy?.restartPolicyType, "ON_FAILURE")
-  assert.equal(graphWeb.deploy?.restartPolicyMaxRetries, 10)
-  assert.deepEqual(graphWeb.deploy?.multiRegionConfig, {
+  assert.equal(web.deploy?.runtime, "V2")
+  assert.equal(web.deploy?.restartPolicyType, "ON_FAILURE")
+  assert.equal(web.deploy?.restartPolicyMaxRetries, 10)
+  assert.deepEqual(web.deploy?.multiRegionConfig, {
     "us-west2": { numReplicas: 1 },
   })
-  assert.deepEqual(Object.keys(graphWeb.variables ?? {}).sort(), [
+  assert.deepEqual(web.deploy?.preDeployCommand, ["pnpm db:migrate"])
+  assert.equal(web.deploy?.startCommand, "pnpm web:start")
+  assert.deepEqual(Object.keys(web.networking?.customDomains ?? {}), [
+    expectedWebDomain,
+  ])
+  assert.deepEqual(Object.keys(web.variables ?? {}).sort(), [
     "APP_ENV",
     "BETTER_AUTH_SECRET",
     "BETTER_AUTH_URL",
@@ -101,123 +100,107 @@ for (const environment of ["develop", "production"] as const) {
     "TURNSTILE_SECRET_KEY",
   ])
   for (const variable of preservedWebVariables) {
-    assert.deepEqual(graphWeb.variables?.[variable], { type: "preserve" })
+    assert.deepEqual(web.variables?.[variable], { type: "preserve" })
   }
-  assert.deepEqual(graphWeb.variables?.DATABASE_URL, {
+  assert.deepEqual(web.variables?.APP_ENV, {
+    type: "literal",
+    value: environment,
+  })
+  assert.deepEqual(web.variables?.DATABASE_URL, {
     type: "reference",
     resource: "database.Postgres",
     output: "DATABASE_URL",
   })
-  assert.deepEqual(graphWeb.variables?.REDIS_URL, {
+  assert.deepEqual(web.variables?.REDIS_URL, {
     type: "reference",
     resource: "database.Redis",
     output: "REDIS_URL",
   })
 
-  assert.equal(graphDocs.source?.repo, "austin-smith/webhooks.lol")
-  assert.equal(graphDocs.source?.branch, "main")
-  assert.equal(graphDocs.source?.rootDirectory, undefined)
-  assert.deepEqual(graphDocs.build?.watchPatterns, [
+  assert.equal(docs.source?.repo, "austin-smith/webhooks.lol")
+  assert.equal(docs.source?.branch, "main")
+  assert.equal(docs.source?.rootDirectory, undefined)
+  assert.equal(docs.build?.buildCommand, "pnpm docs:build")
+  assert.deepEqual(docs.build?.watchPatterns, [
     "**",
     "!/apps/cli/**",
     "!/apps/pgboss/**",
     "!/apps/web/**",
   ])
-  assert.deepEqual(Object.keys(graphDocs.variables ?? {}).sort(), [
+  assert.equal(docs.deploy?.startCommand, "pnpm docs:start")
+  assert.deepEqual(Object.keys(docs.networking?.customDomains ?? {}), [
+    expectedDocsDomain,
+  ])
+  assert.deepEqual(Object.keys(docs.variables ?? {}).sort(), [
     "NEXT_PUBLIC_APP_URL",
     "NEXT_PUBLIC_DOCS_URL",
   ])
 
-  assert.equal(graphPgboss.source?.repo, "austin-smith/webhooks.lol")
-  assert.equal(graphPgboss.source?.branch, "main")
-  assert.equal(graphPgboss.source?.rootDirectory, undefined)
-  assert.deepEqual(graphPgboss.build?.watchPatterns, [
+  assert.equal(pgboss.source?.repo, "austin-smith/webhooks.lol")
+  assert.equal(pgboss.source?.branch, "main")
+  assert.equal(pgboss.source?.rootDirectory, undefined)
+  assert.equal(pgboss.build?.buildCommand, "pnpm pgboss:build")
+  assert.deepEqual(pgboss.build?.watchPatterns, [
     "**",
     "!/apps/cli/**",
     "!/apps/docs/**",
     "!/apps/web/**",
   ])
-  assert.deepEqual(Object.keys(graphPgboss.variables ?? {}), ["DATABASE_URL"])
-  assert.deepEqual(graphPgboss.variables?.DATABASE_URL, {
+  assert.equal(pgboss.deploy?.startCommand, "pnpm pgboss:start")
+  assert.deepEqual(Object.keys(pgboss.variables ?? {}), ["DATABASE_URL"])
+  assert.deepEqual(pgboss.variables?.DATABASE_URL, {
     type: "reference",
     resource: "database.Postgres",
     output: "DATABASE_URL",
   })
 
-  assert.equal(
-    graphPostgres.image,
-    "ghcr.io/railwayapp-templates/postgres-ssl:18"
-  )
-  assert.equal(graphPostgres.defaultMountPath, "/var/lib/postgresql/data")
-  assert.equal(graphRedis.image, "redis:8")
-  assert.equal(graphRedis.defaultMountPath, "/data")
-  assert.equal(graphPostgresVolume.config?.region, "us-west2")
-  assert.equal(graphPostgresVolume.config?.sizeMB, 50_000)
-  assert.equal(graphRedisVolume.config?.region, "us-west2")
-  assert.equal(graphRedisVolume.config?.sizeMB, 50_000)
-
-  const autoUpdatedGraph = structuredClone(graph)
-  for (const resource of autoUpdatedGraph.resources) {
-    const pointRelease =
-      resource.address === "database.Postgres"
-        ? "ghcr.io/railwayapp-templates/postgres-ssl:18.6"
-        : resource.address === "database.Redis"
-          ? "redis:8.2.1"
-          : undefined
-
-    if (resource.type !== "database" || pointRelease === undefined) {
-      continue
-    }
-
-    resource.image = pointRelease
-    resource.source = {
-      ...resource.source,
-      type: "image",
-      image: pointRelease,
-      autoUpdates: { type: "minor", tagMode: "semver" },
-    }
-  }
-
-  const databaseDrift = diffGraphs({
-    current: autoUpdatedGraph,
-    desired: graph,
-  }).changes
-  assert.deepEqual(databaseDrift, [])
-
-  const web = desiredConfig.services?.web
-  const docs = desiredConfig.services?.docs
-  const pgboss = desiredConfig.services?.pgboss
-
-  assert.equal(web?.build?.buildCommand, "pnpm web:build")
-  assert.deepEqual(web?.deploy?.preDeployCommand, ["pnpm db:migrate"])
-  assert.equal(web?.deploy?.startCommand, "pnpm web:start")
-  assert.equal(docs?.build?.buildCommand, "pnpm docs:build")
-  assert.equal(docs?.deploy?.startCommand, "pnpm docs:start")
-  assert.equal(pgboss?.build?.buildCommand, "pnpm pgboss:build")
-  assert.equal(pgboss?.deploy?.startCommand, "pnpm pgboss:start")
-
-  const expectedWebDomain =
-    environment === "production" ? "webhooks.lol" : "dev.webhooks.lol"
-  const expectedDocsDomain =
-    environment === "production" ? "docs.webhooks.lol" : "dev-docs.webhooks.lol"
-
-  assert.deepEqual(Object.keys(web?.networking?.customDomains ?? {}), [
-    expectedWebDomain,
-  ])
-  assert.deepEqual(Object.keys(docs?.networking?.customDomains ?? {}), [
-    expectedDocsDomain,
-  ])
-  assert.equal(web?.variables?.APP_ENV?.value, environment)
+  assert.equal(postgres.image, "ghcr.io/railwayapp-templates/postgres-ssl:18")
+  assert.equal(postgres.defaultMountPath, "/var/lib/postgresql/data")
+  assert.equal(redis.image, "redis:8")
+  assert.equal(redis.defaultMountPath, "/data")
+  assert.equal(postgresVolume.config?.region, "us-west2")
+  assert.equal(postgresVolume.config?.sizeMB, 50_000)
+  assert.equal(redisVolume.config?.region, "us-west2")
+  assert.equal(redisVolume.config?.sizeMB, 50_000)
 }
 
 await assert.rejects(
-  evaluateRailwayFile(configurationFile, {
-    context: {
-      command: "validate",
-      environment: "staging",
-      environmentName: "staging",
-      projectName: "webhooks.lol",
-    },
-  }),
+  evaluateProjectDefinition("staging"),
   /Unsupported Railway environment: staging/
 )
+
+async function evaluateProjectDefinition(
+  environment: string
+): Promise<ProjectDefinition> {
+  return railwayProgram(
+    createRailwayContext({
+      command: "validate",
+      environment,
+      environmentName: environment,
+      projectName: "webhooks.lol",
+    }),
+    project
+  )
+}
+
+function findResource<Type extends ResourceNode["type"]>(
+  resources: ResourceNode[],
+  address: string,
+  type: Type
+): Extract<ResourceNode, { type: Type }> {
+  const resource = resources.find((candidate) => candidate.address === address)
+
+  assert.ok(
+    resource && isResourceOfType(resource, type),
+    `Expected Railway resource ${address} of type ${type}`
+  )
+
+  return resource
+}
+
+function isResourceOfType<Type extends ResourceNode["type"]>(
+  resource: ResourceNode,
+  type: Type
+): resource is Extract<ResourceNode, { type: Type }> {
+  return resource.type === type
+}

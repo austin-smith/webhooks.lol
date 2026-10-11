@@ -18,22 +18,29 @@ are available on clean builds.
 
 ## Tooling
 
-The repository exact-pins the Railway TypeScript SDK used to evaluate the IaC
-graph. Install the Railway CLI from Railway's official distribution rather than
-adding its npm wrapper to this workspace. Update it immediately before a
-cutover, confirm that it supports `config plan` and `config apply`, and record
-the version used in the change record:
+The repository exact-pins the Railway TypeScript SDK, which provides the
+`railway/iac` authoring API used by `.railway/railway.ts`. The Railway CLI
+evaluates that file and owns planning and applying; the pinned SDK requires
+Railway CLI 5.42.1 or newer. Install the Railway CLI from Railway's official
+distribution rather than adding its npm wrapper to this workspace. Update it
+immediately before a cutover, confirm that it supports `config plan` and
+`config apply`, and record the version used in the change record:
 
 ```bash
 railway --version
 ```
 
-Validate the TypeScript graph for both environments without connecting to
+Validate the project definition for both environments without connecting to
 Railway:
 
 ```bash
 pnpm railway:check
 ```
+
+The check evaluates `.railway/railway.ts` through the same default-export
+contract the CLI uses and asserts the expected resources, sources, commands,
+domains, and variables. How a definition is diffed against the live project is
+CLI plan behavior, visible only in `railway config plan`.
 
 Application verification and Railway infrastructure validation are separate
 checks. Run `pnpm verify` for the workspace and `pnpm railway:check` for the
@@ -81,10 +88,12 @@ with the existing `/data` mount; Railway's Redis helper is intentionally not
 used because it defines a different image and `/bitnami` mount contract.
 
 When enabled in Railway, image auto-updates may advance database point releases
-within those major versions. The pinned IaC SDK treats same-major database
-images as equivalent, so a plan does not roll an auto-updated point release
-back. Major-version upgrades require a separate, reviewed IaC change with a
-database-specific migration and rollback plan.
+within those major versions. The plan engine in the Railway CLI is expected to
+treat same-major database images as equivalent, so a plan does not roll an
+auto-updated point release back. `pnpm railway:check` cannot verify this
+offline: if a plan proposes changing a database image back to its major-version
+tag, stop and do not apply it. Major-version upgrades require a separate,
+reviewed IaC change with a database-specific migration and rollback plan.
 
 ## Cutover Procedure
 
