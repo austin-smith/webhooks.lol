@@ -48,7 +48,7 @@
     "prettier-plugin-tailwindcss": "^0.8.1",
     "railway": "3.16.0",
     "turbo": "^2.11.10",
-    "typescript": "^5",
+    "typescript": "^6.0.3",
     "wrangler": "^4.152.0"
   }
 }

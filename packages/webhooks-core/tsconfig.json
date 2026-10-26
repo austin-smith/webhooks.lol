@@ -5,10 +5,9 @@
     "declaration": true,
     "declarationMap": true,
     "noEmit": true,
-    "baseUrl": ".",
     "paths": {
-      "@webhooks-lol/webhooks-core": ["src/index.ts"],
-      "@webhooks-lol/webhooks-core/*": ["src/*.ts"]
+      "@webhooks-lol/webhooks-core": ["./src/index.ts"],
+      "@webhooks-lol/webhooks-core/*": ["./src/*.ts"]
     },
     "types": ["node"]
   },

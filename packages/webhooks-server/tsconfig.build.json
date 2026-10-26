@@ -5,8 +5,8 @@
     "rootDir": "src",
     "outDir": "dist",
     "paths": {
-      "@webhooks-lol/webhooks-server": ["src/index.ts"],
-      "@webhooks-lol/webhooks-server/*": ["src/*.ts"]
+      "@webhooks-lol/webhooks-server": ["./src/index.ts"],
+      "@webhooks-lol/webhooks-server/*": ["./src/*.ts"]
     },
     "sourceMap": false,
     "declarationMap": false
