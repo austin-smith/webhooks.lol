@@ -1,15 +1,9 @@
-import { dirname } from "node:path"
-import { fileURLToPath } from "node:url"
-
 import eslint from "@eslint/js"
+import { defineConfig, globalIgnores } from "eslint/config"
 import tseslint from "typescript-eslint"
 
-const tsconfigRootDir = dirname(fileURLToPath(import.meta.url))
-
-export default tseslint.config(
-  {
-    ignores: ["dist/**"],
-  },
+export default defineConfig(
+  globalIgnores(["dist/**"]),
   eslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
   {
@@ -18,7 +12,7 @@ export default tseslint.config(
         projectService: {
           allowDefaultProject: ["eslint.config.mjs", "vitest.config.ts"],
         },
-        tsconfigRootDir,
+        tsconfigRootDir: import.meta.dirname,
       },
     },
     rules: {
