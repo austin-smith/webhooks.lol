@@ -27,7 +27,7 @@
     "watch": "tsc -b tsconfig.build.json --watch --preserveWatchOutput"
   },
   "dependencies": {
-    "drizzle-orm": "^0.45.3",
+    "drizzle-orm": "^0.45.4",
     "postgres": "^3.4.9",
     "server-only": "^0.0.1"
   },
