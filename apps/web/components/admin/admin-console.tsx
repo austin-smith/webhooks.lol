@@ -1,11 +1,14 @@
 "use client"
 
 import { useState, type ReactNode } from "react"
-import type { ColumnDef } from "@tanstack/react-table"
 import { BracesIcon, UsersIcon, WebhookIcon } from "lucide-react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 
-import { DataTable, DataTableColumnHeader } from "@/components/ui/data-table"
+import {
+  DataTable,
+  DataTableColumnHeader,
+  type DataTableColumnDef,
+} from "@/components/ui/data-table"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -45,7 +48,7 @@ const REQUEST_METHODS = [
   "OPTIONS",
 ] as const
 
-const requestColumns: ColumnDef<AdminRequestRow>[] = [
+const requestColumns: DataTableColumnDef<AdminRequestRow>[] = [
   {
     accessorKey: "receivedAtTime",
     cell: ({ row }) => (
@@ -107,7 +110,7 @@ const requestColumns: ColumnDef<AdminRequestRow>[] = [
   },
 ]
 
-const userColumns: ColumnDef<AdminUserRow>[] = [
+const userColumns: DataTableColumnDef<AdminUserRow>[] = [
   {
     accessorKey: "email",
     cell: ({ row }) => (
@@ -178,7 +181,7 @@ const userColumns: ColumnDef<AdminUserRow>[] = [
   },
 ]
 
-const endpointColumns: ColumnDef<AdminEndpointRow>[] = [
+const endpointColumns: DataTableColumnDef<AdminEndpointRow>[] = [
   {
     accessorKey: "name",
     cell: ({ row }) => (
