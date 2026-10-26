@@ -5,15 +5,14 @@
     "declaration": true,
     "declarationMap": true,
     "noEmit": true,
-    "baseUrl": ".",
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "paths": {
       "@webhooks-lol/database": ["../database/src/index.ts"],
       "@webhooks-lol/database/*": ["../database/src/*.ts"],
       "@webhooks-lol/webhooks-core": ["../webhooks-core/src/index.ts"],
       "@webhooks-lol/webhooks-core/*": ["../webhooks-core/src/*.ts"],
-      "@webhooks-lol/webhooks-server": ["src/index.ts"],
-      "@webhooks-lol/webhooks-server/*": ["src/*.ts"]
+      "@webhooks-lol/webhooks-server": ["./src/index.ts"],
+      "@webhooks-lol/webhooks-server/*": ["./src/*.ts"]
     },
     "types": ["node"]
   },

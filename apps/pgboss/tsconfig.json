@@ -5,7 +5,6 @@
     "declaration": true,
     "declarationMap": true,
     "noEmit": true,
-    "baseUrl": ".",
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "paths": {
       "@webhooks-lol/database": ["../../packages/database/src/index.ts"],
