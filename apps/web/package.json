@@ -5,7 +5,7 @@
   "type": "module",
   "private": true,
   "engines": {
-    "node": "24.x"
+    "node": "26.x"
   },
   "scripts": {
     "build": "next build",
@@ -44,7 +44,7 @@
     "@next/env": "16.4.2",
     "@react-email/ui": "6.11.3",
     "@tailwindcss/postcss": "^4.3.3",
-    "@types/node": "^24.19.2",
+    "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "eslint": "^10.13.0",
