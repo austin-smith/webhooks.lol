@@ -79,8 +79,8 @@ variable in `.railway/railway.ts` before applying.
 | `docs`   | `pnpm docs:build`   | none               | `pnpm docs:start`   |
 | `pgboss` | `pnpm pgboss:build` | none               | `pnpm pgboss:start` |
 
-All three services use Railpack, the Railway V2 runtime, one `us-west2`
-replica, and an `ON_FAILURE` restart policy with ten retries.
+All three services use Railpack, the Railway V2 runtime, and one `us-west2`
+replica.
 
 ## Database Image Policy
 

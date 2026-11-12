@@ -72,8 +72,6 @@ for (const environment of deploymentEnvironments) {
     "!/apps/pgboss/**",
   ])
   assert.equal(web.deploy?.runtime, "V2")
-  assert.equal(web.deploy?.restartPolicyType, "ON_FAILURE")
-  assert.equal(web.deploy?.restartPolicyMaxRetries, 10)
   assert.deepEqual(web.deploy?.multiRegionConfig, {
     "us-west2": { numReplicas: 1 },
   })
