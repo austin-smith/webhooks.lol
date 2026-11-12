@@ -22,7 +22,7 @@
     "@webhooks-lol/database": "workspace:*",
     "@webhooks-lol/webhooks-core": "workspace:*",
     "@webhooks-lol/webhooks-server": "workspace:*",
-    "better-auth": "^1.7.12",
+    "better-auth": "^1.7.18",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
