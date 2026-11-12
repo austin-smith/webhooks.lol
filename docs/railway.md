@@ -79,8 +79,13 @@ variable in `.railway/railway.ts` before applying.
 | `docs`   | `pnpm docs:build`   | none               | `pnpm docs:start`   |
 | `pgboss` | `pnpm pgboss:build` | none               | `pnpm pgboss:start` |
 
-All three services use Railpack, the Railway V2 runtime, one `us-west2`
-replica, and an `ON_FAILURE` restart policy with ten retries.
+All three services use Railpack, the Railway V2 runtime, and one `us-west2`
+replica.
+
+The services use Railway's default restart policy: restart on failure, up to
+ten times. Railway stores that default as an unset value, so
+`.railway/railway.ts` does not declare it. Declaring `ON_FAILURE` with ten
+retries produces a plan change that applying never clears.
 
 ## Database Image Policy
 

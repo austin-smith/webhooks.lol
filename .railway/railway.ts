@@ -19,8 +19,6 @@ const serviceDefaults = {
   source: github(repository, { branch: "main" }),
   deploy: {
     runtime: "V2",
-    restartPolicyType: "ON_FAILURE",
-    restartPolicyMaxRetries: 10,
     multiRegionConfig: {
       [region]: { numReplicas: 1 },
     },
